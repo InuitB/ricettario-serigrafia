@@ -33,32 +33,49 @@ Ospitata su GitHub Pages, usa Google Sheets come database tramite Apps Script.
 | `Log` | Timestamp, Pantone_ID, Campo, Valore_vecchio, Valore_nuovo |
 | `Sperimentazioni` | Sperim_ID, Timestamp, Progetto, Note, Stato, Pantone_ID_assegnato, Inchiostro_1…6, Dose_reale_1…6, Dose_40g_1…6 |
 
+**Nota campo dose:** il nome corretto è `'Dose_40g (g)'` (con spazio e parentesi). In JS va sempre scritto `c['Dose_40g (g)']`, mai `c.Dose_40g`.
+
 ---
 
 ## Struttura JS interna (index.html)
 
 ### Variabili globali principali
 ```js
-const SCRIPT_URL = '...'     // Apps Script endpoint
-let allRicette = []           // array oggetti dal foglio Ricette
-let allComponenti = []        // array oggetti dal foglio Componenti
-let allInchiostri = []        // array oggetti dal foglio Inchiostri
-let allSperimentazioni = []   // array oggetti dal foglio Sperimentazioni
-let activeId = null           // Pantone_ID della ricetta aperta
-let activeSperimId = null     // Sperim_ID della sperimentazione aperta
-let currentPanel = 'archivio' // 'archivio' | 'sperim'
-const PANTONE_NAMES = {...}   // dizionario 570 nomi Pantone (es. '166 U': 'Blaze Orange')
-const NEBULICA_B64 = '...'    // font Regular base64 per jsPDF
+const SCRIPT_URL = '...'       // Apps Script endpoint
+let allRicette = []             // array oggetti dal foglio Ricette
+let allComponenti = []          // array oggetti dal foglio Componenti
+let allInchiostri = []          // array oggetti dal foglio Inchiostri
+let allSperimentazioni = []     // array oggetti dal foglio Sperimentazioni
+let activeId = null             // Pantone_ID della ricetta aperta
+let activeSperimId = null       // Sperim_ID della sperimentazione aperta
+let activeQty = 100             // quantità selezionata (g) per il calcolo dosi
+let currentPanel = 'archivio'  // 'archivio' | 'sperim'
+const PANTONE_NAMES = {...}     // dizionario 570 nomi Pantone (es. '166 U': 'Blaze Orange')
+const NEBULICA_B64 = '...'     // font Regular base64 per jsPDF
 const NEBULICA_BOLD_B64 = '...' // font Bold base64 per jsPDF
+
+// Wallet stack
+const PEEK_H    = 76            // altezza visibile di una card in stack (px)
+const ACTIVE_H  = 178           // altezza card a riposo (px)
+const OPEN_DUR  = 560           // durata animazione apertura (ms)
+const CLOSE_DUR = 320           // durata animazione chiusura (ms)
+const OPEN_EASE  = 'cubic-bezier(.5,.05,.1,1.05)'
+const CLOSE_EASE = 'cubic-bezier(.55,.06,.68,.19)'
+let walletCards = []            // array ricette visualizzate nel wallet
+let walletSelectedIdx = null    // indice card aperta (null = lista)
+let walletClosing = false       // true durante animazione chiusura
+let walletScrollOffset = 0      // offset scroll verticale dello stack
+let walletStackTop = 0          // top px dello stack (sotto header)
+let walletStackH = 0            // altezza disponibile per lo stack (px)
 ```
 
 ### Funzioni principali
 ```
 loadData()                  → fetch Google Sheet (CSV pubblico), popola allRicette/Componenti/Inchiostri
 loadSperimentazioni()       → fetch foglio Sperimentazioni
-filterList()                → filtra e renderizza lista ricette (ricerca + categoria)
-showDetail(id)              → apre dettaglio ricetta
-showList()                  → torna alla lista
+filterList()                → chiama walletSetupLayout() + renderWalletList() con ricette filtrate
+showDetail(id)              → apre dettaglio ricetta (view-detail, usato dal vecchio flusso)
+showList()                  → torna alla lista wallet (view-list)
 switchPanel(panel)          → switcha Archivio ↔ Sperimentazione nel tab Nuova
 openSperimSheet()           → apre sheet nuova sperimentazione
 salvaSperimentazione()      → POST addSperimentazione → Apps Script
@@ -69,6 +86,19 @@ stampaPDF()                 → genera PDF etichetta termica 57×25mm con jsPDF
 openEditSheet()             → apre sheet modifica ricetta esistente
 saveEdit()                  → POST editRicetta → Apps Script
 salvaFormula()              → POST addRicetta → Apps Script
+
+// Wallet stack
+walletSetupLayout()         → calcola walletStackTop/H, posiziona sheet e hint
+renderWalletList(filtered)  → genera HTML card + chiama walletApplyPositions()
+walletApplyPositions(anim)  → applica transform a tutte le card (lista / fan-out / dettaglio)
+selectWalletCard(idx)       → apre card: fan-out delle altre, sale color card, mostra formula sheet
+walletClose()               → chiude con animazione, ripristina lista
+walletResetToList()         → reset immediato senza animazione
+walletShowRecipe(r)         → renderizza formula sheet per la ricetta r
+walletSetQty(qty, el)       → aggiorna activeQty e ri-renderizza la formula sheet
+walletFgColor(hex)          → restituisce '#0B0B0B' o '#ffffff' in base alla luminosità del colore
+walletAttachScroll(stack)   → attacca eventi touch/wheel per scroll dello stack
+walletUpdateScrollPositions() → aggiorna solo i top delle card (senza animazione, per scroll)
 ```
 
 ---
@@ -78,22 +108,60 @@ salvaFormula()              → POST addRicetta → Apps Script
 L'app usa una navigazione a view: un solo `index.html`, le sezioni si mostrano/nascondono via `display`.
 
 ```
-#view-list          → lista ricette (tab Ricette)
-#view-detail        → dettaglio ricetta singola
+#view-list          → lista ricette WALLET (tab Ricette) — position:fixed, overflow:hidden
+#view-detail        → dettaglio ricetta singola (usato ancora da showDetail)
 #view-inks          → lista inchiostri
 #view-ink-detail    → dettaglio inchiostro
-#view-add           → tab Nuova Formula (contiene segmented control + #panel-archivio-form / #panel-sperim-form)
+#view-add           → tab Nuova Formula (contiene segmented control + panel-archivio-form / panel-sperim-form)
 #view-progetti      → lista progetti
 #view-proj-detail   → dettaglio progetto
 #view-sperim-detail → dettaglio sperimentazione
 ```
 
-La funzione `hideAllViews()` nasconde tutte le view prima di mostrarne una.
+`#view-list` non usa `hideAllViews()`: si mostra/nasconde con la classe `.active` (`display:block`).
 
 ### Navigazione bottom bar (3 tab)
 - **Flask** (ricette) → `showList()`
 - **Folder** (progetti) → `showProgetti()`
 - **Pencil+circle** (nuova) → `showAdd()`
+
+---
+
+## Wallet Stack UI (view-list)
+
+La lista ricette usa un sistema a "wallet" ispirato ad Apple Pay: card colorate impilate verticalmente, toccandone una le altre spariscono con fan-out a 4 angoli e compare la formula sheet.
+
+### Struttura HTML
+```
+#view-list (position:fixed, background:#F4EFE2)
+  #wallet-blob-bg          → sfondo blob animati (compare solo in dettaglio)
+  #wallet-list-chrome      → header: count + search + categorie
+  #wallet-stack            → contenitore card (position:absolute, scroll gestito via JS)
+    .wallet-card × N       → singola card colorata (position:absolute, top gestito via JS)
+  #wallet-recipe-sheet     → formula sheet (position:absolute, sale dal basso)
+  #wallet-hint             → "↑ TOCCA UNA CARD"
+  #wallet-detail-chrome    → header dettaglio (← Ricette + matita)
+```
+
+### Animazione card
+- Le card sono `position:absolute` con `top` statico (mai animato — layout reflow).
+- Il movimento usa esclusivamente `transform: translateY()` (GPU composited).
+- **Lista:** tutte con `transform:none`, impilate con peek di 76px.
+- **Dettaglio (card selezionata):** `translateY` calcolato per portarla a y=90px dal top viewport.
+- **Fan-out (altre card):** 4 direzioni angolari, ciclo `(i - selectedIdx + 1000) % 4`.
+- `will-change: transform, opacity` + `backface-visibility: hidden` per GPU layer promotion.
+- **Importante iOS Safari:** usare `box-shadow` (non `filter: drop-shadow`) sulle card animate — `filter` disabilita il compositing GPU.
+
+### Formula sheet (#wallet-recipe-sheet)
+- `position:absolute`, `top` = 90 + 178 + 14 = **282px** dal top viewport.
+- Nessun `max-height` né `overflow-y:scroll` — si allunga naturalmente con gli ingredienti.
+- Appare con transizione `rising` (translateY 80px → 0, opacity 0 → 1).
+- Contiene: selettore quantità (100g/300g/500g/1kg), righe formula con barre proporzionali, bottone Stampa etichetta.
+- Le dosi si calcolano da `c['Dose_40g (g)']` (campo con spazio e parentesi — non `c.Dose_40g`).
+
+### Blob background
+- Tre `div.wallet-blob` con `filter:blur(70px)` del colore Pantone, visibili solo in modalità dettaglio.
+- Il blob superiore parte da `top:22%` con animazione che non sale oltre -8px — per non sforare dietro la status bar iOS.
 
 ---
 
@@ -155,8 +223,9 @@ Tutte le POST usano `mode: 'no-cors'` e `Content-Type: text/plain`.
 
 - **Variabili:** `--font`, `--bg`, `--surface`, `--text`, `--text-2`, `--text-3`, `--border`, `--border-strong`, `--radius`
 - **Font:** Nebulica per titoli/codici, Arial/system per testi minori
-- **Colore sfondo app:** `#F2F1ED` (beige caldo)
+- **Colore sfondo app (wallet):** `#F4EFE2` (beige caldo)
 - Le sheet (modifica, nuova, promuovi) salgono dal basso con `translateY(100%) → translateY(0)` + overlay blur
+- Classi wallet con prefisso `wallet-` (card, stack, blob) e `wrs-` (wallet recipe sheet)
 
 ---
 
