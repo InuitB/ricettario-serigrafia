@@ -1431,9 +1431,10 @@ html {
   position: absolute; left: 0; right: 0; height: 178px;
   border-radius: 22px; overflow: hidden; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  filter: drop-shadow(0 14px 28px rgba(0,0,0,0.14));
+  box-shadow: 0 14px 28px rgba(0,0,0,0.14);
   will-change: transform, opacity;
-  /* le transizioni sono gestite inline dal JS */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 .wallet-card-ink-count {
   position: absolute; top: 14px; right: 18px;
@@ -3498,7 +3499,10 @@ function walletApplyPositions(animate) {
     const baseTop = stackPosTop - walletScrollOffset; // posizione lista, mai animata
 
     el.style.top = baseTop + 'px';       // aggiornato senza transizione
-    el.style.transition = trans;         // solo transform + opacity
+
+    // Anima solo le card visibili — le altre snappano (risparmio GPU)
+    const visible = baseTop > -ACTIVE_H && baseTop < walletStackH + ACTIVE_H;
+    el.style.transition = (animate && visible) ? trans : 'none';
 
     if (isListMode) {
       el.style.opacity = '1';
