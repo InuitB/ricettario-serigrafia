@@ -1481,8 +1481,7 @@ html {
   z-index: 6; pointer-events: none;
   opacity: 0; transform: translateY(80px);
   transition: none;
-  overflow-y: auto;
-  /* top e max-height calcolati in JS in base alla posizione della card */
+  /* top calcolato in JS in base alla posizione della card */
 }
 .wallet-recipe-sheet.rising {
   transition:
@@ -3469,13 +3468,13 @@ function walletSetupLayout() {
     stack.style.top = walletStackTop + 'px';
     stack.style.bottom = navH + 'px';
   }
-  // Formula sheet: sempre sotto la card (138 + 178 + 14 = 330px dal top)
-  const CARD_BOTTOM = 138 + ACTIVE_H + 14;
+  // Formula sheet: sempre sotto la card (90 + 178 + 14 = 282px dal top)
+  const CARD_BOTTOM = 90 + ACTIVE_H + 14;
   const sheet = document.getElementById('wallet-recipe-sheet');
   if (sheet) {
     sheet.style.top = CARD_BOTTOM + 'px';
     sheet.style.bottom = '';
-    sheet.style.maxHeight = (window.innerHeight - CARD_BOTTOM - navH - 12) + 'px';
+    sheet.style.maxHeight = '';
   }
   const hint = document.getElementById('wallet-hint');
   if (hint) hint.style.bottom = (navH + 4) + 'px';
@@ -3513,7 +3512,7 @@ function walletApplyPositions(animate) {
       el.classList.remove('expanded');
     } else if (i === walletSelectedIdx) {
       // Sposta la card selezionata a y=138 tramite translateY (GPU)
-      const ty = 138 - walletStackTop - baseTop;
+      const ty = 90 - walletStackTop - baseTop;
       el.style.opacity = '1';
       el.style.zIndex = '999';
       el.style.transform = `translateY(${ty}px)`;
