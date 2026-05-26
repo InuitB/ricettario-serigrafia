@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Ricettario Pantone — Esplorazioni</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'Nebulica';
+    src: url('fonts/Nebulica-Regular.otf') format('opentype');
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: 'Nebulica';
+    src: url('fonts/Nebulica-Bold.otf') format('opentype');
+    font-weight: 700; font-style: normal; font-display: swap;
+  }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Nebulica', -apple-system, system-ui, sans-serif;
+    background: #f0eee9;
+    overscroll-behavior: none;
+  }
+  * { box-sizing: border-box; }
+  #app { width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="shared2.jsx"></script>
+<script type="text/babel" src="variant1.jsx"></script>
+<script type="text/babel" src="variant2.jsx"></script>
+<script type="text/babel" src="variant3.jsx"></script>
+<script type="text/babel" src="variant4.jsx"></script>
+<script type="text/babel" src="variant5.jsx"></script>
+<script type="text/babel" src="variant6.jsx"></script>
+<script type="text/babel" src="variant7.jsx"></script>
+<script type="text/babel" src="variant8.jsx"></script>
+<script type="text/babel" src="variant9.jsx"></script>
+<script type="text/babel" src="variant10.jsx"></script>
+<script type="text/babel" src="variant11.jsx"></script>
+<script type="text/babel" src="variant12.jsx"></script>
+<script type="text/babel" src="variant13.jsx"></script>
+<script type="text/babel" src="variant14.jsx"></script>
+<script type="text/babel" src="variant15.jsx"></script>
+<script type="text/babel" src="variant16.jsx"></script>
+<script type="text/babel" src="variant17.jsx"></script>
+<script type="text/babel" src="variant18.jsx"></script>
+<script type="text/babel" src="shared3.jsx"></script>
+<script type="text/babel" src="variants18plus.jsx"></script>
+<script type="text/babel" src="shared4.jsx"></script>
+<script type="text/babel" src="variants23plus.jsx"></script>
+<script type="text/babel" src="shared5.jsx"></script>
+<script type="text/babel" src="variants28plus.jsx"></script>
+<script type="text/babel" src="variantsFinal.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const PHONE_W = 360;
+const PHONE_H = 780;
+
+const VARIANTS = [
+  {
+    id: 'v7', title: '07 · Wallet Stack · cream',
+    subtitle: 'Carte Pantone in stile iOS Wallet, impilate sul cream · ogni card peeka da sotto. Detail con il colore su TUTTA la parte superiore. Toggle cream\u2194grey visibile in header.',
+    List: V7List, Detail: V7Detail,
+  },
+  {
+    id: 'v8', title: '08 · Wallet Stack · grey',
+    subtitle: 'Stessa logica della 07 ma sul fondo grigio chiaro (il secondo stato del toggle). Vetro morbido sui controlli per staccarli dal grigio.',
+    List: V8List, Detail: V8Detail,
+  },
+  {
+    id: 'v9', title: '09 · Soft Blobs · statico',
+    subtitle: 'Sfondo a macchie globulari con grana, fermo. Pantone come card che fluttuano in griglia. Pannelli vetro per ricerca, CTA e quantit\u00e0.',
+    List: V9List, Detail: V9Detail,
+  },
+  {
+    id: 'v10', title: '10 · Soft Blobs · animato',
+    subtitle: 'Stesso linguaggio ma le macchie si muovono lentamente. Carte wallet in primo piano per restare leggibili sopra il movimento.',
+    List: V10List, Detail: V10Detail,
+  },
+  {
+    id: 'v11', title: '11 · Editorial Wallet',
+    subtitle: 'Mix tra l\u2019indice editoriale (Instrument Serif + numeri romani) e le carte wallet. Detail full-bleed che poi cade in un layout da rivista.',
+    List: V11List, Detail: V11Detail,
+  },
+  {
+    id: 'v12', title: '12 · Compact Wallet Rows',
+    subtitle: 'Ogni riga \u00e8 una mini-card Pantone (met\u00e0 colore, met\u00e0 dati) · scrolla bene con 247 voci. Carta con grana paper. Detail full-bleed in alto.',
+    List: V12List, Detail: V12Detail,
+  },
+  // ── round 1 — riferimento ─────────────────────────────────────
+  {
+    id: 'v1', title: '01 · Editorial Bold (round 1)',
+    subtitle: 'Nebulica unica protagonista · cream BG · tipografia amplificata, regole sottili, layout da catalogo',
+    List: V1List, Detail: V1Detail,
+  },
+  {
+    id: 'v2', title: '02 · Full-bleed Pantone (round 1)',
+    subtitle: 'Il colore è il layout · ogni voce è una slab · header full-bleed sul dettaglio',
+    List: V2List, Detail: V2Detail,
+  },
+  {
+    id: 'v3', title: '03 · Grid Cards (round 1)',
+    subtitle: 'Griglia 2-col, ogni Pantone come oggetto raccoglibile · accenti morbidi',
+    List: V3List, Detail: V3Detail,
+  },
+  {
+    id: 'v4', title: '04 · Mono Lab (round 1)',
+    subtitle: 'JetBrains Mono + Nebulica · tabella scientifica',
+    List: V4List, Detail: V4Detail,
+  },
+  {
+    id: 'v5', title: '05 · Dark Tech (round 1)',
+    subtitle: 'Fondo nero + neon · escluso dal nuovo round perch\u00e9 non ti piace il dark, ma resta per riferimento',
+    List: V5List, Detail: V5Detail,
+  },
+  {
+    id: 'v6', title: '06 · Magazine Index (round 1)',
+    subtitle: 'Instrument Serif italic + Nebulica · indice editoriale, numeri romani',
+    List: V6List, Detail: V6Detail,
+  },
+];
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="intro" title="Ricettario Pantone — VERSIONE FINALE in cima" subtitle="V31 mette insieme: exit 'shrinkBack' (le card si rimpiccioliscono e svaniscono verso un punto in alto, vibe Apple Watch stacks) · distanza codice ↔ ricetta come V23 · apertura ricetta come V23 · ritorno alla lista rapido come V26. Tutti i fix di Round 7: ink count fisso top-right, search/filtro stondati, nomi inchiostri e grammature grandi, U in Nebulica, lista scrollabile con mask fade in alto.">
+      </DCSection>
+
+      <DCSection id="rF" title="Versione finale · V31" subtitle="Scrolla la stack, clicca una card. Torna indietro con la pill 'Ricette'.">
+        <DCArtboard id="v31" label="31 · FINALE · shrinkBack · ritorno V26" width={360} height={780}>
+          <V31/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="r7" title="Round 7 — Versione finale · 3 animazioni" subtitle="Scrolla la stack (rotellina o trascina), clicca una card. La differenza tra le 3 varianti è solo nell'animazione di entrata/uscita.">
+        <DCArtboard id="v28" label="28 · fade-scale · ricetta scala dalla card" width={360} height={780}>
+          <V28/>
+        </DCArtboard>
+        <DCArtboard id="v29" label="29 · fan-out · 4 angoli · chiusura rapida" width={360} height={780}>
+          <V29/>
+        </DCArtboard>
+        <DCArtboard id="v30" label="30 · slide-down · tutte giù insieme" width={360} height={780}>
+          <V30/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="r6" title="Round 6 — V19 raffinato + 3 animazioni a confronto" subtitle="Clicca le card in ogni variante per provare. V24 è scrollabile (25 cards) ma usa la stessa animazione di V23.">
+        <DCArtboard id="v23" label="23 · raffinato · raccomandato" width={360} height={780}>
+          <V23/>
+        </DCArtboard>
+        <DCArtboard id="v24" label="24 · scrollabile · 25 cards" width={360} height={780}>
+          <V24/>
+        </DCArtboard>
+        <DCArtboard id="v25" label="25 · fade-scale · ricetta scala" width={360} height={780}>
+          <V25/>
+        </DCArtboard>
+        <DCArtboard id="v26" label="26 · fan-out 4 angoli · chiusura rapida" width={360} height={780}>
+          <V26/>
+        </DCArtboard>
+        <DCArtboard id="v27" label="27 · slide-down · chiusura calma" width={360} height={780}>
+          <V27/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="r5" title="Round 5 — Wallet evoluto · 4 animazioni" subtitle="Clicca le card per provare ogni animazione. Stack invertito, fronte in basso. Le pill bordo nero, la card più bassa e i colori inchiostro AS sono ripartiti tra V19–V22.">
+        <DCArtboard id="v18b" label="18 · base · click classico (corretto)" width={360} height={780}>
+          <V18Base/>
+        </DCArtboard>
+        <DCArtboard id="v19" label="19 · spring + bordi neri pill" width={360} height={780}>
+          <V19/>
+        </DCArtboard>
+        <DCArtboard id="v20" label="20 · scale-rise + card più bassa" width={360} height={780}>
+          <V20/>
+        </DCArtboard>
+        <DCArtboard id="v21" label="21 · fan-out + colori inchiostro AS" width={360} height={780}>
+          <V21/>
+        </DCArtboard>
+        <DCArtboard id="v22" label="22 · soft snap + mix tutto" width={360} height={780}>
+          <V22/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="r3" title="Round 3 — nuove proposte" subtitle="Le richieste: codice in alto, nomi visibili in lista, blob colorato del Pantone come elemento decorativo, fondo chiaro o dinamico, una variante con bordi neri, una versione light del V2.">
+        <DCArtboard id="v13-list" label="13 · Wallet interattivo · trascina o clicca" width={360} height={780}>
+          <V13List/>
+        </DCArtboard>
+        <DCArtboard id="v14-detail" label="14 · Detail · blob Pantone animato" width={360} height={780}>
+          <V14Detail/>
+        </DCArtboard>
+        <DCArtboard id="v15-detail" label="15 · Detail · sfondo chiaro + blob in basso" width={360} height={780}>
+          <V15Detail/>
+        </DCArtboard>
+        <DCArtboard id="v16-list" label="16 · Full-bleed LIGHT · lista" width={360} height={780}>
+          <V16List/>
+        </DCArtboard>
+        <DCArtboard id="v16-detail" label="16 · Full-bleed LIGHT · dettaglio" width={360} height={780}>
+          <V16Detail/>
+        </DCArtboard>
+        <DCArtboard id="v17-list" label="17 · Bordi neri · lista" width={360} height={780}>
+          <V17List/>
+        </DCArtboard>
+        <DCArtboard id="v17-detail" label="17 · Bordi neri · dettaglio" width={360} height={780}>
+          <V17Detail/>
+        </DCArtboard>
+      </DCSection>
+
+      {VARIANTS.map(v => (
+        <DCSection key={v.id} id={v.id} title={v.title} subtitle={v.subtitle}>
+          <DCArtboard id={v.id + '-list'} label="Lista" width={PHONE_W} height={PHONE_H}>
+            <v.List/>
+          </DCArtboard>
+          <DCArtboard id={v.id + '-detail'} label="Dettaglio · 699 U" width={PHONE_W} height={PHONE_H}>
+            <v.Detail/>
+          </DCArtboard>
+        </DCSection>
+      ))}
+    </DesignCanvas>
+  );
+}
+
+// Wait one frame for all babel scripts to finish, then mount.
+requestAnimationFrame(() => {
+  ReactDOM.createRoot(document.getElementById('app')).render(<App/>);
+});
+</script>
+</body>
+</html>
