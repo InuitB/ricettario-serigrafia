@@ -2093,8 +2093,8 @@ async function fetchSheet(sheetName) {
 }
 
 async function loadData() {
-  const listEl = document.getElementById('recipe-list');
-  listEl.innerHTML = '<div class="loading"><div class="spinner"></div>Caricamento ricette...</div>';
+  const countEl = document.getElementById('wallet-count');
+  if (countEl) countEl.textContent = 'Caricamento…';
   try {
     const [ricette, componenti, inchiostri] = await Promise.all([
       fetchSheet('Ricette'),
@@ -2107,7 +2107,7 @@ async function loadData() {
     buildCategoryChips();
     filterList();
   } catch(e) {
-    listEl.innerHTML = '<div class="error-msg">Errore nel caricamento dei dati. Controlla la connessione e che il foglio sia pubblico.</div>';
+    if (countEl) countEl.textContent = 'Errore caricamento';
     console.error(e);
   }
 }
