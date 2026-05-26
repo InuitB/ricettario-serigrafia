@@ -138,8 +138,15 @@ html {
   border-color: var(--text);
 }
 
-/* ── LIST VIEW ── */
-#view-list { flex: 1; padding-bottom: 90px; }
+/* ── LIST VIEW — WALLET STACK ── */
+#view-list {
+  position: fixed;
+  inset: 0;
+  background: #F4EFE2;
+  overflow: hidden;
+  display: none; /* gestito da showList() */
+}
+#view-list.active { display: block; }
 .list-count {
   font-size: 11px;
   color: var(--text-3);
@@ -1316,48 +1323,284 @@ html {
 .print-btn:active { background: var(--text); color: #fff; }
 .print-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 
+/* ══════════════════════════════════════════════════════
+   WALLET STACK — stili completi
+   ══════════════════════════════════════════════════════ */
+
+/* Header lista */
+.wallet-header {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: max(env(safe-area-inset-top), 14px) 18px 0;
+  z-index: 10;
+  transition: opacity 0.35s, transform 0.35s;
+}
+.wallet-title {
+  font-family: 'Nebulica', system-ui, sans-serif;
+  font-weight: 700; font-size: 28px;
+  line-height: 0.95; letter-spacing: -0.9px; color: #0B0B0B;
+}
+.wallet-count {
+  font-family: 'Nebulica', system-ui, sans-serif;
+  font-size: 10px; letter-spacing: 1.4px; font-weight: 700;
+  color: rgba(0,0,0,0.5); margin-top: 3px; text-transform: uppercase;
+}
+.wallet-search-row { display: flex; gap: 10px; margin-top: 12px; }
+.wallet-search-bar {
+  flex: 1; height: 44px; border-radius: 99px; background: #fff;
+  border: 1.5px solid #0B0B0B;
+  display: flex; align-items: center; padding: 0 16px; gap: 10px;
+}
+.wallet-search-bar input {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-family: 'Nebulica', system-ui, sans-serif;
+  font-size: 14px; color: #0B0B0B;
+}
+.wallet-search-bar input::placeholder { color: rgba(0,0,0,0.4); }
+.wallet-search-bar svg path { fill: rgba(0,0,0,0.4); }
+.wallet-filter-btn {
+  width: 44px; height: 44px; border-radius: 99px; background: #fff;
+  border: 1.5px solid #0B0B0B;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+}
+.wallet-filter-btn svg path { fill: #0B0B0B; }
+.wallet-chips {
+  display: flex; gap: 7px; padding: 10px 0 0;
+  overflow-x: auto; scrollbar-width: none;
+}
+.wallet-chips::-webkit-scrollbar { display: none; }
+.wallet-chips .chip {
+  border: 1.5px solid rgba(0,0,0,0.2);
+  background: rgba(255,255,255,0.7);
+  color: rgba(0,0,0,0.7);
+}
+.wallet-chips .chip.active { background: #0B0B0B; color: #F4EFE2; border-color: #0B0B0B; }
+
+/* Detail chrome (back + edit) */
+.wallet-detail-chrome {
+  position: absolute; left: 18px; right: 18px;
+  top: max(env(safe-area-inset-top), 14px);
+  z-index: 15;
+  display: flex; justify-content: space-between; align-items: center;
+  opacity: 0; transform: translateY(-10px);
+  transition: opacity 0.35s 0.1s, transform 0.35s 0.1s;
+  pointer-events: none;
+}
+.wallet-detail-chrome.visible { opacity: 1; transform: none; pointer-events: auto; }
+.wallet-back-btn {
+  height: 40px; padding: 0 16px 0 12px; border-radius: 99px;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.78); backdrop-filter: blur(14px);
+  border: 1.5px solid #0B0B0B;
+  font-family: 'Nebulica', system-ui, sans-serif;
+  font-size: 14px; font-weight: 600; color: #0B0B0B;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.wallet-edit-btn {
+  width: 40px; height: 40px; border-radius: 99px;
+  background: rgba(255,255,255,0.78); backdrop-filter: blur(14px);
+  border: 1.5px solid #0B0B0B;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+
+/* Blob background animato */
+@keyframes wp-blob1 { 0%{transform:translate(0,0) scale(1);} 50%{transform:translate(50px,-25px) scale(1.15);} 100%{transform:translate(0,0) scale(1);} }
+@keyframes wp-blob2 { 0%{transform:translate(0,0) scale(1);} 50%{transform:translate(-40px,35px) scale(1.1);} 100%{transform:translate(0,0) scale(1);} }
+@keyframes wp-blob3 { 0%{transform:translate(0,0) scale(0.95);} 50%{transform:translate(25px,45px) scale(1.12);} 100%{transform:translate(0,0) scale(0.95);} }
+.wallet-blob-bg {
+  position: absolute; inset: 0; overflow: hidden;
+  pointer-events: none; z-index: 0;
+  opacity: 0; transition: opacity 0.5s;
+}
+.wallet-blob-bg.visible { opacity: 1; }
+.wallet-blob { position: absolute; border-radius: 50%; filter: blur(70px); }
+
+/* Stack container */
+#wallet-stack {
+  position: absolute; left: 18px; right: 18px; z-index: 4;
+  overflow: hidden; touch-action: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 24px, black calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, black 24px, black calc(100% - 16px), transparent 100%);
+}
+#wallet-stack.is-detail { overflow: visible; -webkit-mask-image: none; mask-image: none; }
+
+/* Card */
+.wallet-card {
+  position: absolute; left: 0; right: 0; height: 178px;
+  border-radius: 22px; overflow: hidden; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  filter: drop-shadow(0 14px 28px rgba(0,0,0,0.14));
+  will-change: transform, opacity, top;
+  transition: none;
+}
+.wallet-card.animating {
+  transition:
+    top var(--wdur, 560ms) var(--wease, ease),
+    transform var(--wdur, 560ms) var(--wease, ease),
+    opacity calc(var(--wdur, 560ms) * 0.7) ease;
+}
+.wallet-card-ink-count {
+  position: absolute; top: 14px; right: 18px;
+  font-family: 'Nebulica', system-ui, sans-serif;
+  font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.wallet-card-ink-dot { width: 5px; height: 5px; border-radius: 50%; opacity: 0.5; }
+.wallet-card-code {
+  position: absolute; top: 12px; left: 18px; right: 18px;
+  font-family: 'Nebulica', system-ui, sans-serif;
+  font-weight: 700; font-size: 38px; line-height: 0.85;
+  letter-spacing: -1.3px; white-space: nowrap;
+  transition: font-size 0.35s, letter-spacing 0.35s;
+}
+.wallet-card-code .code-u { font-weight: 400; opacity: 0.7; letter-spacing: -0.6px; }
+.wallet-card.expanded .wallet-card-code { font-size: 66px; letter-spacing: -2.3px; }
+.wallet-card.expanded .wallet-card-code .code-u { letter-spacing: -1.2px; }
+.wallet-card-bottom {
+  position: absolute; left: 18px; right: 18px; bottom: 14px;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  opacity: 0; transition: opacity 0.25s;
+}
+.wallet-card.expanded .wallet-card-bottom { opacity: 1; }
+.wallet-card-name {
+  font-family: 'Nebulica', system-ui, sans-serif;
+  font-size: 15px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; opacity: 0.9;
+}
+.wallet-card-meta {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px; opacity: 0.6; letter-spacing: 0.6px; white-space: nowrap;
+}
+
+/* Recipe sheet */
+.wallet-recipe-sheet {
+  position: absolute; left: 18px; right: 18px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1.5px solid #0B0B0B; border-radius: 28px;
+  padding: 16px 18px 14px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.10);
+  z-index: 6; pointer-events: none;
+  opacity: 0; transform: translateY(110px);
+  transition: none;
+}
+.wallet-recipe-sheet.rising {
+  transition:
+    opacity calc(var(--wdur, 560ms) * 0.8) var(--wease, ease),
+    transform calc(var(--wdur, 560ms) + 100ms) var(--wease, ease);
+}
+.wallet-recipe-sheet.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.wrs-label {
+  font-family: 'Nebulica', system-ui, sans-serif;
+  font-size: 10px; letter-spacing: 1.4px; font-weight: 700; color: rgba(0,0,0,0.55);
+}
+.wrs-qty-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-top: 7px; }
+.wrs-qty-btn {
+  padding: 10px 0; text-align: center; border-radius: 99px;
+  border: 1.5px solid #0B0B0B; background: rgba(255,255,255,0.6);
+  font-family: 'Nebulica', system-ui, sans-serif; font-weight: 700; font-size: 13px; color: #0B0B0B;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: all 0.15s;
+}
+.wrs-qty-btn.active { background: #0B0B0B; color: #fff; }
+.wrs-formula-header {
+  display: flex; justify-content: space-between;
+  margin-top: 14px; margin-bottom: 4px;
+}
+.wrs-formula-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-top: 1px solid rgba(0,0,0,0.08);
+}
+.wrs-ink-pill {
+  padding: 5px 12px; border-radius: 99px;
+  background: #0B0B0B; color: #fff;
+  font-family: 'Nebulica', system-ui, sans-serif;
+  font-weight: 700; font-size: 13px;
+  white-space: nowrap; min-width: 64px; text-align: center; letter-spacing: -0.2px;
+}
+.wrs-bar-wrap { flex: 1; height: 5px; border-radius: 99px; background: rgba(0,0,0,0.08); overflow: hidden; }
+.wrs-bar-fill { height: 100%; border-radius: 99px; }
+.wrs-grams {
+  font-family: 'Nebulica', system-ui, sans-serif; font-weight: 700; font-size: 20px;
+  color: #0B0B0B; min-width: 60px; text-align: right; letter-spacing: -0.5px;
+}
+.wrs-grams span { opacity: 0.45; font-weight: 400; font-size: 12px; margin-left: 2px; }
+.wrs-print-btn {
+  width: 100%; height: 44px; border-radius: 99px;
+  background: #fff; border: 1.5px solid #0B0B0B;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: 'Nebulica', system-ui, sans-serif; font-size: 14px; font-weight: 700; color: #0B0B0B;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; margin-top: 10px; transition: all 0.15s;
+}
+.wrs-print-btn:active { background: #0B0B0B; color: #fff; }
+.wrs-hint {
+  position: absolute; bottom: 92px; left: 0; right: 0; text-align: center; z-index: 3;
+  font-family: 'Nebulica', system-ui, sans-serif; font-size: 9px;
+  letter-spacing: 1.4px; font-weight: 700; color: rgba(0,0,0,0.4);
+  pointer-events: none; transition: opacity 0.3s;
+}
+
 </style>
 </head>
 <body>
 
 <div class="app">
 
-  <!-- LIST VIEW -->
-  <div id="view-list">
-    <div class="header">
-      <div class="header-title">RICETTARIO <span>serigrafia</span></div>
-      <div class="header-sub">Inchiostri SICO · Pantone</div>
-    </div>
+  <!-- LIST VIEW — WALLET STACK -->
+  <div id="view-list" class="active">
 
+    <!-- Blob bg animato (appare sul colore selezionato) -->
+    <div class="wallet-blob-bg" id="wallet-blob-bg"></div>
 
-    <!-- ricerca + filtro in alto -->
-    <div id="panel-archivio">
-    <!-- ricerca + filtro in alto -->
-    <div class="search-filter-row">
-      <div class="search-top">
-        <svg viewBox="0 0 19.082 19.2676">
-          <path d="M0 7.79297C0 12.0898 3.49609 15.5859 7.79297 15.5859C9.49219 15.5859 11.0449 15.0391 12.3242 14.1211L17.1289 18.9355C17.3535 19.1602 17.6465 19.2676 17.959 19.2676C18.623 19.2676 19.082 18.7695 19.082 18.1152C19.082 17.8027 18.9648 17.5195 18.7598 17.3145L13.9844 12.5098C14.9902 11.2012 15.5859 9.57031 15.5859 7.79297C15.5859 3.49609 12.0898 0 7.79297 0C3.49609 0 0 3.49609 0 7.79297ZM1.66992 7.79297C1.66992 4.41406 4.41406 1.66992 7.79297 1.66992C11.1719 1.66992 13.916 4.41406 13.916 7.79297C13.916 11.1719 11.1719 13.916 7.79297 13.916C4.41406 13.916 1.66992 11.1719 1.66992 7.79297Z"/>
-        </svg>
-        <input type="text" id="search-input" placeholder="cerca Pantone..." oninput="filterList()" autocomplete="off">
+    <!-- Chrome lista: titolo + search + chips -->
+    <div class="wallet-header" id="wallet-list-chrome">
+      <div class="wallet-title">Ricettario</div>
+      <div class="wallet-count" id="wallet-count">— PANTONE · SICO</div>
+      <div class="wallet-search-row">
+        <div class="wallet-search-bar">
+          <svg viewBox="0 0 19.082 19.2676" width="15" height="15" fill="currentColor">
+            <path d="M0 7.79297C0 12.0898 3.49609 15.5859 7.79297 15.5859C9.49219 15.5859 11.0449 15.0391 12.3242 14.1211L17.1289 18.9355C17.3535 19.1602 17.6465 19.2676 17.959 19.2676C18.623 19.2676 19.082 18.7695 19.082 18.1152C19.082 17.8027 18.9648 17.5195 18.7598 17.3145L13.9844 12.5098C14.9902 11.2012 15.5859 9.57031 15.5859 7.79297C15.5859 3.49609 12.0898 0 7.79297 0C3.49609 0 0 3.49609 0 7.79297ZM1.66992 7.79297C1.66992 4.41406 4.41406 1.66992 7.79297 1.66992C11.1719 1.66992 13.916 4.41406 13.916 7.79297C13.916 11.1719 11.1719 13.916 7.79297 13.916C4.41406 13.916 1.66992 11.1719 1.66992 7.79297Z"/>
+          </svg>
+          <input type="text" id="search-input" placeholder="cerca pantone…" oninput="filterList()" autocomplete="off">
+        </div>
+        <div class="wallet-filter-btn" onclick="alert('filtro — da implementare')">
+          <svg viewBox="0 0 20.1172 11.6504" width="16" height="12" fill="currentColor">
+            <path d="M4.84375 11.6309L14.9609 11.6309C15.4004 11.6309 15.752 11.2891 15.752 10.8496C15.752 10.4102 15.4004 10.0586 14.9609 10.0586L4.84375 10.0586C4.4043 10.0586 4.0625 10.4102 4.0625 10.8496C4.0625 11.2891 4.4043 11.6309 4.84375 11.6309Z"/>
+            <path d="M2.8418 6.60156L16.9727 6.60156C17.4121 6.60156 17.7539 6.25977 17.7539 5.82031C17.7539 5.38086 17.4121 5.0293 16.9727 5.0293L2.8418 5.0293C2.40234 5.0293 2.05078 5.38086 2.05078 5.82031C2.05078 6.25977 2.40234 6.60156 2.8418 6.60156Z"/>
+            <path d="M0.78125 1.57227L18.9746 1.57227C19.4141 1.57227 19.7559 1.23047 19.7559 0.791016C19.7559 0.351562 19.4141 0 18.9746 0L0.78125 0C0.341797 0 0 0.351562 0 0.791016C0 1.23047 0.341797 1.57227 0.78125 1.57227Z"/>
+          </svg>
+        </div>
       </div>
-      <div class="filter-circle" onclick="alert('filtro — da implementare')">
-        <svg viewBox="0 0 20.1172 11.6504">
-          <path d="M4.84375 11.6309L14.9609 11.6309C15.4004 11.6309 15.752 11.2891 15.752 10.8496C15.752 10.4102 15.4004 10.0586 14.9609 10.0586L4.84375 10.0586C4.4043 10.0586 4.0625 10.4102 4.0625 10.8496C4.0625 11.2891 4.4043 11.6309 4.84375 11.6309Z"/>
-          <path d="M2.8418 6.60156L16.9727 6.60156C17.4121 6.60156 17.7539 6.25977 17.7539 5.82031C17.7539 5.38086 17.4121 5.0293 16.9727 5.0293L2.8418 5.0293C2.40234 5.0293 2.05078 5.38086 2.05078 5.82031C2.05078 6.25977 2.40234 6.60156 2.8418 6.60156Z"/>
-          <path d="M0.78125 1.57227L18.9746 1.57227C19.4141 1.57227 19.7559 1.23047 19.7559 0.791016C19.7559 0.351562 19.4141 0 18.9746 0L0.78125 0C0.341797 0 0 0.351562 0 0.791016C0 1.23047 0.341797 1.57227 0.78125 1.57227Z"/>
-        </svg>
+      <div class="wallet-chips chips" id="chips-wrap">
+        <div class="chip active" onclick="setFilter(this,'')">tutti</div>
       </div>
     </div>
 
-    <div class="chips" id="chips-wrap">
-      <div class="chip active" onclick="setFilter(this,'')">tutti</div>
+    <!-- Chrome dettaglio: back + edit -->
+    <div class="wallet-detail-chrome" id="wallet-detail-chrome">
+      <button class="wallet-back-btn" onclick="closeWalletCard()">
+        <svg viewBox="0 0 8 13" fill="none" stroke="#0B0B0B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="8" height="13">
+          <polyline points="7 1 1 6.5 7 12"/>
+        </svg>
+        Ricette
+      </button>
+      <button class="wallet-edit-btn" onclick="openEditSheet()">
+        <svg viewBox="0 0 18 18" fill="none" stroke="#0B0B0B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+          <path d="M13 2.5L15.5 5 6 14.5H3.5V12L13 2.5z"/>
+        </svg>
+      </button>
     </div>
 
-    <div class="list-count" id="list-count"></div>
-    <div id="recipe-list"></div>
-    </div><!-- /panel-archivio -->
+    <!-- Stack delle card -->
+    <div id="wallet-stack"></div>
 
+    <!-- Recipe sheet (sale dal basso) -->
+    <div id="wallet-recipe-sheet" class="wallet-recipe-sheet"></div>
 
+    <!-- Suggerimento -->
+    <div class="wrs-hint" id="wallet-hint">↑ TOCCA UNA CARD</div>
 
   </div>
 
@@ -1896,48 +2139,10 @@ function filterList() {
     (r.Pantone_ID.toLowerCase().includes(q) ||
      (r.Categoria||'').toLowerCase().includes(q) ||
      (r.Note||'').toLowerCase().includes(q))
-  );
-  const listEl = document.getElementById('recipe-list');
-  const countEl = document.getElementById('list-count');
-  countEl.textContent = filtered.length + ' FORMUL' + (filtered.length !== 1 ? 'E' : 'A');
+  ).sort((a,b) => a.Pantone_ID.localeCompare(b.Pantone_ID, 'it', {numeric:true}));
 
-  if (!filtered.length) {
-    listEl.innerHTML = '<div class="empty">Nessun risultato</div>';
-    return;
-  }
-
-  const pantone = filtered.filter(r => !isCustomId(r.Pantone_ID))
-                           .sort((a,b) => a.Pantone_ID.localeCompare(b.Pantone_ID, 'it', {numeric:true}));
-  const custom  = filtered.filter(r =>  isCustomId(r.Pantone_ID))
-                           .sort((a,b) => a.Pantone_ID.localeCompare(b.Pantone_ID, 'it', {numeric:true}));
-
-  function buildRow(r) {
-    const nInk = allComponenti.filter(c => c.Pantone_ID === r.Pantone_ID).length;
-    const pn = PANTONE_NAMES[r.Pantone_ID] || '';
-    return `<div class="recipe-item" onclick="showDetail('${r.Pantone_ID.replace(/'/g,"\'")}')">
-      <div class="swatch" style="background:#${r.HEX}"></div>
-      <div style="flex:1;min-width:0">
-        <div class="recipe-id">${r.Pantone_ID}</div>
-        ${pn ? `<div class="recipe-pantone-name">${pn}</div>` : ''}
-      </div>
-      <div class="recipe-ink-count">${nInk} inchiostri</div>
-      <svg class="recipe-arrow" viewBox="0 0 8 13" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="1 1 7 6.5 1 12"/>
-      </svg>
-    </div>`;
-  }
-
-  function buildGroup(items, label, extra) {
-    if (!items.length) return '';
-    return `<div class="recipe-group">
-      <div class="recipe-group-label">${label}</div>
-      <div class="recipe-group-card${extra}">${items.map(buildRow).join('')}</div>
-    </div>`;
-  }
-
-  listEl.innerHTML =
-    buildGroup(pantone, 'Pantone', '') +
-    buildGroup(custom,  'Non Pantone', ' non-pantone');
+  walletSetupLayout();
+  renderWalletList(filtered);
 }
 
 
@@ -1988,7 +2193,7 @@ function showDetail(id) {
   renderCopertura(r);
   renderDetailProgetti(r);
 
-  document.getElementById('view-list').style.display = 'none';
+  document.getElementById('view-list').classList.remove('active');
   document.getElementById('view-detail').style.display = 'flex';
   setNavActive(null);
   document.body.style.background = '#' + r.HEX;
@@ -1996,11 +2201,11 @@ function showDetail(id) {
 }
 
 function showList() {
-  document.getElementById('view-list').style.display = 'block';
-  document.getElementById('view-detail').style.display = 'none';
-  document.getElementById('view-sperim-detail').style.display = 'none';
+  hideAllViews();
+  document.getElementById('view-list').classList.add('active');
   setNavActive('ricette');
   document.body.style.background = '';
+  walletResetToList();
 }
 
 function setQty(qty, el) {
@@ -2039,7 +2244,7 @@ let selectedCat = '';
 let compCount = 0;
 
 function showAdd() {
-  document.getElementById('view-list').style.display = 'none';
+  document.getElementById('view-list').classList.remove('active');
   document.getElementById('view-detail').style.display = 'none';
   document.getElementById('view-inks').style.display = 'none';
   document.getElementById('view-ink-detail').style.display = 'none';
@@ -2267,7 +2472,8 @@ function removeFormProgetto(i) {
 }
 
 function showProgetti() {
-  ['view-list','view-detail','view-inks','view-ink-detail','view-add','view-proj-detail'].forEach(id => {
+  document.getElementById('view-list').classList.remove('active');
+  ['view-detail','view-inks','view-ink-detail','view-add','view-proj-detail'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -2372,7 +2578,7 @@ function renderDetailProgetti(r) {
 let activeTipoFilter = '';
 
 function showInks() {
-  document.getElementById('view-list').style.display = 'none';
+  document.getElementById('view-list').classList.remove('active');
   document.getElementById('view-detail').style.display = 'none';
   document.getElementById('view-inks').style.display = 'flex';
   document.getElementById('view-ink-detail').style.display = 'none';
@@ -3082,7 +3288,8 @@ async function salvaPromozione() {
 
 // Helper: nasconde tutte le view
 function hideAllViews() {
-  ['view-list','view-detail','view-inks','view-ink-detail',
+  document.getElementById('view-list').classList.remove('active');
+  ['view-detail','view-inks','view-ink-detail',
    'view-add','view-progetti','view-proj-detail','view-sperim-detail']
   .forEach(id => {
     const el = document.getElementById(id);
@@ -3234,6 +3441,286 @@ function stampaPDF() {
 
   const filename = 'etichetta_' + r.Pantone_ID.replace(/\s+/g, '_') + '.pdf';
   doc.save(filename);
+}
+
+// ══════════════════════════════════════════════════════
+// WALLET STACK — logica completa
+// ══════════════════════════════════════════════════════
+const PEEK_H    = 76;
+const ACTIVE_H  = 178;
+const OPEN_DUR  = 560;
+const CLOSE_DUR = 320;
+const OPEN_EASE  = 'cubic-bezier(.5,.05,.1,1.05)';
+const CLOSE_EASE = 'cubic-bezier(.55,.06,.68,.19)';
+
+let walletCards = [];
+let walletSelectedIdx = null;
+let walletClosing = false;
+let walletScrollOffset = 0;
+let walletStackTop = 0;
+let walletStackH = 0;
+
+function walletSetupLayout() {
+  const header = document.getElementById('wallet-list-chrome');
+  if (!header) return;
+  const rect = header.getBoundingClientRect();
+  walletStackTop = rect.bottom + 14;
+  const navH = 82;
+  walletStackH = window.innerHeight - walletStackTop - navH;
+  const stack = document.getElementById('wallet-stack');
+  if (stack) {
+    stack.style.top = walletStackTop + 'px';
+    stack.style.bottom = navH + 'px';
+  }
+  const sheet = document.getElementById('wallet-recipe-sheet');
+  if (sheet) sheet.style.bottom = (navH + 8) + 'px';
+  const hint = document.getElementById('wallet-hint');
+  if (hint) hint.style.bottom = (navH + 4) + 'px';
+}
+
+function walletComputeCardPos(i) {
+  const n = walletCards.length;
+  const innerH = Math.max(walletStackH, (n - 1) * PEEK_H + ACTIVE_H + 30);
+  const stackPosTop = (innerH - ACTIVE_H) - i * PEEK_H;
+  const listTop = walletStackTop + stackPosTop - walletScrollOffset;
+
+  if (walletSelectedIdx === null) {
+    return { top: listTop, opacity: 1, tx: 0, ty: 0, scale: 1, rot: 0, z: n - i };
+  }
+  if (i === walletSelectedIdx) {
+    return { top: 138, opacity: 1, tx: 0, ty: 0, scale: 1, rot: 0, z: 999 };
+  }
+  // Fan-out 4 angoli
+  const dirs = [
+    { tx: -220, ty: -160, rot: -10 },
+    { tx:  220, ty: -160, rot:  10 },
+    { tx: -220, ty:  260, rot: -10 },
+    { tx:  220, ty:  260, rot:  10 },
+  ];
+  const d = dirs[(i - walletSelectedIdx + 1000) % 4];
+  return { top: listTop, opacity: 0, tx: d.tx, ty: d.ty, scale: 0.86, rot: d.rot, z: 1 };
+}
+
+function walletApplyPositions(animate) {
+  const stack = document.getElementById('wallet-stack');
+  if (!stack) return;
+  const dur  = walletClosing ? CLOSE_DUR : OPEN_DUR;
+  const ease = walletClosing ? CLOSE_EASE : OPEN_EASE;
+  stack.style.setProperty('--wdur', dur + 'ms');
+  stack.style.setProperty('--wease', ease);
+
+  stack.querySelectorAll('.wallet-card').forEach((el, i) => {
+    const pos = walletComputeCardPos(i);
+    const containerTop = pos.top - walletStackTop;
+    el.classList.toggle('animating', animate);
+    el.style.top       = containerTop + 'px';
+    el.style.opacity   = pos.opacity;
+    el.style.zIndex    = pos.z;
+    el.style.transform = `translate(${pos.tx}px,${pos.ty}px) scale(${pos.scale}) rotate(${pos.rot}deg)`;
+    el.style.pointerEvents = pos.opacity > 0.2 ? 'auto' : 'none';
+    el.style.cursor    = walletSelectedIdx !== null ? 'default' : 'pointer';
+    el.classList.toggle('expanded', i === walletSelectedIdx);
+  });
+  stack.classList.toggle('is-detail', walletSelectedIdx !== null);
+}
+
+function selectWalletCard(idx) {
+  if (walletSelectedIdx !== null) return;
+  walletSelectedIdx = idx;
+  walletClosing = false;
+  activeId = walletCards[idx].Pantone_ID;
+  activeQty = 100;
+
+  walletApplyPositions(true);
+
+  // Mostra chrome dettaglio
+  document.getElementById('wallet-detail-chrome').classList.add('visible');
+  const lc = document.getElementById('wallet-list-chrome');
+  lc.style.opacity = '0'; lc.style.transform = 'translateY(-10px)'; lc.style.pointerEvents = 'none';
+  document.getElementById('wallet-hint').style.opacity = '0';
+
+  // Blob bg
+  const r = walletCards[idx];
+  const bg = document.getElementById('wallet-blob-bg');
+  bg.innerHTML = `
+    <div class="wallet-blob" style="top:15%;left:-25%;width:380px;height:380px;background:#${r.HEX};opacity:0.55;animation:wp-blob1 14s ease-in-out infinite"></div>
+    <div class="wallet-blob" style="bottom:-10%;right:-20%;width:360px;height:360px;background:#${r.HEX};opacity:0.7;animation:wp-blob2 18s ease-in-out infinite"></div>
+    <div class="wallet-blob" style="top:55%;right:10%;width:220px;height:220px;background:#${r.HEX};opacity:0.4;animation:wp-blob3 11s ease-in-out infinite"></div>`;
+  bg.classList.add('visible');
+
+  // Recipe sheet (con ritardo)
+  setTimeout(() => walletShowRecipe(r), Math.round(OPEN_DUR * 0.2));
+}
+
+function closeWalletCard() {
+  if (walletSelectedIdx === null) return;
+  walletClosing = true;
+
+  // Nascondi recipe sheet
+  const sheet = document.getElementById('wallet-recipe-sheet');
+  sheet.style.setProperty('--wdur', CLOSE_DUR + 'ms');
+  sheet.style.setProperty('--wease', CLOSE_EASE);
+  sheet.classList.remove('visible');
+
+  // Nascondi chrome dettaglio, mostra chrome lista
+  document.getElementById('wallet-detail-chrome').classList.remove('visible');
+  const lc = document.getElementById('wallet-list-chrome');
+  lc.style.opacity = '1'; lc.style.transform = 'none'; lc.style.pointerEvents = 'auto';
+  document.getElementById('wallet-hint').style.opacity = '1';
+
+  // Anima le card di ritorno (fan-in)
+  walletApplyPositions(true);
+
+  // Nascondi blob
+  document.getElementById('wallet-blob-bg').classList.remove('visible');
+
+  setTimeout(() => {
+    walletSelectedIdx = null;
+    walletClosing = false;
+    walletApplyPositions(false);
+    sheet.classList.remove('rising');
+  }, CLOSE_DUR);
+}
+
+function walletResetToList() {
+  walletSelectedIdx = null;
+  walletClosing = false;
+  const sheet = document.getElementById('wallet-recipe-sheet');
+  if (sheet) { sheet.classList.remove('visible', 'rising'); }
+  const dc = document.getElementById('wallet-detail-chrome');
+  if (dc) dc.classList.remove('visible');
+  const lc = document.getElementById('wallet-list-chrome');
+  if (lc) { lc.style.opacity = '1'; lc.style.transform = 'none'; lc.style.pointerEvents = 'auto'; }
+  const hint = document.getElementById('wallet-hint');
+  if (hint) hint.style.opacity = '1';
+  const bg = document.getElementById('wallet-blob-bg');
+  if (bg) bg.classList.remove('visible');
+  walletApplyPositions(false);
+}
+
+function walletShowRecipe(r) {
+  const sheet = document.getElementById('wallet-recipe-sheet');
+  if (!sheet) return;
+
+  const comps = allComponenti.filter(c => c.Pantone_ID === r.Pantone_ID);
+  const total40 = comps.reduce((s, c) => s + (parseFloat(c.Dose_40g) || 0), 0);
+  const qty = activeQty || 100;
+
+  const qtyBtns = [[100,'100 g'],[300,'300 g'],[500,'500 g'],[1000,'1 kg']].map(([q, lbl]) =>
+    `<div class="wrs-qty-btn${q === qty ? ' active' : ''}" onclick="walletSetQty(${q},this)">${lbl}</div>`
+  ).join('');
+
+  let rows = '';
+  if (comps.length) {
+    rows = comps.map(c => {
+      const d40 = parseFloat(c.Dose_40g) || 0;
+      const dQty = total40 > 0 ? (d40 / total40 * qty) : 0;
+      const pct  = total40 > 0 ? (d40 / total40 * 100) : 0;
+      return `<div class="wrs-formula-row">
+        <div class="wrs-ink-pill">${c.Inchiostro}</div>
+        <div class="wrs-bar-wrap"><div class="wrs-bar-fill" style="width:${pct.toFixed(1)}%;background:#${r.HEX}"></div></div>
+        <div class="wrs-grams">${dQty.toFixed(2)}<span>g</span></div>
+      </div>`;
+    }).join('');
+  } else {
+    rows = '<div style="padding:12px 0;color:rgba(0,0,0,0.4);font-size:13px;font-family:Nebulica,system-ui">Nessun componente</div>';
+  }
+
+  sheet.innerHTML = `
+    <div class="wrs-label">QUANTITÀ</div>
+    <div class="wrs-qty-grid">${qtyBtns}</div>
+    <div class="wrs-formula-header">
+      <span class="wrs-label">FORMULA · ${comps.length} INK</span>
+      <span class="wrs-label">Σ ${qty.toFixed(0)} g</span>
+    </div>
+    ${rows}
+    <button class="wrs-print-btn" onclick="stampaPDF()">
+      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+        <rect x="3" y="7" width="12" height="8" rx="1.5"/><path d="M6 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/><path d="M6 13h6"/>
+      </svg>
+      Stampa etichetta
+    </button>`;
+
+  sheet.style.setProperty('--wdur', OPEN_DUR + 'ms');
+  sheet.style.setProperty('--wease', OPEN_EASE);
+  sheet.classList.add('rising', 'visible');
+}
+
+function walletSetQty(qty, el) {
+  activeQty = qty;
+  document.querySelectorAll('.wrs-qty-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  if (walletSelectedIdx !== null) walletShowRecipe(walletCards[walletSelectedIdx]);
+}
+
+function renderWalletList(filtered) {
+  walletCards = filtered;
+  walletResetToList();
+
+  const n = filtered.length;
+  const innerH = Math.max(walletStackH, (n - 1) * PEEK_H + ACTIVE_H + 30);
+  walletScrollOffset = Math.max(0, innerH - walletStackH);
+
+  const stack = document.getElementById('wallet-stack');
+  if (!stack) return;
+
+  stack.innerHTML = filtered.map((r, i) => {
+    const nInk = allComponenti.filter(c => c.Pantone_ID === r.Pantone_ID).length;
+    const pName = PANTONE_NAMES[r.Pantone_ID] || '';
+    const fg = walletFgColor(r.HEX);
+    const codeBase = r.Pantone_ID.replace(' U','');
+    const hasU = r.Pantone_ID.includes(' U');
+    const pagina = r.Pagina ? 'PAG.' + r.Pagina : '';
+    const cop = r.Copertura || '';
+    const meta = [pagina, cop ? 'COER ' + cop : ''].filter(Boolean).join(' · ');
+    return `<div class="wallet-card" style="background:#${r.HEX}" onclick="selectWalletCard(${i})">
+      <div class="wallet-card-ink-count" style="color:${fg}">
+        <span class="wallet-card-ink-dot" style="background:${fg}"></span>${nInk} ink
+      </div>
+      <div class="wallet-card-code" style="color:${fg}">${codeBase}${hasU ? `<span class="code-u"> U</span>` : ''}</div>
+      <div class="wallet-card-bottom">
+        <span class="wallet-card-name" style="color:${fg}">${pName}</span>
+        ${meta ? `<span class="wallet-card-meta" style="color:${fg}">${meta}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  walletAttachScroll(stack);
+  walletApplyPositions(false);
+
+  const countEl = document.getElementById('wallet-count');
+  if (countEl) countEl.textContent = n + (n === 1 ? ' FORMULA' : ' FORMULE') + ' · SICO';
+  const hintEl = document.getElementById('wallet-hint');
+  if (hintEl) hintEl.style.opacity = n ? '1' : '0';
+}
+
+function walletFgColor(hex) {
+  const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+  return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.5 ? '#0B0B0B' : '#ffffff';
+}
+
+function walletAttachScroll(stack) {
+  let tyStart = 0, offStart = 0;
+  stack.addEventListener('wheel', (e) => {
+    if (walletSelectedIdx !== null) return;
+    e.preventDefault();
+    const n = walletCards.length;
+    const innerH = Math.max(walletStackH, (n-1)*PEEK_H + ACTIVE_H + 30);
+    walletScrollOffset = Math.max(0, Math.min(Math.max(0, innerH - walletStackH), walletScrollOffset + e.deltaY * 0.7));
+    walletApplyPositions(false);
+  }, { passive: false });
+  stack.addEventListener('touchstart', (e) => {
+    if (walletSelectedIdx !== null) return;
+    tyStart = e.touches[0].clientY; offStart = walletScrollOffset;
+  }, { passive: true });
+  stack.addEventListener('touchmove', (e) => {
+    if (walletSelectedIdx !== null) return;
+    e.preventDefault();
+    const n = walletCards.length;
+    const innerH = Math.max(walletStackH, (n-1)*PEEK_H + ACTIVE_H + 30);
+    walletScrollOffset = Math.max(0, Math.min(Math.max(0, innerH - walletStackH), offStart + (tyStart - e.touches[0].clientY)));
+    walletApplyPositions(false);
+  }, { passive: false });
 }
 
 loadData();
