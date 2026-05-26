@@ -1432,14 +1432,8 @@ html {
   border-radius: 22px; overflow: hidden; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   filter: drop-shadow(0 14px 28px rgba(0,0,0,0.14));
-  will-change: transform, opacity, top;
-  transition: none;
-}
-.wallet-card.animating {
-  transition:
-    top var(--wdur, 560ms) var(--wease, ease),
-    transform var(--wdur, 560ms) var(--wease, ease),
-    opacity calc(var(--wdur, 560ms) * 0.7) ease;
+  will-change: transform, opacity;
+  /* le transizioni sono gestite inline dal JS */
 }
 .wallet-card-ink-count {
   position: absolute; top: 14px; right: 18px;
@@ -3478,50 +3472,60 @@ function walletSetupLayout() {
   if (hint) hint.style.bottom = (navH + 4) + 'px';
 }
 
-function walletComputeCardPos(i) {
-  const n = walletCards.length;
-  const innerH = Math.max(walletStackH, (n - 1) * PEEK_H + ACTIVE_H + 30);
-  const stackPosTop = (innerH - ACTIVE_H) - i * PEEK_H;
-  const listTop = walletStackTop + stackPosTop - walletScrollOffset;
-
-  if (walletSelectedIdx === null) {
-    return { top: listTop, opacity: 1, tx: 0, ty: 0, scale: 1, rot: 0, z: n - i };
-  }
-  if (i === walletSelectedIdx) {
-    return { top: 138, opacity: 1, tx: 0, ty: 0, scale: 1, rot: 0, z: 999 };
-  }
-  // Fan-out 4 angoli
-  const dirs = [
-    { tx: -220, ty: -160, rot: -10 },
-    { tx:  220, ty: -160, rot:  10 },
-    { tx: -220, ty:  260, rot: -10 },
-    { tx:  220, ty:  260, rot:  10 },
-  ];
-  const d = dirs[(i - walletSelectedIdx + 1000) % 4];
-  return { top: listTop, opacity: 0, tx: d.tx, ty: d.ty, scale: 0.86, rot: d.rot, z: 1 };
-}
 
 function walletApplyPositions(animate) {
   const stack = document.getElementById('wallet-stack');
   if (!stack) return;
+  const n = walletCards.length;
+  const innerH = Math.max(walletStackH, (n - 1) * PEEK_H + ACTIVE_H + 30);
   const dur  = walletClosing ? CLOSE_DUR : OPEN_DUR;
   const ease = walletClosing ? CLOSE_EASE : OPEN_EASE;
-  stack.style.setProperty('--wdur', dur + 'ms');
-  stack.style.setProperty('--wease', ease);
+  const trans = animate
+    ? `transform ${dur}ms ${ease}, opacity ${Math.round(dur * 0.7)}ms ease`
+    : 'none';
+  const isListMode = walletSelectedIdx === null || walletClosing;
 
   stack.querySelectorAll('.wallet-card').forEach((el, i) => {
-    const pos = walletComputeCardPos(i);
-    const containerTop = pos.top - walletStackTop;
-    el.classList.toggle('animating', animate);
-    el.style.top       = containerTop + 'px';
-    el.style.opacity   = pos.opacity;
-    el.style.zIndex    = pos.z;
-    el.style.transform = `translate(${pos.tx}px,${pos.ty}px) scale(${pos.scale}) rotate(${pos.rot}deg)`;
-    el.style.pointerEvents = pos.opacity > 0.2 ? 'auto' : 'none';
-    el.style.cursor    = walletSelectedIdx !== null ? 'default' : 'pointer';
-    el.classList.toggle('expanded', i === walletSelectedIdx);
+    const stackPosTop = (innerH - ACTIVE_H) - i * PEEK_H;
+    const baseTop = stackPosTop - walletScrollOffset; // posizione lista, mai animata
+
+    el.style.top = baseTop + 'px';       // aggiornato senza transizione
+    el.style.transition = trans;         // solo transform + opacity
+
+    if (isListMode) {
+      el.style.opacity = '1';
+      el.style.zIndex = String(n - i);
+      el.style.transform = 'none';
+      el.style.pointerEvents = 'auto';
+      el.style.cursor = 'pointer';
+      el.classList.remove('expanded');
+    } else if (i === walletSelectedIdx) {
+      // Sposta la card selezionata a y=138 tramite translateY (GPU)
+      const ty = 138 - walletStackTop - baseTop;
+      el.style.opacity = '1';
+      el.style.zIndex = '999';
+      el.style.transform = `translateY(${ty}px)`;
+      el.style.pointerEvents = 'auto';
+      el.style.cursor = 'default';
+      el.classList.add('expanded');
+    } else {
+      // Fan-out nei 4 angoli
+      const dirs = [
+        { tx: -220, ty: -160, rot: -10 },
+        { tx:  220, ty: -160, rot:  10 },
+        { tx: -220, ty:  260, rot: -10 },
+        { tx:  220, ty:  260, rot:  10 },
+      ];
+      const d = dirs[(i - walletSelectedIdx + 1000) % 4];
+      el.style.opacity = '0';
+      el.style.zIndex = '1';
+      el.style.transform = `translate(${d.tx}px,${d.ty}px) scale(0.86) rotate(${d.rot}deg)`;
+      el.style.pointerEvents = 'none';
+      el.style.cursor = 'default';
+      el.classList.remove('expanded');
+    }
   });
-  stack.classList.toggle('is-detail', walletSelectedIdx !== null);
+  stack.classList.toggle('is-detail', !isListMode);
 }
 
 function selectWalletCard(idx) {
@@ -3699,15 +3703,25 @@ function walletFgColor(hex) {
   return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.5 ? '#0B0B0B' : '#ffffff';
 }
 
+function walletUpdateScrollPositions() {
+  const stack = document.getElementById('wallet-stack');
+  if (!stack) return;
+  const n = walletCards.length;
+  const innerH = Math.max(walletStackH, (n - 1) * PEEK_H + ACTIVE_H + 30);
+  stack.querySelectorAll('.wallet-card').forEach((el, i) => {
+    el.style.top = ((innerH - ACTIVE_H) - i * PEEK_H - walletScrollOffset) + 'px';
+  });
+}
+
 function walletAttachScroll(stack) {
   let tyStart = 0, offStart = 0;
   stack.addEventListener('wheel', (e) => {
     if (walletSelectedIdx !== null) return;
     e.preventDefault();
     const n = walletCards.length;
-    const innerH = Math.max(walletStackH, (n-1)*PEEK_H + ACTIVE_H + 30);
-    walletScrollOffset = Math.max(0, Math.min(Math.max(0, innerH - walletStackH), walletScrollOffset + e.deltaY * 0.7));
-    walletApplyPositions(false);
+    const innerH = Math.max(walletStackH, (n - 1) * PEEK_H + ACTIVE_H + 30);
+    walletScrollOffset = Math.max(0, Math.min(innerH - walletStackH, walletScrollOffset + e.deltaY * 0.7));
+    walletUpdateScrollPositions();
   }, { passive: false });
   stack.addEventListener('touchstart', (e) => {
     if (walletSelectedIdx !== null) return;
@@ -3717,9 +3731,9 @@ function walletAttachScroll(stack) {
     if (walletSelectedIdx !== null) return;
     e.preventDefault();
     const n = walletCards.length;
-    const innerH = Math.max(walletStackH, (n-1)*PEEK_H + ACTIVE_H + 30);
-    walletScrollOffset = Math.max(0, Math.min(Math.max(0, innerH - walletStackH), offStart + (tyStart - e.touches[0].clientY)));
-    walletApplyPositions(false);
+    const innerH = Math.max(walletStackH, (n - 1) * PEEK_H + ACTIVE_H + 30);
+    walletScrollOffset = Math.max(0, Math.min(innerH - walletStackH, offStart + (tyStart - e.touches[0].clientY)));
+    walletUpdateScrollPositions();
   }, { passive: false });
 }
 
