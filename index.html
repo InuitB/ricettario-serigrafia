@@ -944,6 +944,17 @@ html {
   outline: none; -webkit-appearance: none;
 }
 .edit-input:focus { border-color: var(--text); }
+.edit-code-preview {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 8px; padding: 9px 12px;
+  background: var(--surface); border-radius: 12px;
+}
+.edit-color-swatch {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+}
+.edit-pantone-hint { font-size: 13px; color: var(--text-2); line-height: 1.35; }
+.edit-hex-label { font-size: 11px; color: var(--text-3); letter-spacing: 0.04em; margin-top: 1px; }
 /* textarea Note: pill con border-radius alto ma non circolare */
 .edit-textarea {
   width: 100%; font-family: var(--font); font-size: 15px;
@@ -1675,7 +1686,8 @@ html {
 
     <div class="edit-field">
       <label>Nome Pantone</label>
-      <input class="edit-input" id="edit-nome" type="text" autocomplete="off">
+      <input class="edit-input" id="edit-nome" type="text" autocomplete="off" oninput="editCodeChanged(this)">
+      <div id="edit-code-preview" class="edit-code-preview" style="display:none"></div>
     </div>
     <div class="edit-field">
       <label>Categoria</label>
@@ -2423,6 +2435,39 @@ function autoTemperatura(hex) {
   return 'Neutro';
 }
 
+function autoCategoria(hex) {
+  if (!hex || hex.length < 6) return '';
+  const h = hex.replace('#','');
+  const rr = parseInt(h.slice(0,2),16)/255, gg = parseInt(h.slice(2,4),16)/255, bb = parseInt(h.slice(4,6),16)/255;
+  const mx = Math.max(rr,gg,bb), mn = Math.min(rr,gg,bb);
+  const l = (mx+mn)/2;
+  const d = mx-mn;
+  const s = d===0 ? 0 : d/(1-Math.abs(2*l-1));
+  let hue = 0;
+  if (d > 0) {
+    if (mx===rr) hue = 60*(((gg-bb)/d)%6);
+    else if (mx===gg) hue = 60*((bb-rr)/d+2);
+    else hue = 60*((rr-gg)/d+4);
+    if (hue < 0) hue += 360;
+  }
+  if (l < 0.12) return 'Nero';
+  if (l > 0.92 && s < 0.15) return 'Bianco';
+  if (s < 0.12) return l < 0.35 ? 'Nero' : l > 0.78 ? 'Bianco' : 'Beige';
+  if (s > 0.88 && l > 0.44 && l < 0.72) return 'Fluo';
+  if (hue >= 15 && hue <= 52 && s < 0.52 && l < 0.38) return 'Marrone';
+  if (hue >= 28 && hue <= 60 && s < 0.38 && l > 0.65) return 'Beige';
+  if (hue >= 40 && hue < 68) return 'Giallo';
+  if (hue >= 15 && hue < 40) return 'Arancio';
+  if ((hue >= 0 && hue < 15) || hue >= 348) return 'Rosso';
+  if (hue >= 320 && hue < 348) return l > 0.52 ? 'Rosa' : 'Rosso';
+  if (hue >= 280 && hue < 320) return l > 0.52 ? 'Rosa' : 'Viola';
+  if (hue >= 230 && hue < 280) return 'Viola';
+  if (hue >= 195 && hue < 230) return 'Blu';
+  if (hue >= 158 && hue < 195) return 'Azzurro';
+  if (hue >= 68 && hue < 158) return 'Verde';
+  return '';
+}
+
 function isCustomId(id) {
   // Pantone standard: 1-4 cifre seguite da lettera (es. "166 U", "3415 U", "072 U")
   // Anche formati tipo "1235 U", "2587 U" ecc.
@@ -2716,6 +2761,9 @@ function openEditSheet() {
 
   document.getElementById('edit-overlay').classList.add('open');
   document.getElementById('edit-sheet').classList.add('open');
+
+  // Mostra preview se il codice attuale è un Pantone riconosciuto
+  editCodeChanged(document.getElementById('edit-nome'));
 }
 
 function closeEditSheet() {
@@ -2727,6 +2775,32 @@ function editSetCat(el, cat) {
   editCat = cat;
   document.querySelectorAll('.edit-cat-chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
+}
+
+function editSetCatByName(cat) {
+  if (!cat) return;
+  editCat = cat;
+  document.querySelectorAll('.edit-cat-chip').forEach(c => {
+    c.classList.toggle('active', c.textContent === cat);
+  });
+}
+
+function editCodeChanged(input) {
+  const code = input.value.trim();
+  const hex = PANTONE_HEX[code];
+  const name = PANTONE_NAMES[code];
+  const preview = document.getElementById('edit-code-preview');
+  if (!preview) return;
+  if (hex) {
+    preview.innerHTML =
+      `<div class="edit-color-swatch" style="background:#${hex}"></div>` +
+      `<div><div class="edit-pantone-hint">${name || code}</div>` +
+      `<div class="edit-hex-label">#${hex}</div></div>`;
+    preview.style.display = 'flex';
+    editSetCatByName(autoCategoria(hex));
+  } else {
+    preview.style.display = 'none';
+  }
 }
 
 function editHandleProj(e) {
@@ -2762,12 +2836,21 @@ async function saveEdit() {
   btn.disabled = true; btn.textContent = 'Salvataggio...';
   msgEl.className = 'edit-msg';
 
+  const r = allRicette.find(x => x.Pantone_ID === activeId);
   const nuoveNote = (document.getElementById('edit-note')?.value || '').trim();
+
+  // Se il nuovo codice è un Pantone riconosciuto, usa il suo HEX; altrimenti mantieni l'attuale
+  const lookupHex = PANTONE_HEX[nuovoNome];
+  const nuovoHex = lookupHex || (r ? r.HEX : '');
+  const nuovaTemp = nuovoHex ? autoTemperatura(nuovoHex) : (r ? r.Temperatura : '');
+
   const payload = JSON.stringify({
     action: 'editRicetta',
     pantone_id_originale: activeId,
     pantone_id_nuovo: nuovoNome,
+    hex: nuovoHex,
     categoria: editCat,
+    temperatura: nuovaTemp,
     pagina: nuovaPagina,
     note: nuoveNote,
     progetti: editProgetti.join(', '),
@@ -2783,20 +2866,54 @@ async function saveEdit() {
     msgEl.textContent = '✓ Salvato! I dati si aggiorneranno al prossimo caricamento.';
     msgEl.className = 'edit-msg ok';
     btn.textContent = '✓ Salvato';
-    // aggiorna in locale
-    const r = allRicette.find(x => x.Pantone_ID === activeId);
+
+    // Aggiorna il record locale
     if (r) {
       r.Pantone_ID = nuovoNome;
+      if (lookupHex) r.HEX = nuovoHex;
       r.Categoria = editCat;
+      r.Temperatura = nuovaTemp;
       r.Pagina = nuovaPagina;
       r.Note = nuoveNote;
       r.Progetti = editProgetti.join(', ');
       activeId = nuovoNome;
-      document.getElementById('detail-name').textContent = nuovoNome;
+
+      // Aggiorna wallet card nella lista
+      const cardEls = document.querySelectorAll('#wallet-stack .wallet-card');
+      const card = cardEls[walletSelectedIdx];
+      if (card) {
+        card.style.background = '#' + r.HEX;
+        const fg = walletFgColor(r.HEX);
+        const codeBase = nuovoNome.replace(/ U$/i, '');
+        const hasU = /\sU$/i.test(nuovoNome);
+        const codeEl = card.querySelector('.wallet-card-code');
+        if (codeEl) {
+          codeEl.style.color = fg;
+          codeEl.innerHTML = codeBase + (hasU ? '<span class="code-u"> U</span>' : '');
+        }
+        const dotEl = card.querySelector('.wallet-card-ink-dot');
+        if (dotEl) dotEl.style.background = fg;
+        const cntEl = card.querySelector('.wallet-card-ink-count');
+        if (cntEl) cntEl.style.color = fg;
+        const nameEl = card.querySelector('.wallet-card-name');
+        if (nameEl) { nameEl.style.color = fg; nameEl.textContent = PANTONE_NAMES[nuovoNome] || ''; }
+        const metaEl = card.querySelector('.wallet-card-meta');
+        if (metaEl) metaEl.style.color = fg;
+      }
+
+      // Aggiorna blobs
+      const blobBg = document.getElementById('wallet-blob-bg');
+      if (blobBg) blobBg.querySelectorAll('.wallet-blob').forEach(b => b.style.background = '#' + r.HEX);
+
+      // Aggiorna formula sheet (colori barre e contenuto)
+      if (walletSelectedIdx !== null) walletShowRecipe(r);
+
+      // Aggiorna view-detail (se ancora visibile)
+      const detailName = document.getElementById('detail-name');
+      if (detailName) detailName.textContent = nuovoNome;
       const updName = PANTONE_NAMES[nuovoNome] || '';
       const updNameEl = document.getElementById('detail-pantone-name');
       if (updNameEl) { updNameEl.textContent = updName; updNameEl.style.display = updName ? 'block' : 'none'; }
-      // aggiorna note box nel dettaglio
       const nb = document.getElementById('detail-note-box');
       if (nb) { nb.textContent = nuoveNote; nb.style.display = nuoveNote ? 'block' : 'none'; }
       renderDetailProgetti(r);
@@ -2811,6 +2928,130 @@ async function saveEdit() {
 
 
 const PANTONE_NAMES = {"100 U": "Buttercup", "101 U": "Lemon Yellow", "102 U": "Yellow", "103 U": "Antique Gold", "104 U": "Dijon", "105 U": "Bronze Olive", "106 U": "Primrose Yellow", "107 U": "Bright Yellow", "108 U": "Saffron", "109 U": "Vivid Yellow", "110 U": "Nugget Gold", "111 U": "Gold Fusion", "112 U": "Old Gold", "113 U": "Minion Yellow", "114 U": "Lemon Zest", "115 U": "Cream Gold", "116 U": "Amber", "117 U": "Harvest Gold", "118 U": "Dark Gold", "119 U": "Olive Green", "120 U": "Flax", "121 U": "Straw", "122 U": "Warm Straw", "123 U": "Sunglow", "124 U": "Sunflower", "125 U": "Mustard", "126 U": "Dark Mustard", "127 U": "Pale Yellow", "128 U": "Mellow Yellow", "129 U": "Buff", "130 U": "Marigold", "131 U": "Dark Marigold", "132 U": "Caramel", "133 U": "Warm Tan", "134 U": "Champagne", "135 U": "Tuscan Sun", "136 U": "Apricot", "137 U": "Tiger Orange", "138 U": "Dark Apricot", "139 U": "Warm Brown", "140 U": "Russet", "141 U": "Cream", "142 U": "Pale Gold", "143 U": "Honey", "144 U": "Tangerine", "145 U": "Sienna", "146 U": "Copper", "147 U": "Cinnamon", "148 U": "Peach", "149 U": "Pale Peach", "150 U": "Sandy Beach", "151 U": "Orange", "152 U": "Dark Orange", "153 U": "Burnt Sienna", "154 U": "Mahogany", "155 U": "Blush", "156 U": "Salmon", "157 U": "Terracotta", "158 U": "Pumpkin", "159 U": "Rust", "160 U": "Brick Red", "161 U": "Chestnut", "162 U": "Coral", "163 U": "Flamingo", "164 U": "Deep Peach", "165 U": "Bright Orange", "166 U": "Blaze Orange", "167 U": "Burnt Orange", "168 U": "Dark Brown", "169 U": "Rose", "170 U": "Soft Coral", "171 U": "Red Orange", "172 U": "Vermilion", "173 U": "Scarlet", "174 U": "Burgundy", "175 U": "Dark Burgundy", "176 U": "Baby Pink", "177 U": "Watermelon", "178 U": "Neon Coral", "179 U": "Tomato Red", "180 U": "Carmine", "181 U": "Deep Carmine", "182 U": "Carnation", "183 U": "Hot Pink", "184 U": "Bright Pink", "185 U": "Red", "186 U": "Crimson", "187 U": "Deep Red", "188 U": "Dark Red", "189 U": "Candy Pink", "190 U": "Raspberry", "191 U": "Deep Rose", "192 U": "Cherry", "193 U": "Ruby", "194 U": "Dark Cherry", "195 U": "Wine", "196 U": "Blush Pink", "197 U": "Flamingo Pink", "198 U": "Hot Coral", "199 U": "Punch", "200 U": "Strawberry", "201 U": "Deep Strawberry", "202 U": "Claret", "203 U": "Pink Lemonade", "204 U": "Flamingo Rose", "205 U": "Fuchsia Rose", "206 U": "Cerise", "207 U": "Dark Cerise", "208 U": "Mulberry", "209 U": "Blackberry", "210 U": "Bubblegum", "211 U": "Wild Strawberry", "212 U": "Neon Fuchsia", "213 U": "Magenta", "214 U": "Dark Magenta", "215 U": "Deep Magenta", "216 U": "Maroon", "217 U": "Pastel Pink", "218 U": "Orchid", "219 U": "Deep Orchid", "220 U": "Purple Rose", "221 U": "Plum Rose", "222 U": "Eggplant", "223 U": "Cotton Candy", "224 U": "Peony", "225 U": "Carnation Pink", "226 U": "Deep Carnation", "227 U": "Dark Pink", "228 U": "Dark Berry", "229 U": "Blackcurrant", "230 U": "Thistle", "231 U": "Lavender Rose", "232 U": "Deep Lavender", "233 U": "Violet Rose", "234 U": "Deep Violet", "235 U": "Dark Violet Rose", "236 U": "Soft Lilac", "237 U": "Lilac", "238 U": "Deep Lilac", "239 U": "Amethyst", "240 U": "Dark Amethyst", "241 U": "Grape", "242 U": "Dark Grape", "243 U": "Pale Lavender", "244 U": "Wisteria", "245 U": "Soft Mauve", "246 U": "Violet", "247 U": "Deep Violet", "248 U": "Mulberry Violet", "249 U": "Dark Plum", "250 U": "Misty Mauve", "251 U": "Pale Violet", "252 U": "Soft Violet", "253 U": "Bright Violet", "254 U": "Purple", "255 U": "Deep Purple", "256 U": "Pale Purple", "257 U": "Lavender", "258 U": "Violet Blue", "259 U": "Deep Indigo", "260 U": "Indigo", "261 U": "Dark Indigo", "262 U": "Deep Navy", "263 U": "Pale Lilac", "264 U": "Periwinkle", "265 U": "Blue Violet", "266 U": "Iris", "267 U": "Deep Iris", "268 U": "Dusk", "269 U": "Deep Dusk", "270 U": "Pastel Blue", "271 U": "Cornflower", "272 U": "Denim", "273 U": "Midnight Blue", "274 U": "Dark Navy", "275 U": "Deep Navy Blue", "276 U": "Dark Midnight", "277 U": "Powder Blue", "278 U": "Pale Blue", "279 U": "Cerulean", "280 U": "Nautical Blue", "281 U": "Marine", "282 U": "Dark Marine", "283 U": "Sky Blue", "284 U": "Horizon Blue", "285 U": "Reflex Blue", "286 U": "Royal Blue", "287 U": "Cobalt", "288 U": "Dark Cobalt", "289 U": "Navy", "290 U": "Baby Blue", "291 U": "Light Blue", "292 U": "Cornflower Blue", "293 U": "Process Blue", "294 U": "Sapphire", "295 U": "Dark Sapphire", "296 U": "Blue Black", "297 U": "Ice Blue", "298 U": "Azure", "299 U": "Cyan", "300 U": "Bright Blue", "301 U": "Baltic", "302 U": "Steel Blue", "303 U": "Pacific Blue", "304 U": "Arctic", "305 U": "Aqua", "306 U": "Turquoise Blue", "307 U": "Ocean", "308 U": "Deep Sea", "309 U": "Dark Teal", "310 U": "Crystal Blue", "311 U": "Swimming Pool", "312 U": "Peacock Blue", "313 U": "Island Blue", "314 U": "Reef Blue", "315 U": "Teal", "316 U": "Dark Teal Blue", "317 U": "Pale Cyan", "318 U": "Light Aqua", "319 U": "Aquamarine", "320 U": "Viridian", "321 U": "Biscay Bay", "322 U": "Dark Cyan", "323 U": "Jungle Green", "324 U": "Honeydew", "325 U": "Mint", "326 U": "Spearmint", "327 U": "Jade", "328 U": "Forest Teal", "329 U": "Pine Teal", "330 U": "Dark Pine", "331 U": "Pale Mint", "332 U": "Sea Foam", "333 U": "Turquoise", "334 U": "Spring Green", "335 U": "Sage Green", "336 U": "Forest Green", "337 U": "Aloe", "338 U": "Seafoam Green", "339 U": "Emerald", "340 U": "Kelly Green", "341 U": "Dark Green", "342 U": "Deep Forest", "343 U": "Bottle Green", "344 U": "Pale Green", "345 U": "Pistachio", "346 U": "Apple Green", "347 U": "Vivid Green", "348 U": "Grass Green", "349 U": "Hunter Green", "350 U": "Pine Green", "351 U": "Honeydew", "352 U": "Lime Cream", "353 U": "Pale Lime", "354 U": "Bright Green", "355 U": "Leaf Green", "356 U": "Clover", "357 U": "Deep Clover", "358 U": "Yellow Green", "359 U": "Light Green", "360 U": "Fern", "361 U": "Green", "362 U": "Meadow", "363 U": "Basil", "364 U": "Moss", "365 U": "Butter Cream", "366 U": "Citron", "367 U": "Lime", "368 U": "Neon Green", "369 U": "Bright Lime", "370 U": "Olive Lime", "371 U": "Dark Olive", "372 U": "Pale Yellow Green", "373 U": "Light Lime", "374 U": "Chartreuse", "375 U": "Lime Punch", "376 U": "Olive Yellow", "377 U": "Olive", "378 U": "Dark Olive Green", "379 U": "Yellow Lime", "380 U": "Kiwi", "381 U": "Acid Green", "382 U": "Electric Lime", "383 U": "Yellow Chartreuse", "384 U": "Pear", "385 U": "Avocado", "386 U": "Yellow", "387 U": "Banana", "388 U": "Lemon", "389 U": "Gold Yellow", "390 U": "Dark Yellow", "391 U": "Khaki", "392 U": "Dark Khaki", "393 U": "Pale Cream", "394 U": "Cream Yellow", "395 U": "Sand", "396 U": "Warm Sand", "397 U": "Dark Sand", "398 U": "Warm Khaki", "399 U": "Olive Drab", "400 U": "Bone", "401 U": "Linen", "402 U": "Warm White", "403 U": "Warm Gray", "404 U": "Stone", "405 U": "Warm Stone", "406 U": "Pale Linen", "407 U": "Pale Stone", "408 U": "Ash", "409 U": "Gray", "410 U": "Warm Gray", "411 U": "Taupe", "412 U": "Dark Taupe", "413 U": "Light Gray", "414 U": "Silver Gray", "415 U": "Cool Gray", "416 U": "Medium Gray", "417 U": "Dark Gray", "418 U": "Charcoal", "419 U": "Almost Black", "420 U": "White Gray", "421 U": "Pale Gray", "422 U": "Light Silver", "423 U": "Silver", "424 U": "Medium Silver", "425 U": "Dark Silver", "426 U": "Graphite", "427 U": "Light Dove", "428 U": "Dove", "429 U": "Storm", "430 U": "Slate", "431 U": "Dark Slate", "432 U": "Dark Storm", "433 U": "Ink", "434 U": "Blush Gray", "435 U": "Pale Rose Gray", "436 U": "Rose Gray", "437 U": "Pink Gray", "438 U": "Mauve Gray", "439 U": "Dark Mauve", "440 U": "Cocoa", "441 U": "Pale Sage", "442 U": "Sage", "443 U": "Gray Blue", "444 U": "Steel", "445 U": "Dark Steel", "446 U": "Deep Steel", "447 U": "Dark Charcoal", "448 U": "Dark Chocolate", "449 U": "Chocolate", "450 U": "Warm Chocolate", "451 U": "Wheat", "452 U": "Pale Wheat", "453 U": "Light Wheat", "454 U": "Vanilla", "455 U": "Bronze", "456 U": "Light Bronze", "457 U": "Warm Bronze", "458 U": "Pale Bronze", "459 U": "Cream Bronze", "460 U": "Ivory", "461 U": "Pale Ivory", "462 U": "Dark Walnut", "463 U": "Walnut", "464 U": "Camel", "465 U": "Light Camel", "466 U": "Tan", "467 U": "Light Tan", "468 U": "Pale Tan", "469 U": "Dark Mocha", "470 U": "Mocha", "471 U": "Warm Mocha", "472 U": "Light Mocha", "473 U": "Peach Cream", "474 U": "Pale Peach", "475 U": "Blush Cream", "476 U": "Espresso", "477 U": "Mahogany Brown", "478 U": "Cinnamon Brown", "479 U": "Hazel", "480 U": "Pale Hazel", "481 U": "Light Hazel", "482 U": "Cream Hazel", "483 U": "Dark Garnet", "484 U": "Garnet", "485 U": "Tomato", "486 U": "Blush Red", "487 U": "Peach Red", "488 U": "Pale Blush", "489 U": "Rose Cream", "490 U": "Dark Oxblood", "491 U": "Oxblood", "492 U": "Deep Rose", "493 U": "Peach Blush", "494 U": "Pink Cream", "495 U": "Pale Rose", "496 U": "Light Rose", "497 U": "Dark Rosewood", "498 U": "Rosewood", "499 U": "Deep Mauve", "500 U": "Dusty Rose", "501 U": "Misty Rose", "502 U": "Pale Blush Rose", "503 U": "Light Pink", "504 U": "Dark Berry", "505 U": "Berry", "506 U": "Raspberry Wine", "507 U": "Ballet Pink", "508 U": "Pale Pink", "509 U": "Blush Pink", "510 U": "Pale Blush", "511 U": "Dark Plum", "512 U": "Plum", "513 U": "Deep Grape", "514 U": "Mauve Pink", "515 U": "Soft Mauve Pink", "516 U": "Pale Mauve", "517 U": "Blush Mauve", "518 U": "Dark Dusty Purple", "519 U": "Dusty Purple", "520 U": "Hyacinth", "521 U": "Pale Hyacinth", "522 U": "Soft Hyacinth", "523 U": "Dusty Lavender", "524 U": "Pale Dusty Lavender", "525 U": "Dark Violet", "526 U": "Deep Violet Blue", "527 U": "Electric Purple", "528 U": "Soft Purple", "529 U": "Pale Purple", "530 U": "Lavender Mist", "531 U": "Pale Lavender Mist", "532 U": "Cadet Blue", "533 U": "Storm Blue", "534 U": "Ocean Blue", "535 U": "Pale Ocean", "536 U": "Misty Blue", "537 U": "Ice Blue", "538 U": "Pale Ice", "539 U": "Midnight", "540 U": "Dark Midnight", "541 U": "True Blue", "542 U": "Steel Blue", "543 U": "Pale Steel", "544 U": "Powder", "545 U": "Pale Powder", "546 U": "Dark Teal", "547 U": "Deep Teal", "548 U": "Teal Blue", "549 U": "Air Blue", "550 U": "Pale Air", "551 U": "Pale Aqua", "552 U": "Aqua Mist", "553 U": "Dark Sea", "554 U": "Sea Green", "555 U": "Deep Sea Green", "556 U": "Pale Sea Green", "557 U": "Mist Green", "558 U": "Pale Mist", "559 U": "Seafoam Mist", "560 U": "Dark Forest", "561 U": "Pine", "562 U": "Deep Pine", "563 U": "Pale Aqua Green", "564 U": "Aqua Green", "565 U": "Pale Sea", "566 U": "Sea Mist", "567 U": "Fern Green", "568 U": "Spearmint Green", "569 U": "Vivid Mint", "570 U": "Pale Mint Green", "571 U": "Soft Mint", "572 U": "Pale Seafoam", "573 U": "White Mint", "574 U": "Avocado Green", "575 U": "Herb", "576 U": "Fresh Herb", "577 U": "Pale Herb", "578 U": "Soft Herb", "579 U": "White Herb", "580 U": "Pale Yellow Green", "581 U": "Dark Olive Yellow", "582 U": "Moss Green", "583 U": "Pale Moss", "584 U": "Light Moss", "585 U": "Pale Sage", "586 U": "White Sage", "587 U": "Pale Green White", "072 U": "Pantone Blue", "1235 U": "Saffron Yellow", "1245 U": "Butterscotch", "1255 U": "Amber Gold", "1265 U": "Bronze Gold", "1345 U": "Cantaloupe", "1355 U": "Peach Cream", "1365 U": "Apricot Crush", "1375 U": "Mango", "1385 U": "Dark Mango", "1395 U": "Burnt Amber", "1405 U": "Dark Amber", "1485 U": "Orange Peel", "1495 U": "Neon Orange", "1505 U": "Vivid Orange", "1515 U": "Salmon Peach", "1525 U": "Salmon", "1535 U": "Coral Brown", "1545 U": "Dark Mahogany", "1555 U": "Peach Blossom", "1565 U": "Pale Salmon", "1575 U": "Grapefruit", "1585 U": "Coral Red", "1595 U": "Burnt Coral", "1605 U": "Dark Terracotta", "1615 U": "Deep Brick", "2587 U": "Wisteria", "2597 U": "Ultra Violet", "2607 U": "Deep Iris", "2617 U": "Dark Indigo", "2627 U": "Dark Plum", "3005 U": "Sky Blue", "3015 U": "True Sky", "3025 U": "Ocean Drive", "3035 U": "Deep Ocean", "3105 U": "Crystal Blue", "3115 U": "Reef", "3125 U": "Pacific", "3135 U": "Deep Pacific", "3145 U": "Blue Green", "3155 U": "Dark Blue Green", "3165 U": "Teal Green", "3248 U": "Seafoam", "3258 U": "Caribbean", "3268 U": "Vivid Green", "3278 U": "Neon Green", "3288 U": "Deep Emerald", "3298 U": "Jungle", "3308 U": "Deep Jungle", "3375 U": "Pale Seafoam", "3385 U": "Light Seafoam", "3395 U": "Bright Seafoam", "3405 U": "Vivid Teal", "3415 U": "British Green", "3425 U": "Emerald Isle", "3435 U": "Deep Emerald Isle", "3507 U": "Chartreuse Yellow", "3517 U": "Lime Yellow", "3527 U": "Lime Green Yellow", "3537 U": "Bright Chartreuse", "3547 U": "Dark Chartreuse", "3557 U": "Olive Chartreuse", "3567 U": "Dark Olive Lime", "3577 U": "Pale Yellow Lime", "3587 U": "Yellow Lime", "3597 U": "Light Lime", "3607 U": "Pale Lime Green", "3617 U": "Light Green Yellow", "801 U": "Turquoise", "802 U": "Green", "803 U": "Yellow", "804 U": "Orange", "805 U": "Red", "806 U": "Pink", "807 U": "Magenta", "808 U": "Aqua", "809 U": "Neon Yellow", "810 U": "Neon Amber", "811 U": "Neon Orange", "812 U": "Neon Red", "813 U": "Neon Magenta", "814 U": "Neon Violet"};
+
+const PANTONE_HEX = {
+  "100 U":"F4ED7C","101 U":"F6E96B","102 U":"FAE52E","103 U":"C9A227","104 U":"A08B25",
+  "105 U":"74661E","106 U":"F5EB45","107 U":"F8E11B","108 U":"F5C800","109 U":"FBDB00",
+  "110 U":"C99A00","111 U":"B38B00","112 U":"A28200","113 U":"F5E642","114 U":"F7E550",
+  "115 U":"EDD679","116 U":"FDB913","117 U":"D4952B","118 U":"B87832","119 U":"6B5628",
+  "120 U":"EFD97C","121 U":"F1E188","122 U":"F2E07F","123 U":"FFC726","124 U":"E9A61E",
+  "125 U":"C9901E","126 U":"B07B15","127 U":"EEE5A0","128 U":"F0E78B","129 U":"E4CA8C",
+  "130 U":"F7A800","131 U":"E09200","132 U":"A8650A","133 U":"8B5C24","134 U":"E8C97A",
+  "135 U":"DFB06E","136 U":"EFA76B","137 U":"EC8C30","138 U":"D07228","139 U":"8C5C28",
+  "140 U":"6B3F1E","141 U":"EBD8A0","142 U":"EDCC78","143 U":"E8B870","144 U":"EE8228",
+  "145 U":"A8601A","146 U":"BF7030","147 U":"A06030","148 U":"EBB690","149 U":"F2D0B0",
+  "150 U":"F0C890","151 U":"F47B20","152 U":"E06018","153 U":"C55020","154 U":"A03518",
+  "155 U":"EECAB0","156 U":"F0A080","157 U":"C87050","158 U":"E87030","159 U":"C45820",
+  "160 U":"A34024","161 U":"7A3020","162 U":"F08874","163 U":"F5B0A0","164 U":"F5A480",
+  "165 U":"FF6E20","166 U":"F15922","167 U":"E05020","168 U":"5E2018","169 U":"EBA0A8",
+  "170 U":"F0B0A0","171 U":"F06040","172 U":"EE4030","173 U":"D42C28","174 U":"8B2018",
+  "175 U":"6A1810","176 U":"F5C0C8","177 U":"F06888","178 U":"FF5064","179 U":"E83428",
+  "180 U":"C82020","181 U":"A01818","182 U":"F0B0C0","183 U":"F06898","184 U":"F05088",
+  "185 U":"E4002B","186 U":"CE1126","187 U":"A8002C","188 U":"7A0020","189 U":"F4B8C8",
+  "190 U":"D04080","191 U":"C03070","192 U":"A02858","193 U":"8C1A48","194 U":"6A1838",
+  "195 U":"561028","196 U":"F0B8C8","197 U":"F0A0B8","198 U":"F04870","199 U":"E02860",
+  "200 U":"D02048","201 U":"AC1840","202 U":"8A1034","203 U":"F5C0D0","204 U":"F0A0C0",
+  "205 U":"E87090","206 U":"CE1075","207 U":"A80060","208 U":"801050","209 U":"601040",
+  "210 U":"F5B8D0","211 U":"F07090","212 U":"FF3EA0","213 U":"D31876","214 U":"B00060",
+  "215 U":"8C0050","216 U":"600030","217 U":"EFCDD8","218 U":"D860A0","219 U":"C03090",
+  "220 U":"9C1870","221 U":"7A0060","222 U":"5A0048","223 U":"F8C8DC","224 U":"E85098",
+  "225 U":"E03898","226 U":"C0206E","227 U":"A01060","228 U":"7A0858","229 U":"5E0848",
+  "230 U":"F0C8E8","231 U":"EAB0E4","232 U":"C880D0","233 U":"AC50B8","234 U":"8C30A0",
+  "235 U":"6C2088","236 U":"F0D8F0","237 U":"DDA0DD","238 U":"C86BC8","239 U":"A852B0",
+  "240 U":"8E3898","241 U":"75207E","242 U":"5C1268","243 U":"E8D8F0","244 U":"C8A8D8",
+  "245 U":"C090C0","246 U":"7D26BE","247 U":"651A9E","248 U":"5A1886","249 U":"441070",
+  "250 U":"E0C8E8","251 U":"D0B0E8","252 U":"C090E0","253 U":"9B30D8","254 U":"7B26C4",
+  "255 U":"6318A0","256 U":"E0D0F0","257 U":"C8B4E8","258 U":"5E2E90","259 U":"4A1A78",
+  "260 U":"3B1264","261 U":"2C0C50","262 U":"1E083C","263 U":"EAE0F8","264 U":"C8B8F0",
+  "265 U":"7060E8","266 U":"5040D0","267 U":"3C28B8","268 U":"2C1A98","269 U":"201080",
+  "270 U":"D8DCF8","271 U":"B0B8F0","272 U":"6068C8","273 U":"2030A0","274 U":"142080",
+  "275 U":"101870","276 U":"0C1060","277 U":"D0E0F8","278 U":"B8D0F5","279 U":"6090E0",
+  "280 U":"1C3580","281 U":"102070","282 U":"0C1858","283 U":"C8DCF8","284 U":"A8CCF5",
+  "285 U":"0059A8","286 U":"1D428A","287 U":"0033A0","288 U":"002884","289 U":"001A5C",
+  "290 U":"D0E8F8","291 U":"B0D8F5","292 U":"7CBCEA","293 U":"0058A8","294 U":"004098",
+  "295 U":"003080","296 U":"001840","297 U":"C0E4F8","298 U":"88CFF5","299 U":"00B0F0",
+  "300 U":"0090D0","301 U":"0076A8","302 U":"005888","303 U":"004068","304 U":"C8ECF8",
+  "305 U":"D0F4F4","306 U":"00C8E8","307 U":"0090B8","308 U":"006890","309 U":"005070",
+  "310 U":"80D8F0","311 U":"5AD0E8","312 U":"00A8D0","313 U":"0090B8","314 U":"0078A0",
+  "315 U":"006888","316 U":"005468","317 U":"D0F0F0","318 U":"98E4E8","319 U":"60D8D8",
+  "320 U":"009498","321 U":"007880","322 U":"006068","323 U":"005058","324 U":"D0F0E8",
+  "325 U":"98E4D0","326 U":"60D8BC","327 U":"009882","328 U":"007A68","329 U":"006050",
+  "330 U":"004840","331 U":"D4F2E4","332 U":"A8E8CC","333 U":"6CDCB4","334 U":"00BC84",
+  "335 U":"00987A","336 U":"007860","337 U":"C8EDD8","338 U":"A8E0C0","339 U":"00B472",
+  "340 U":"009960","341 U":"00784C","342 U":"005C38","343 U":"004030","344 U":"C0E8C8",
+  "345 U":"A4DAB0","346 U":"88CC98","347 U":"00AC4C","348 U":"009040","349 U":"007030",
+  "350 U":"005820","351 U":"D8F4D0","352 U":"C0ECC0","353 U":"B0E8B0","354 U":"00C040",
+  "355 U":"00A030","356 U":"007A22","357 U":"005E18","358 U":"BCE878","359 U":"D0EC98",
+  "360 U":"78C860","361 U":"3CB040","362 U":"308C30","363 U":"207020","364 U":"185818",
+  "365 U":"F2F4C0","366 U":"E4F088","367 U":"C8E840","368 U":"78C628","369 U":"68B020",
+  "370 U":"5A9418","371 U":"485C10","372 U":"F0F4C8","373 U":"E8F0A8","374 U":"DCF064",
+  "375 U":"C8E800","376 U":"C8D400","377 U":"A8A820","378 U":"7C7A10","379 U":"E8E858",
+  "380 U":"D8E830","381 U":"C4E000","382 U":"DFE811","383 U":"D4E000","384 U":"D8D850",
+  "385 U":"B0B410","386 U":"EFF000","387 U":"F4F060","388 U":"F0EC58","389 U":"F0D800",
+  "390 U":"D8C000","391 U":"C4AC28","392 U":"A89428","393 U":"F4F0C0","394 U":"F0EC98",
+  "395 U":"E8E098","396 U":"E0D880","397 U":"C8C060","398 U":"B0A840","399 U":"909020",
+  "400 U":"E8E4DC","401 U":"E0DAD0","402 U":"D8D0C8","403 U":"C8C0B8","404 U":"B8B0A8",
+  "405 U":"A09890","406 U":"EDE8E0","407 U":"DAD4CC","408 U":"C0B8B0","409 U":"A8A09C",
+  "410 U":"908888","411 U":"706868","412 U":"504848","413 U":"D8D8D4","414 U":"C8C8C4",
+  "415 U":"B8B8B4","416 U":"A0A0A0","417 U":"888888","418 U":"606060","419 U":"282828",
+  "420 U":"F0F0EE","421 U":"E4E4E2","422 U":"D4D4D2","423 U":"B8B8B8","424 U":"A0A0A0",
+  "425 U":"888888","426 U":"484848","427 U":"E0E0DE","428 U":"CCCCC8","429 U":"B0B0AC",
+  "430 U":"989898","431 U":"808080","432 U":"606060","433 U":"404040","434 U":"E8DCD8",
+  "435 U":"DDD0CC","436 U":"CCC0BC","437 U":"B0A4A0","438 U":"908480","439 U":"706060",
+  "440 U":"504040","441 U":"DDE0D8","442 U":"C8CCBC","443 U":"ACB0A4","444 U":"909898",
+  "445 U":"707878","446 U":"505858","447 U":"383C38","448 U":"3C2C28","449 U":"5C3C30",
+  "450 U":"7C5040","451 U":"E8D8B8","452 U":"E0D0A8","453 U":"D4C494","454 U":"C8B880",
+  "455 U":"B09C50","456 U":"D0B860","457 U":"C0A040","458 U":"D4C898","459 U":"E8DDB0",
+  "460 U":"F0E8C0","461 U":"F4F0D8","462 U":"6C4C30","463 U":"8C6040","464 U":"B08050",
+  "465 U":"C09C70","466 U":"D0B48C","467 U":"E0C8A8","468 U":"ECD8B8","469 U":"5C3C20",
+  "470 U":"7C4C28","471 U":"A06030","472 U":"C48050","473 U":"E0A878","474 U":"EABF97",
+  "475 U":"F2D0B0","476 U":"4C2C18","477 U":"6C3C20","478 U":"8C5030","479 U":"B47C58",
+  "480 U":"D4A880","481 U":"E8C8A8","482 U":"F0D8C0","483 U":"481818","484 U":"8C1C18",
+  "485 U":"DA291C","486 U":"E87868","487 U":"F4A090","488 U":"F8C0B8","489 U":"F8D0C8",
+  "490 U":"4C1010","491 U":"6C1018","492 U":"8C2030","493 U":"F0A8B8","494 U":"F8C8D0",
+  "495 U":"F5D0DC","496 U":"F8DCE4","497 U":"5C1828","498 U":"7C2030","499 U":"9C3050",
+  "500 U":"D06080","501 U":"E8A0C0","502 U":"F0C0D8","503 U":"F8D8E8","504 U":"6C2040",
+  "505 U":"8C2840","506 U":"B03068","507 U":"F0D0E0","508 U":"F4DCE8","509 U":"F8E4EE",
+  "510 U":"FCEEF4","511 U":"4C1060","512 U":"7C1A80","513 U":"A020A0","514 U":"C04090",
+  "515 U":"D060A0","516 U":"E090B8","517 U":"EEC0D0","518 U":"4C1848","519 U":"681A68",
+  "520 U":"8C28A0","521 U":"B060B8","522 U":"C080C0","523 U":"A050A8","524 U":"C888CC",
+  "525 U":"601880","526 U":"5018A0","527 U":"7820C0","528 U":"A868C8","529 U":"C498D8",
+  "530 U":"DCC0E4","531 U":"ECD8F0","532 U":"4C6080","533 U":"3C5070","534 U":"486890",
+  "535 U":"90A8C8","536 U":"B0C0D8","537 U":"C8D4E4","538 U":"D8E0EC","539 U":"1C3060",
+  "540 U":"183050","541 U":"1C4080","542 U":"6888B0","543 U":"A0B8D0","544 U":"C0D0E0",
+  "545 U":"D4E0EA","546 U":"183040","547 U":"143050","548 U":"1C4858","549 U":"7CA8C0",
+  "550 U":"A8C4D4","551 U":"C8D8E4","552 U":"D8E4EC","553 U":"204840","554 U":"287060",
+  "555 U":"1E5850","556 U":"90C0B0","557 U":"B0D0C8","558 U":"C8E0D8","559 U":"D8EAE4",
+  "560 U":"1C3830","561 U":"205040","562 U":"1C6050","563 U":"A0D0C4","564 U":"B8D8D0",
+  "565 U":"C8E4DC","566 U":"D8ECE8","567 U":"408060","568 U":"389070","569 U":"30A880",
+  "570 U":"C0E8D8","571 U":"D0EEE0","572 U":"E0F4E8","573 U":"ECF8F0","574 U":"5C7830",
+  "575 U":"487028","576 U":"608040","577 U":"A0C080","578 U":"C4D8A8","579 U":"D8E8C0",
+  "580 U":"E8F0D0","581 U":"8C9020","582 U":"9C9C10","583 U":"B0AA20","584 U":"D4D090",
+  "585 U":"E4E0B0","586 U":"EEE8C8","587 U":"F4F0DC",
+  "072 U":"0038A8",
+  "1235 U":"FFC72C","1245 U":"E8A820","1255 U":"D09018","1265 U":"B87818",
+  "1345 U":"F9B38A","1355 U":"FBCBAB","1365 U":"FCA17D","1375 U":"F07B20",
+  "1385 U":"C05C10","1395 U":"8C4010","1405 U":"602C08",
+  "1485 U":"FF8C00","1495 U":"FF6A00","1505 U":"FF4800","1515 U":"FFB094",
+  "1525 U":"F8876C","1535 U":"CC6650","1545 U":"7A3C2C","1555 U":"F8C0A8",
+  "1565 U":"F5C0A0","1575 U":"FF8B6B","1585 U":"F06040","1595 U":"DC4C30",
+  "1605 U":"B04030","1615 U":"8C2C18",
+  "2587 U":"A06CC0","2597 U":"542EA0","2607 U":"3C2488","2617 U":"2C1878","2627 U":"201460",
+  "3005 U":"0076BE","3015 U":"007EB0","3025 U":"005D8E","3035 U":"00496E",
+  "3105 U":"00A8C8","3115 U":"00C0D8","3125 U":"00A8C4","3135 U":"0090B0",
+  "3145 U":"008C9C","3155 U":"007880","3165 U":"006878",
+  "3248 U":"00C0A0","3258 U":"00B09C","3268 U":"00A070","3278 U":"00C840",
+  "3288 U":"008040","3298 U":"006030","3308 U":"004820",
+  "3375 U":"B0E8CC","3385 U":"78D4A8","3395 U":"40C480","3405 U":"20B060",
+  "3415 U":"008C50","3425 U":"007040","3435 U":"005830",
+  "3507 U":"E8F040","3517 U":"C8E000","3527 U":"A8D000","3537 U":"80B800",
+  "3547 U":"60A000","3557 U":"508818","3567 U":"407010",
+  "3577 U":"E0F0B0","3587 U":"C8E880","3597 U":"B0D860","3607 U":"A0C848","3617 U":"90B038",
+  "801 U":"00C4CC","802 U":"49E520","803 U":"FFEC00","804 U":"FF7300",
+  "805 U":"FE2712","806 U":"F400A1","807 U":"E0189C","808 U":"00D2B4",
+  "809 U":"ECFF00","810 U":"FFB800","811 U":"FF5500","812 U":"FF0033",
+  "813 U":"EE00AA","814 U":"8C00DC"
+};
 
 // ══════════════════════════════════════════════════════════════════════════
 // SEGMENTED CONTROL
