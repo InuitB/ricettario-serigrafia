@@ -1480,6 +1480,12 @@ html {
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 10px; opacity: 0.6; letter-spacing: 0.6px; white-space: nowrap;
 }
+.wc-dots { display:flex; gap:5px; align-items:center; flex-shrink:0; }
+.wc-dot {
+  width:7px; height:7px; border-radius:50%;
+  border:1.5px solid currentColor; flex-shrink:0;
+}
+.wc-dot.off { opacity:0.28; }
 
 /* Recipe sheet */
 .wallet-recipe-sheet {
@@ -2895,10 +2901,10 @@ async function saveEdit() {
         if (dotEl) dotEl.style.background = fg;
         const cntEl = card.querySelector('.wallet-card-ink-count');
         if (cntEl) cntEl.style.color = fg;
+        const newPName = PANTONE_NAMES[nuovoNome] || '';
+        const newPag = nuovaPagina ? 'PAG.' + nuovaPagina : '';
         const nameEl = card.querySelector('.wallet-card-name');
-        if (nameEl) { nameEl.style.color = fg; nameEl.textContent = PANTONE_NAMES[nuovoNome] || ''; }
-        const metaEl = card.querySelector('.wallet-card-meta');
-        if (metaEl) metaEl.style.color = fg;
+        if (nameEl) { nameEl.style.color = fg; nameEl.textContent = [newPName, newPag].filter(Boolean).join(' · '); }
       }
 
       // Aggiorna blobs
@@ -3928,15 +3934,21 @@ function renderWalletList(filtered) {
     const hasU = r.Pantone_ID.includes(' U');
     const pagina = r.Pagina ? 'PAG.' + r.Pagina : '';
     const cop = r.Copertura || '';
-    const meta = [pagina, cop ? 'COER ' + cop : ''].filter(Boolean).join(' · ');
+    const copN = {'Coprente':3,'Semi-coprente':2,'Trasparente':1}[cop] || 0;
+    const leftLabel = [pName, pagina].filter(Boolean).join(' · ');
+    const dotsHtml = copN > 0
+      ? `<span class="wc-dots">${[1,2,3].map(i =>
+          `<span class="wc-dot${i<=copN?'':' off'}" style="color:${fg}${i<=copN?';background:'+fg:''}"></span>`
+        ).join('')}</span>`
+      : '';
     return `<div class="wallet-card" style="background:#${r.HEX}" onclick="selectWalletCard(${i})">
       <div class="wallet-card-ink-count" style="color:${fg}">
         <span class="wallet-card-ink-dot" style="background:${fg}"></span>${nInk} ink
       </div>
       <div class="wallet-card-code" style="color:${fg}">${codeBase}${hasU ? `<span class="code-u"> U</span>` : ''}</div>
       <div class="wallet-card-bottom">
-        <span class="wallet-card-name" style="color:${fg}">${pName}</span>
-        ${meta ? `<span class="wallet-card-meta" style="color:${fg}">${meta}</span>` : ''}
+        ${leftLabel ? `<span class="wallet-card-name" style="color:${fg}">${leftLabel}</span>` : '<span></span>'}
+        ${dotsHtml}
       </div>
     </div>`;
   }).join('');
