@@ -12,6 +12,7 @@ function doPost(e) {
     switch (data.action) {
       case 'addRicetta':              result = addRicetta(data);              break;
       case 'editRicetta':             result = editRicetta(data);             break;
+      case 'deleteRicetta':           result = deleteRicetta(data);           break;
       case 'addSperimentazione':      result = addSperimentazione(data);      break;
       case 'promuoviSperimentazione': result = promuoviSperimentazione(data); break;
       default: result = { error: 'Azione sconosciuta: ' + data.action };
@@ -128,6 +129,43 @@ function editRicetta(data) {
   }
 
   return { ok: true, modifiche: logs.length };
+}
+
+// ── ELIMINA RICETTA ───────────────────────────────────────────────────────
+function deleteRicetta(data) {
+  const ss      = SpreadsheetApp.openById(SHEET_ID);
+  const ricette = ss.getSheetByName('Ricette');
+  const comp    = ss.getSheetByName('Componenti');
+  const log     = ss.getSheetByName('Log');
+
+  const ts = data.timestamp || new Date().toISOString();
+  const id = String(data.pantone_id);
+
+  // Elimina riga in Ricette (scansiona dal basso per indici stabili)
+  const rData = ricette.getDataRange().getValues();
+  const rHeaders = rData[0];
+  const rIdCol = rHeaders.indexOf('Pantone_ID');
+  for (let i = rData.length - 1; i >= 1; i--) {
+    if (String(rData[i][rIdCol]) === id) {
+      ricette.deleteRow(i + 1);
+      break;
+    }
+  }
+
+  // Elimina tutte le righe in Componenti (dal basso)
+  const cData = comp.getDataRange().getValues();
+  const cHeaders = cData[0];
+  const cIdCol = cHeaders.indexOf('Pantone_ID');
+  for (let i = cData.length - 1; i >= 1; i--) {
+    if (String(cData[i][cIdCol]) === id) {
+      comp.deleteRow(i + 1);
+    }
+  }
+
+  // Logga l'eliminazione
+  log.appendRow([ts, id, 'ELIMINATA', id, '']);
+
+  return { ok: true };
 }
 
 // ── AGGIUNGI SPERIMENTAZIONE ──────────────────────────────────────────────

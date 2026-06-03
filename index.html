@@ -1005,6 +1005,35 @@ html {
 .edit-msg { margin: 10px 20px 0; font-size: 13px; border-radius: 10px; padding: 10px 14px; display: none; }
 .edit-msg.ok { background: #e8f5e9; color: #2e7d32; display: block; }
 .edit-msg.err { background: #fff3f3; color: #c0392b; display: block; }
+.edit-delete-wrap { margin: 18px 20px 4px; }
+.edit-delete-btn {
+  width: 100%; background: transparent;
+  border: 1.5px solid rgba(180,0,0,0.25); color: rgba(180,0,0,0.7);
+  border-radius: 999px; padding: 10px;
+  font-family: var(--font); font-size: 14px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s, color 0.15s;
+}
+.edit-delete-btn:hover { border-color: rgba(180,0,0,0.55); color: #b00; }
+.edit-delete-confirm {
+  margin-top: 10px; padding: 12px 14px;
+  background: rgba(180,0,0,0.06);
+  border: 1px solid rgba(180,0,0,0.18);
+  border-radius: 16px; display: none;
+}
+.edit-delete-confirm.visible { display: block; }
+.edit-delete-warning { font-size: 12px; color: rgba(160,0,0,0.8); line-height: 1.5; margin-bottom: 10px; }
+.edit-delete-actions { display: flex; gap: 8px; }
+.edit-delete-cancel {
+  flex: 1; padding: 9px; border-radius: 999px; border: 1.5px solid var(--border-strong);
+  background: var(--surface); color: var(--text);
+  font-family: var(--font); font-size: 13px; cursor: pointer;
+}
+.edit-delete-go {
+  flex: 1; padding: 9px; border-radius: 999px; border: none;
+  background: #b00; color: #fff;
+  font-family: var(--font); font-size: 13px; font-weight: 700; cursor: pointer;
+}
 
 /* nome Pantone sotto il codice nel dettaglio */
 .detail-pantone-name {
@@ -1716,6 +1745,17 @@ html {
 
     <div class="edit-msg" id="edit-msg"></div>
     <button class="edit-save-btn" id="edit-save-btn" onclick="saveEdit()">Salva modifiche</button>
+
+    <div class="edit-delete-wrap">
+      <button class="edit-delete-btn" id="edit-delete-btn" onclick="showDeleteConfirm()">Elimina ricetta</button>
+      <div class="edit-delete-confirm" id="edit-delete-confirm">
+        <div class="edit-delete-warning">Questa azione elimina la ricetta e tutti i suoi componenti dal database. Non è reversibile.</div>
+        <div class="edit-delete-actions">
+          <button class="edit-delete-cancel" onclick="hideDeleteConfirm()">Annulla</button>
+          <button class="edit-delete-go" id="edit-delete-go" onclick="confirmDelete()">Elimina</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- INKS LIST VIEW -->
@@ -2775,6 +2815,51 @@ function openEditSheet() {
 function closeEditSheet() {
   document.getElementById('edit-overlay').classList.remove('open');
   document.getElementById('edit-sheet').classList.remove('open');
+  hideDeleteConfirm();
+}
+
+function showDeleteConfirm() {
+  document.getElementById('edit-delete-btn').style.display = 'none';
+  document.getElementById('edit-delete-confirm').classList.add('visible');
+}
+
+function hideDeleteConfirm() {
+  const btn = document.getElementById('edit-delete-btn');
+  const conf = document.getElementById('edit-delete-confirm');
+  if (btn) btn.style.display = '';
+  if (conf) conf.classList.remove('visible');
+}
+
+async function confirmDelete() {
+  const goBtn = document.getElementById('edit-delete-go');
+  goBtn.disabled = true; goBtn.textContent = 'Eliminazione...';
+
+  const payload = JSON.stringify({
+    action: 'deleteRicetta',
+    pantone_id: activeId,
+    timestamp: new Date().toISOString()
+  });
+
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: payload
+    });
+
+    // Rimuovi dai dati locali
+    allRicette = allRicette.filter(r => r.Pantone_ID !== activeId);
+    allComponenti = allComponenti.filter(c => c.Pantone_ID !== activeId);
+
+    // Chiudi sheet e card, torna alla lista
+    closeEditSheet();
+    closeWalletCard();
+
+    // Aggiorna lista dopo la chiusura animazione
+    setTimeout(() => filterList(), 350);
+  } catch (e) {
+    goBtn.disabled = false; goBtn.textContent = 'Elimina';
+  }
 }
 
 function editSetCat(el, cat) {
