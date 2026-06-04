@@ -1224,12 +1224,11 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
   const bodyInnerRef=React.useRef(null), bodyWrapRef=React.useRef(null);
   const [cardH, setCardH] = React.useState(null);
   React.useLayoutEffect(()=>{
-    const col=colRef.current, hd=headerRef.current, bw0=bodyWrapRef.current;
-    if(!col||!hd||!bw0) return;
-    const srH=searchRowRef.current?searchRowRef.current.offsetHeight:0;
+    const col=colRef.current, hd=headerRef.current, bi=bodyInnerRef.current;
+    if(!col||!hd||!bi) return;
     const bw=theme.borders?theme.borderWidth*2:2;
-    const avail=col.clientHeight-srH-14-bw;
-    const natural=hd.offsetHeight+bw0.scrollHeight+bw;
+    const avail=col.clientHeight-bw;
+    const natural=hd.offsetHeight+bi.scrollHeight+40+bw; // 40 = bodyWrap padding (18+22)
     setCardH(Math.min(natural,avail));
   },[selected&&selected.code,anim,qty,theme.cardSurface,theme.display,theme.borders,theme.borderWidth]);
 
@@ -1238,10 +1237,17 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
   return (
     <div style={{width:'100%',height:'100%',position:'relative'}}>
       <GrainBlobs theme={theme} blobHex={selected.hex}/>
-      <div style={{position:'relative',zIndex:20,height:88,display:'flex',alignItems:'center',padding:'0 28px'}}>
-        <Logo theme={theme} onSettings={onSettings}/>
+      <div style={{position:'relative',zIndex:20,height:88,display:'flex',alignItems:'center',padding:'0 28px',gap:16}}>
+        <div style={{width:352,flexShrink:0,display:'flex',alignItems:'center'}}>
+          <Logo theme={theme} onSettings={onSettings}/>
+        </div>
+        <div style={{flex:1,display:'flex',alignItems:'center',gap:12}}>
+          <div style={{flex:1}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca…"/></div>
+          <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="right"/>
+          <NuovaPill theme={theme} compact onClick={onNuova}/>
+        </div>
+        <ModeOrb mode={mode} onChange={setMode} theme={theme}/>
       </div>
-      <div style={{position:'absolute',top:17,right:28,zIndex:70}}><ModeOrb mode={mode} onChange={setMode} theme={theme}/></div>
       <div style={{position:'relative',zIndex:10,display:'flex',height:'calc(100% - 88px)'}}>
         {/* LISTA */}
         <div style={{width:380,flexShrink:0,display:'flex',flexDirection:'column',padding:'6px 0 0 28px'}}>
@@ -1271,13 +1277,8 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
           </div>
         </div>
         {/* DETTAGLIO */}
-        <div style={{flex:1,minWidth:0,display:'flex',padding:'4px 28px 26px 16px'}}>
+        <div style={{flex:1,minWidth:0,display:'flex',padding:'10px 28px 26px 16px'}}>
           <div ref={colRef} style={{width:600,flexShrink:0,display:'flex',flexDirection:'column',minHeight:0}}>
-            <div ref={searchRowRef} style={{display:'flex',alignItems:'center',gap:12,marginBottom:14,flexShrink:0}}>
-              <div style={{flex:1}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca…"/></div>
-              <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="right"/>
-              <NuovaPill theme={theme} compact onClick={onNuova}/>
-            </div>
             <div key={'card-'+selected.code} style={{height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:34,overflow:'hidden',position:'relative',...surface(theme),border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 20px 50px ${rgba('#000',0.10)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1)`,animation:`mBreath .6s cubic-bezier(.32,1.12,.4,1) both`,transformOrigin:'top center'}}>
               <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'18px 32px 14px',flexShrink:0,transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
