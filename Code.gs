@@ -119,7 +119,7 @@ function addRicetta(data) {
     const cMap = {
       'Pantone_ID':   data.Pantone_ID  || '',
       'Inchiostro':   c.Inchiostro     || '',
-      'Dose_40g (g)': c['Dose_40g (g)']|| ''
+      'Dose_40g (g)': toDose(c['Dose_40g (g)'])
     };
     comp.appendRow(cHeaders.map(h => cMap.hasOwnProperty(h) ? cMap[h] : ''));
   });
