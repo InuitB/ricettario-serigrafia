@@ -34,22 +34,22 @@ function addRicetta(data) {
   const comp    = ss.getSheetByName('Componenti');
 
   ricette.appendRow([
-    data.pantone_id,
-    data.hex        || '',
-    data.categoria  || '',
-    data.temperatura|| '',
-    data.copertura  || '',
-    data.note       || '',
-    data.pagina     || '',
-    data.progetti   || ''
+    data.Pantone_ID,
+    data.HEX         || '',
+    data.Categoria   || '',
+    data.Temperatura || '',
+    data.Copertura   || '',
+    data.Note        || '',
+    data.Pagina      || '',
+    data.Progetti    || ''
   ]);
 
   const componenti = data.componenti || [];
   componenti.forEach(c => {
     comp.appendRow([
-      data.pantone_id,
-      c.inchiostro,
-      c['dose_40g'] || c.dose_40g || ''
+      data.Pantone_ID,
+      c.Inchiostro,
+      c['Dose_40g (g)'] || ''
     ]);
   });
 
@@ -73,12 +73,12 @@ function editRicetta(data) {
   // Trova la riga con l'ID originale
   let rowNum = -1;
   for (let i = 1; i < rData.length; i++) {
-    if (String(rData[i][col['Pantone_ID']]) === String(data.pantone_id_originale)) {
+    if (String(rData[i][col['Pantone_ID']]) === String(data.Pantone_ID)) {
       rowNum = i + 1; // 1-indexed per Apps Script
       break;
     }
   }
-  if (rowNum === -1) return { error: 'Ricetta non trovata: ' + data.pantone_id_originale };
+  if (rowNum === -1) return { error: 'Ricetta non trovata: ' + data.Pantone_ID };
 
   const oldRow = rData[rowNum - 1];
   const ts     = data.timestamp || new Date().toISOString();
@@ -93,35 +93,35 @@ function editRicetta(data) {
     const nuovo   = String(nuovoValore);
     if (vecchio !== nuovo) {
       ricette.getRange(rowNum, idx + 1).setValue(nuovo);
-      logs.push([ts, data.pantone_id_originale, campo, vecchio, nuovo]);
+      logs.push([ts, data.Pantone_ID, campo, vecchio, nuovo]);
     }
   }
 
   // Rinomina ID (aggiorna anche Componenti)
-  const nuovoId = data.pantone_id_nuovo;
-  if (nuovoId && nuovoId !== data.pantone_id_originale) {
+  const nuovoId = data.Pantone_ID_nuovo;
+  if (nuovoId && nuovoId !== data.Pantone_ID) {
     const vecchioId = String(oldRow[col['Pantone_ID']] || '');
     ricette.getRange(rowNum, col['Pantone_ID'] + 1).setValue(nuovoId);
-    logs.push([ts, data.pantone_id_originale, 'Pantone_ID', vecchioId, nuovoId]);
+    logs.push([ts, data.Pantone_ID, 'Pantone_ID', vecchioId, nuovoId]);
 
     // Aggiorna Componenti
     const cHeaders = comp.getRange(1, 1, 1, comp.getLastColumn()).getValues()[0];
     const cData    = comp.getDataRange().getValues();
     const cIdCol   = cHeaders.indexOf('Pantone_ID');
     for (let i = 1; i < cData.length; i++) {
-      if (String(cData[i][cIdCol]) === String(data.pantone_id_originale)) {
+      if (String(cData[i][cIdCol]) === String(data.Pantone_ID)) {
         comp.getRange(i + 1, cIdCol + 1).setValue(nuovoId);
       }
     }
   }
 
   // Aggiorna tutti i campi modificabili
-  aggiorna('HEX',         data.hex);
-  aggiorna('Categoria',   data.categoria);
-  aggiorna('Temperatura', data.temperatura);
-  aggiorna('Pagina',      data.pagina);
-  aggiorna('Note',        data.note);
-  aggiorna('Progetti',    data.progetti);
+  aggiorna('HEX',         data.HEX);
+  aggiorna('Categoria',   data.Categoria);
+  aggiorna('Temperatura', data.Temperatura);
+  aggiorna('Pagina',      data.Pagina);
+  aggiorna('Note',        data.Note);
+  aggiorna('Progetti',    data.Progetti);
 
   // Scrivi righe di log
   if (logs.length > 0) {
@@ -139,7 +139,7 @@ function deleteRicetta(data) {
   const log     = ss.getSheetByName('Log');
 
   const ts = data.timestamp || new Date().toISOString();
-  const id = String(data.pantone_id);
+  const id = String(data.Pantone_ID);
 
   // Elimina riga in Ricette (scansiona dal basso per indici stabili)
   const rData = ricette.getDataRange().getValues();
@@ -222,9 +222,9 @@ function promuoviSperimentazione(data) {
     const sPantoneCol = sHeaders.indexOf('Pantone_ID_assegnato');
 
     for (let i = 1; i < sData.length; i++) {
-      if (String(sData[i][sIdCol]) === String(data.sperim_id)) {
+      if (String(sData[i][sIdCol]) === String(data.Sperim_ID)) {
         sperim.getRange(i + 1, sStatoCol + 1).setValue('Promossa');
-        sperim.getRange(i + 1, sPantoneCol + 1).setValue(data.pantone_id || '');
+        sperim.getRange(i + 1, sPantoneCol + 1).setValue(data.Pantone_ID || '');
         break;
       }
     }
@@ -232,23 +232,23 @@ function promuoviSperimentazione(data) {
 
   // Aggiungi ricetta
   ricette.appendRow([
-    data.pantone_id     || '',
-    data.hex            || '',
-    data.categoria      || '',
-    data.temperatura    || '',
-    data.copertura      || '',
-    data.note           || '',
-    data.pagina         || '',
-    data.progetti       || ''
+    data.Pantone_ID  || '',
+    data.HEX         || '',
+    data.Categoria   || '',
+    data.Temperatura || '',
+    data.Copertura   || '',
+    data.Note        || '',
+    data.Pagina      || '',
+    data.Progetti    || ''
   ]);
 
   // Aggiungi componenti
   const componenti = data.componenti || [];
   componenti.forEach(c => {
     comp.appendRow([
-      data.pantone_id,
-      c.inchiostro,
-      c['dose_40g'] || c.dose_40g || ''
+      data.Pantone_ID,
+      c.Inchiostro,
+      c['Dose_40g (g)'] || ''
     ]);
   });
 
