@@ -665,7 +665,7 @@ function guessFamily(hexStr) {
   return 'rosso';
 }
 
-function InkSearchField({value, onChange, options, style}) {
+function InkSearchField({value, onChange, options, style, onConfirm}) {
   const [q, setQ] = React.useState(value||'');
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef(null);
@@ -678,11 +678,18 @@ function InkSearchField({value, onChange, options, style}) {
   },[open,value]);
   const lq=q.toLowerCase();
   const filtered=options.filter(o=>!lq||o.code.toLowerCase().includes(lq)||(o.name&&o.name.toLowerCase().includes(lq)));
-  const pick=o=>{onChange(o.code);setQ(o.code);setOpen(false);};
+  const pick=o=>{onChange(o.code);setQ(o.code);setOpen(false);onConfirm?.();};
+  const onKeyDown=e=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      if(open&&filtered.length>0){pick(filtered[0]);}
+      else{setOpen(false);onConfirm?.();}
+    } else if(e.key==='Escape'){setOpen(false);setQ(value||'');}
+  };
   return (
     <div ref={ref} style={{position:'relative',flex:2,minWidth:0}}>
       <input value={q} onChange={e=>{setQ(e.target.value);setOpen(true);if(!e.target.value)onChange('');}}
-        onFocus={()=>setOpen(true)} placeholder="Cerca inchiostro…" autoComplete="off" style={{...style,width:'100%'}}/>
+        onFocus={()=>setOpen(true)} onKeyDown={onKeyDown} placeholder="Cerca inchiostro…" autoComplete="off" style={{...style,width:'100%'}}/>
       {open&&(
         <div style={{position:'absolute',top:'calc(100% + 3px)',left:0,right:0,zIndex:1200,background:'#fff',border:'1px solid rgba(0,0,0,0.10)',borderRadius:12,boxShadow:'0 8px 28px rgba(0,0,0,0.16)',maxHeight:190,overflowY:'auto'}}>
           {filtered.length===0&&<div style={{padding:'10px 14px',fontFamily:'Nebulica',fontSize:13,color:'rgba(0,0,0,0.38)'}}>Nessun risultato</div>}
@@ -712,6 +719,7 @@ function NuovaSheet({open, onClose, theme}) {
   const [inks, setInks] = React.useState([{ink:'',dose:''},{ink:'',dose:''}]);
   const [saving, setSaving] = React.useState(false);
   const [msg, setMsg] = React.useState('');
+  const doseRefs = React.useRef([]);
 
   React.useEffect(()=>{
     if(!open){ setPid(''); setHex(''); setHexAuto(false); setCat(''); setCatAuto(false); setTemp(''); setCop(''); setNote(''); setPag(''); setInks([{ink:'',dose:''},{ink:'',dose:''}]); setMsg(''); setSaving(false); }
@@ -746,6 +754,8 @@ function NuovaSheet({open, onClose, theme}) {
     if(!pid.trim()||!hex.trim()||!cat){ setMsg('Compila Pantone ID, HEX e Categoria.'); return; }
     const validInks = inks.filter(r=>r.ink.trim()&&r.dose.trim());
     if(validInks.length===0){ setMsg('Aggiungi almeno un inchiostro con la dose.'); return; }
+    const totale = validInks.reduce((s,r)=>s+parseFloat(String(r.dose).replace(',','.'))||0, 0);
+    if(Math.abs(totale-40)>0.15){ setMsg(`⚠ Totale ${totale.toFixed(1)} g (atteso 40 g) — salva lo stesso?`); if(!msg.includes('salva lo stesso')) return; }
     setSaving(true); setMsg('');
     try{
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
@@ -819,8 +829,8 @@ function NuovaSheet({open, onClose, theme}) {
           </div>
           {inks.map((row,i)=>(
             <div key={i} style={{display:'flex',gap:8,alignItems:'center',marginBottom:8}}>
-              <InkSearchField value={row.ink} onChange={v=>setField(i,'ink',v)} options={inkOpts} style={inp}/>
-              <input value={row.dose} onChange={e=>setField(i,'dose',e.target.value)} type="number" step="0.1" placeholder="g" style={{...inp,width:72,flex:'none'}}/>
+              <InkSearchField value={row.ink} onChange={v=>setField(i,'ink',v)} options={inkOpts} style={inp} onConfirm={()=>doseRefs.current[i]?.focus()}/>
+              <input ref={el=>doseRefs.current[i]=el} value={row.dose} onChange={e=>setField(i,'dose',e.target.value)} type="number" step="0.1" placeholder="g" style={{...inp,width:72,flex:'none'}}/>
               {inks.length>1&&<button onClick={()=>removeInkRow(i)} style={{width:32,height:32,borderRadius:99,border:'none',background:rgba('#000',0.06),cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><IcoClose size={12} color={theme.faint}/></button>}
             </div>
           ))}
