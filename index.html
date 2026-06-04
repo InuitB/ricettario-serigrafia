@@ -1380,6 +1380,50 @@ function NFProjTags({tags,setTags,input,setInput,theme}){
     </div>
   );
 }
+function NFInkCombo({row,pct,state,opts,theme}){
+  const [open,setOpen]=React.useState(false);
+  const [query,setQuery]=React.useState('');
+  const filtered=query.trim()?opts.filter(o=>o.name.toLowerCase().includes(query.toLowerCase())||(o.label&&o.label.toLowerCase().includes(query.toLowerCase()))):opts;
+  const handleSelect=name=>{state.setInk(row.id,{name});setQuery('');setOpen(false);};
+  const handleKeyDown=e=>{
+    if(e.key==='Escape'){setOpen(false);setQuery('');}
+    if(e.key==='Enter'&&filtered.length>0){e.preventDefault();handleSelect(filtered[0].name);}
+  };
+  return (
+    <div style={{width:'100%',borderRadius:open?18:99,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`,boxSizing:'border-box',display:'flex',flexDirection:'column',animation:`nfRowIn .34s ${SPRING_SOFT} both`,transition:'border-radius .22s'}}>
+      <div style={{display:'flex',alignItems:'center',gap:10,minHeight:46,padding:'0 10px 0 18px',flexShrink:0}}>
+        {row.name?<span style={{width:12,height:12,borderRadius:99,background:theme.accent,flexShrink:0}}/>:<span style={{width:12,height:12,borderRadius:99,boxShadow:`inset 0 0 0 1.5px ${theme.line2}`,flexShrink:0}}/>}
+        <input
+          value={open?query:row.name}
+          onChange={e=>{setQuery(e.target.value);if(!open)setOpen(true);}}
+          onFocus={()=>{setQuery('');setOpen(true);}}
+          onBlur={()=>setTimeout(()=>{setOpen(false);setQuery('');},160)}
+          onKeyDown={handleKeyDown}
+          placeholder={row.name||'Scegli inchiostro'}
+          style={{flex:1,minWidth:0,border:'none',outline:'none',background:'transparent',fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:row.name&&!open?theme.ink:open?theme.ink:theme.faint}}
+        />
+        {row.name&&!open&&<span style={{fontFamily:'Nebulica',fontSize:12,color:theme.faint,flexShrink:0}}>{Math.round(pct)}%</span>}
+        <div style={{display:'flex',alignItems:'baseline',gap:3,flexShrink:0}}>
+          <input className="nf-num" type="number" min="0" step="0.01" value={row.g} placeholder="0.00" onChange={e=>state.setInk(row.id,{g:e.target.value})} style={{width:64,border:'none',outline:'none',background:'transparent',textAlign:'right',fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:theme.ink}}/>
+          <span style={{fontFamily:'Nebulica',fontSize:13,color:theme.faint}}>g</span>
+        </div>
+        <button onClick={()=>state.delInk(row.id)} title="Rimuovi" style={{width:34,height:34,borderRadius:99,flexShrink:0,border:`1.5px solid ${theme.line2}`,background:'transparent',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={14} color={theme.sub}/></button>
+      </div>
+      {open&&(
+        <div style={{maxHeight:220,overflowY:'auto',borderTop:`1px solid ${theme.line2}`,padding:'4px 0 8px'}}>
+          {filtered.length===0
+            ?<div style={{padding:'10px 44px',fontFamily:'Nebulica',fontSize:13,color:theme.faint}}>Nessun risultato</div>
+            :filtered.map(o=>(
+              <div key={o.name} onMouseDown={e=>{e.preventDefault();handleSelect(o.name);}} style={{padding:'9px 18px 9px 44px',cursor:'pointer',fontFamily:'Nebulica',fontWeight:o.name===row.name?700:400,fontSize:14.5,color:o.name===row.name?theme.accent:theme.ink,background:o.name===row.name?rgba(theme.accent,0.08):'transparent'}}>
+                {o.name}{o.label?<span style={{color:theme.faint,fontWeight:400}}> · {o.label}</span>:null}
+              </div>
+            ))
+          }
+        </div>
+      )}
+    </div>
+  );
+}
 function NFInkEditor({state,theme}){
   const opts=nfInkOpts();const total=nfTotalG(state);
   return (
@@ -1391,24 +1435,7 @@ function NFInkEditor({state,theme}){
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
         {state.inks.map((row)=>{
           const pct=total>0?((parseFloat(row.g)||0)/total)*100:0;
-          return (
-            <div key={row.id} style={{display:'flex',alignItems:'center',gap:10,...nfFieldBox(theme,{radius:99}),padding:'0 10px 0 18px',animation:`nfRowIn .34s ${SPRING_SOFT} both`}}>
-              <div style={{position:'relative',flex:1,minWidth:0,display:'flex',alignItems:'center',gap:10}}>
-                {row.name?<span style={{width:12,height:12,borderRadius:99,background:theme.accent,flexShrink:0}}/>:<span style={{width:12,height:12,borderRadius:99,boxShadow:`inset 0 0 0 1.5px ${theme.line2}`,flexShrink:0}}/>}
-                <select value={row.name} onChange={e=>state.setInk(row.id,{name:e.target.value})} style={{appearance:'none',WebkitAppearance:'none',border:'none',outline:'none',background:'transparent',cursor:'pointer',flex:1,minWidth:0,fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:row.name?theme.ink:theme.faint,paddingRight:18}}>
-                  <option value="">Scegli inchiostro</option>
-                  {opts.map(k=><option key={k.name} value={k.name}>{k.name}{k.label?' · '+k.label:''}</option>)}
-                </select>
-                <span style={{position:'absolute',right:0,pointerEvents:'none'}}><IcoChevron size={16} color={theme.faint}/></span>
-              </div>
-              {row.name&&<span style={{fontFamily:'Nebulica',fontSize:12,color:theme.faint,flexShrink:0}}>{Math.round(pct)}%</span>}
-              <div style={{display:'flex',alignItems:'baseline',gap:3,flexShrink:0}}>
-                <input className="nf-num" type="number" min="0" step="0.01" value={row.g} placeholder="0.00" onChange={e=>state.setInk(row.id,{g:e.target.value})} style={{width:64,border:'none',outline:'none',background:'transparent',textAlign:'right',fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:theme.ink}}/>
-                <span style={{fontFamily:'Nebulica',fontSize:13,color:theme.faint}}>g</span>
-              </div>
-              <button onClick={()=>state.delInk(row.id)} title="Rimuovi" style={{width:34,height:34,borderRadius:99,flexShrink:0,border:`1.5px solid ${theme.line2}`,background:'transparent',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={14} color={theme.sub}/></button>
-            </div>
-          );
+          return <NFInkCombo key={row.id} row={row} pct={pct} state={state} opts={opts} theme={theme}/>;
         })}
       </div>
       <button onClick={state.addInk} style={{width:'100%',marginTop:10,height:52,borderRadius:99,cursor:'pointer',border:`2px dashed ${theme.borders?rgba(theme.ink,0.4):theme.line2}`,background:'transparent',color:theme.ink,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:9,fontFamily:'Nebulica',fontWeight:700,fontSize:15}}>
