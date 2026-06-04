@@ -1274,8 +1274,10 @@ function Squircle({radius=28,n=5,border,borderWidth=1.5,shadow,anim,outerStyle,s
   const clip=d?`path("${d}")`:'none';
   return (
     <div style={{position:'relative',filter:shadow?`drop-shadow(${shadow})`:'none',animation:anim||'none',...outerStyle}}>
-      <div ref={ref} className={className} style={{position:'relative',borderRadius:radius,clipPath:clip,WebkitClipPath:clip,...style}}>{children}</div>
-      {d&&border&&(<svg width={size[0]} height={size[1]} viewBox={`0 0 ${size[0]} ${size[1]}`} style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:5}}><path d={d} fill="none" stroke={border} strokeWidth={borderWidth} strokeLinejoin="round"/></svg>)}
+      <div ref={ref} className={className} style={{position:'relative',borderRadius:radius,clipPath:clip,WebkitClipPath:clip,...style}}>
+        {children}
+        {d&&border&&(<svg width={size[0]} height={size[1]} viewBox={`0 0 ${size[0]} ${size[1]}`} style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:5}}><path d={d} fill="none" stroke={border} strokeWidth={borderWidth*2} strokeLinejoin="round"/></svg>)}
+      </div>
     </div>
   );
 }
@@ -1321,10 +1323,10 @@ function nfTotalG(state){return state.inks.reduce((s,r)=>s+(parseFloat(r.g)||0),
 
 // ── atomi di campo ────────────────────────────────────────────────────────────
 function NFLabel({children,optional,theme,style}){
-  return <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,marginBottom:9,...style}}>{children}{optional&&<span style={{color:theme.faint}}> (OPZIONALE)</span>}</div>;
+  return <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,marginBottom:6,...style}}>{children}{optional&&<span style={{color:theme.faint}}> (OPZIONALE)</span>}</div>;
 }
 function nfFieldBox(theme,{tall,radius}={}){
-  return {width:'100%',height:tall?'auto':54,borderRadius:radius!=null?radius:18,padding:tall?'14px 18px':'0 18px',background:theme.panel,color:theme.ink,outline:'none',border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`,fontFamily:'Nebulica',fontSize:16,boxSizing:'border-box'};
+  return {width:'100%',height:tall?'auto':46,borderRadius:radius!=null?radius:18,padding:tall?'12px 18px':'0 18px',background:theme.panel,color:theme.ink,outline:'none',border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`,fontFamily:'Nebulica',fontSize:16,boxSizing:'border-box'};
 }
 function NFInput({value,onChange,placeholder,theme,mono,pill}){
   return <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{...nfFieldBox(theme,{radius:pill?99:undefined}),padding:pill?'0 22px':'0 18px',fontFamily:mono?'"JetBrains Mono",monospace':'Nebulica',fontSize:mono?15:16,letterSpacing:mono?0.4:0}}/>;
@@ -1333,7 +1335,7 @@ function NFTempDot({hex}){
   return <span style={{width:14,height:14,borderRadius:99,flexShrink:0,background:hex,boxShadow:`inset 0 0 0 1px ${rgba('#000',0.1)}`}}/>;
 }
 function NFChoicePill({on,onClick,theme,children}){
-  return <button onClick={onClick} style={{display:'inline-flex',alignItems:'center',gap:9,padding:'11px 18px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:14.5,letterSpacing:-0.2,color:on?'#fff':theme.ink,...glass(theme,{active:on})}}>{children}</button>;
+  return <button onClick={onClick} style={{display:'inline-flex',alignItems:'center',gap:8,padding:'9px 14px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:14,letterSpacing:-0.2,color:on?'#fff':theme.ink,...glass(theme,{active:on})}}>{children}</button>;
 }
 function NFSegTabs({tab,setTab,theme}){
   const opts=[{k:'ricetta',l:'Ricetta Pantone'},{k:'sperim',l:'Sperimentazione'}];
@@ -1370,7 +1372,7 @@ function NFProjTags({tags,setTags,input,setInput,theme}){
   const add=()=>{const v=input.trim();if(v&&!tags.includes(v))setTags([...tags,v]);setInput('');};
   return (
     <div>
-      <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',...nfFieldBox(theme),height:'auto',minHeight:54,padding:tags.length?'9px 14px':'0 18px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',...nfFieldBox(theme),height:'auto',minHeight:46,padding:tags.length?'9px 14px':'0 18px'}}>
         {tags.map(t=><span key={t} style={{display:'inline-flex',alignItems:'center',gap:7,padding:'6px 8px 6px 14px',borderRadius:99,background:rgba(theme.accent,0.13),color:theme.ink,fontFamily:'Nebulica',fontWeight:700,fontSize:13.5}}>{t}<button onClick={()=>setTags(tags.filter(x=>x!==t))} style={{width:20,height:20,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0}}><IcoClose size={12} color={theme.ink}/></button></span>)}
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();add();}}} placeholder={tags.length?'':'es. Risanamento 25'} style={{flex:1,minWidth:120,border:'none',outline:'none',background:'transparent',fontFamily:'Nebulica',fontSize:16,color:theme.ink,height:36}}/>
       </div>
@@ -1452,7 +1454,7 @@ function NFIdentityFields({state,theme}){
         <NFLabel theme={theme}>COLORE HEX{state.hexAuto&&<span style={{color:theme.accent,marginLeft:6,fontSize:10,letterSpacing:1}}> · AUTO</span>}</NFLabel>
         <div style={{display:'flex',gap:12}}>
           <div style={{flex:1}}><NFInput value={state.hex} onChange={state.setHexManual} placeholder="automatico dal Pantone ID" theme={theme} mono pill/></div>
-          <div style={{width:54,height:54,borderRadius:99,flexShrink:0,background:eff||'transparent',backgroundImage:eff?'none':`repeating-linear-gradient(45deg,${theme.line} 0 6px,transparent 6px 12px)`,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`}}/>
+          <div style={{width:46,height:46,borderRadius:99,flexShrink:0,background:eff||'transparent',backgroundImage:eff?'none':`repeating-linear-gradient(45deg,${theme.line} 0 6px,transparent 6px 12px)`,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`}}/>
         </div>
       </div>
     </React.Fragment>
@@ -1546,7 +1548,7 @@ function NuovaDesktop({open,onClose,theme}){
           shadow={`0 40px 90px ${rgba('#000',0.26)}`} anim={`nfPop .5s ${SPRING_SOFT} both`}
           outerStyle={{width:1120,maxWidth:'100%',height:820,maxHeight:'calc(100vh - 48px)',pointerEvents:'auto'}}
           style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',overflow:'hidden',...surface(theme)}}>
-          <div style={{display:'flex',alignItems:'center',gap:20,padding:'22px 28px 18px',borderBottom:divider,flexShrink:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:20,padding:'16px 28px 12px',flexShrink:0}}>
             <div style={{flexShrink:0}}>
               <div style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:28,letterSpacing:-0.8,color:theme.ink,lineHeight:1,fontStyle:theme.isSerif?'italic':'normal'}}>Nuova formula</div>
               <div style={{fontFamily:'"JetBrains Mono",monospace',fontSize:10,letterSpacing:1,color:theme.faint,marginTop:5}}>AGGIUNGE AL GOOGLE SHEET</div>
@@ -1555,7 +1557,7 @@ function NuovaDesktop({open,onClose,theme}){
             <IconPill Icon={IcoClose} theme={theme} size={46} onClick={onClose} title="Chiudi"/>
           </div>
           <div style={{flex:1,minHeight:0,display:'flex'}}>
-            <div className="nf-scroll" style={{width:540,flexShrink:0,overflowY:'auto',padding:'24px 28px 28px',display:'flex',flexDirection:'column',gap:22,borderRight:divider,WebkitMaskImage:'linear-gradient(to bottom,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)',maskImage:'linear-gradient(to bottom,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)'}}>
+            <div className="nf-scroll" style={{width:540,flexShrink:0,overflowY:'auto',padding:'16px 24px 20px',display:'flex',flexDirection:'column',gap:16,borderRight:divider,WebkitMaskImage:'linear-gradient(to bottom,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)',maskImage:'linear-gradient(to bottom,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)'}}>
               <NFIdentityFields state={state} theme={theme}/>
               <NFAttributeFields state={state} theme={theme}/>
               <NFMetaFields state={state} theme={theme}/>
