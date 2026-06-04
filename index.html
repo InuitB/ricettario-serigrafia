@@ -1233,7 +1233,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
     if(!col||!hd||!bi) return;
     const bw=theme.borders?theme.borderWidth*2:2;
     const avail=col.clientHeight-bw;
-    const natural=hd.offsetHeight+bi.scrollHeight+23+bw; // 23 = bodyWrap padding (18+5)
+    const natural=hd.offsetHeight+bi.scrollHeight+46+bw; // 46 = bodyWrap padding (18+28)
     setCardH(Math.min(natural,avail));
   },[selected&&selected.code,anim,qty,theme.cardSurface,theme.display,theme.borders,theme.borderWidth]);
 
@@ -1306,7 +1306,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   </div>
                 </div>
               </div>
-              <div ref={bodyWrapRef} style={{flex:1,minHeight:0,overflowY:'auto',padding:'18px 14px 5px',WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 10px)',maskImage:'linear-gradient(to bottom, transparent 0, #000 10px)'}}>
+              <div ref={bodyWrapRef} style={{flex:1,minHeight:0,overflowY:'auto',padding:'18px 14px 28px',WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 10px)',maskImage:'linear-gradient(to bottom, transparent 0, #000 10px)'}}>
                 <div ref={bodyInnerRef} key={'b-'+selected.code+anim} style={{animation:anim==='morph'?'none':`mRise .5s ${SPRING_SOFT} both`}}>
                   <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:8,animation:stagger?`dkpop .5s ${SPRING_SOFT} .05s both`:'none'}}>
                     <span style={{fontFamily:'Nebulica',fontSize:12,letterSpacing:1.6,fontWeight:700,color:theme.sub}}>QUANTITÀ DA PRODURRE</span>
