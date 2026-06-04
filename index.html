@@ -777,8 +777,8 @@ function NuovaSheet({open, onClose, theme}) {
   if(!open) return null;
   return (
     <React.Fragment>
-      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(530px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:32,background:theme.panel,outline:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:1010,background:'rgba(0,0,0,0.38)'}}/>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:1020,width:'min(530px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:32,background:theme.panel,outline:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Nuova ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
@@ -896,8 +896,8 @@ function EditSheet({open, editCode, onClose, theme}) {
   if(!open||!editCode) return null;
   return (
     <React.Fragment>
-      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(520px, calc(100vw - 32px))',maxHeight:'90vh',overflowY:'auto',borderRadius:32,background:theme.panel,outline:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:1010,background:'rgba(0,0,0,0.38)'}}/>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:1020,width:'min(520px, calc(100vw - 32px))',maxHeight:'90vh',overflowY:'auto',borderRadius:32,background:theme.panel,outline:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Modifica ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
@@ -2172,6 +2172,9 @@ function WalletProtoExtract({
           <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',padding:'0 14px 0 12px',gap:6,whiteSpace:'nowrap',pointerEvents:'none',opacity:isDetail?1:0,transition:isDetail?'opacity .26s ease .14s':'opacity .12s ease'}}>
             <IconBack color="#0B0B0B"/><span style={{fontFamily:'Nebulica',fontSize:14,fontWeight:600,color:'#0B0B0B'}}>Ricette</span>
           </div>
+        </div>
+        <div onClick={selected?()=>toggleFavorito(selected.code):undefined} style={{position:'absolute',right:46,top:0,width:40,height:40,borderRadius:99,background:bg,border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:recipeVisible?'auto':'none',cursor:'pointer',zIndex:2,opacity:isDetail?1:0,transition:isDetail?'opacity .2s .06s':'opacity .14s .24s'}}>
+          <IcoStar size={18} color="#0B0B0B" fill={selected&&favoritiSet.has(selected.code)?'#0B0B0B':'none'}/>
         </div>
         <div key={'circle-'+bump} onClick={isDetail?(onEdit&&selected?()=>onEdit(selected.code):undefined):()=>setFilterOpen(o=>!o)} style={{position:'absolute',right:0,top:0,width:40,height:40,borderRadius:99,background:filterOpen&&!isDetail?accent:bg,border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:(isDetail?recipeVisible:true)?'auto':'none',cursor:'pointer',zIndex:2,animation:bump?`wp2circleBump .46s cubic-bezier(.34,1.4,.5,1) ${bumpDir==='close'?'.26s':'0s'} both`:'none'}}>
           <div style={{position:'absolute',opacity:isDetail?0:1,transition:isDetail?'opacity .12s':'opacity .16s .26s'}}><IconFilter color={filterOpen&&!isDetail?'#fff':'#0B0B0B'}/></div>
