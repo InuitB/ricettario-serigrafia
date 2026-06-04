@@ -70,7 +70,7 @@ async function loadData() {
 function transformData() {
   DESK_PANTONES = allRicette.map(r => {
     const code = r.Pantone_ID;
-    const hexRaw = (r.HEX || PANTONE_DB[code] || 'CCCCCC').replace('#','').toUpperCase();
+    const hexRaw = (r.HEX || PANTONE_DB[code] || 'CCCCCC').replace('#','').toUpperCase().padStart(6,'0');
     const hex = '#' + hexRaw;
     const name = PANTONE_NAMES[code] || code;
     const family = (r.Categoria || 'neutro').toLowerCase().trim();
@@ -706,11 +706,11 @@ function NuovaSheet({open, onClose, theme}) {
     setSaving(true); setMsg('');
     try{
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'addRicetta',Pantone_ID:pid.trim(),HEX:hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,
+        body:JSON.stringify({action:'addRicetta',Pantone_ID:pid.trim(),HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,
           componenti:validInks.map(r=>({Inchiostro:r.ink,'Dose_40g (g)':r.dose}))})});
       setMsg('Ricetta salvata!');
       const newId=pid.trim();
-      allRicette.push({Pantone_ID:newId,HEX:hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:''});
+      allRicette.push({Pantone_ID:newId,HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:''});
       validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.ink,'Dose_40g (g)':r.dose}));
       transformData();
       newlySaved.add(newId);
@@ -817,7 +817,7 @@ function EditSheet({open, editCode, onClose, theme}) {
     if(!pid.trim()||!hex.trim()||!cat){ setMsg('Compila Pantone ID, HEX e Categoria.'); return; }
     setSaving(true); setMsg('');
     try{
-      const payload = {action:'editRicetta',Pantone_ID:editCode,HEX:hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag};
+      const payload = {action:'editRicetta',Pantone_ID:editCode,HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag};
       if(pid.trim()!==editCode) payload.Pantone_ID_nuovo=pid.trim();
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
       setMsg('Modifiche salvate!'); setTimeout(()=>onClose(), 1100);
@@ -1596,10 +1596,10 @@ function NuovaDesktop({open,onClose,theme}){
     setSaving(true);setMsg('');
     try{
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'addRicetta',Pantone_ID:pantoneId.trim(),HEX:eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))})});
+        body:JSON.stringify({action:'addRicetta',Pantone_ID:pantoneId.trim(),HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))})});
       setMsg('Ricetta salvata!');
       const newId=pantoneId.trim();
-      allRicette.push({Pantone_ID:newId,HEX:eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', ')});
+      allRicette.push({Pantone_ID:newId,HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', ')});
       validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.name,'Dose_40g (g)':r.g}));
       transformData();
       newlySaved.add(newId);
