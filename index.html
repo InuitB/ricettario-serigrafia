@@ -797,10 +797,13 @@ function NuovaSheet({open, onClose, theme}) {
           </div>
           <div>
             <span style={lbl}>CATEGORIA{catAuto&&<span style={autoTag}>· AUTO</span>}</span>
-            <select value={cat} onChange={e=>{setCat(e.target.value);setCatAuto(false);}} style={{...inp,WebkitAppearance:'none',appearance:'none'}}>
-              <option value="">Scegli…</option>
-              {FAMILIES.filter(f=>f!=='tutti').map(f=><option key={f} value={f}>{f}</option>)}
-            </select>
+            <div style={{position:'relative'}}>
+              <select value={cat} onChange={e=>{setCat(e.target.value);setCatAuto(false);}} style={{...inp,WebkitAppearance:'none',appearance:'none',paddingRight:32}}>
+                <option value="">Scegli…</option>
+                {FAMILIES.filter(f=>f!=='tutti').map(f=><option key={f} value={f}>{f}</option>)}
+              </select>
+              <svg style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}} width="11" height="7" viewBox="0 0 11 7"><path d="M1 1l4.5 4.5L10 1" stroke={theme.sub} strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
           </div>
           <div><span style={lbl}>PAGINA</span><input value={pag} onChange={e=>setPag(e.target.value)} type="number" placeholder="es. 42" style={inp}/></div>
           <div><span style={lbl}>TEMPERATURA</span><input value={temp} onChange={e=>setTemp(e.target.value)} placeholder="es. alta" style={inp}/></div>
@@ -844,9 +847,11 @@ function EditSheet({open, editCode, onClose, theme}) {
   const inkId = React.useRef(1);
   const [saving, setSaving] = React.useState(false);
   const [msg, setMsg] = React.useState('');
+  const pidTouched = React.useRef(false);
 
   React.useEffect(()=>{
     if(open && editCode){
+      pidTouched.current = false;
       const r = allRicette.find(x=>x.Pantone_ID===editCode);
       setPid(editCode);
       setHex((r?.HEX||'').replace('#',''));
@@ -863,6 +868,12 @@ function EditSheet({open, editCode, onClose, theme}) {
       setMsg(''); setSaving(false);
     }
   },[open, editCode]);
+
+  React.useEffect(()=>{
+    if(!pidTouched.current) return;
+    const found = DESK_PANTONES.find(p=>p.code===pid.trim());
+    if(found && found.hex) setHex(found.hex.replace('#',''));
+  },[pid]);
 
   const setInkField = (id,field,val) => setInks(a=>a.map(r=>r.id===id?{...r,[field]:val}:r));
   const addInk = () => setInks(a=>[...a,{id:inkId.current++,name:'',g:''}]);
@@ -904,7 +915,7 @@ function EditSheet({open, editCode, onClose, theme}) {
         </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-          <div style={{gridColumn:'span 2'}}><span style={lbl}>PANTONE ID</span><input value={pid} onChange={e=>setPid(e.target.value)} placeholder="es. 166 U" style={inp}/></div>
+          <div style={{gridColumn:'span 2'}}><span style={lbl}>PANTONE ID</span><input value={pid} onChange={e=>{pidTouched.current=true;setPid(e.target.value);}} placeholder="es. 166 U" style={inp}/></div>
           <div><span style={lbl}>HEX</span>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
@@ -912,13 +923,24 @@ function EditSheet({open, editCode, onClose, theme}) {
             </div>
           </div>
           <div><span style={lbl}>CATEGORIA</span>
-            <select value={cat} onChange={e=>setCat(e.target.value)} style={{...inp,WebkitAppearance:'none',appearance:'none'}}>
-              <option value="">Scegli…</option>
-              {FAMILIES.filter(f=>f!=='tutti').map(f=><option key={f} value={f}>{f}</option>)}
-            </select>
+            <div style={{position:'relative'}}>
+              <select value={cat} onChange={e=>setCat(e.target.value)} style={{...inp,WebkitAppearance:'none',appearance:'none',paddingRight:32}}>
+                <option value="">Scegli…</option>
+                {FAMILIES.filter(f=>f!=='tutti').map(f=><option key={f} value={f}>{f}</option>)}
+              </select>
+              <svg style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}} width="11" height="7" viewBox="0 0 11 7"><path d="M1 1l4.5 4.5L10 1" stroke={theme.sub} strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
           </div>
           <div><span style={lbl}>PAGINA</span><input value={pag} onChange={e=>setPag(e.target.value)} type="number" placeholder="es. 42" style={inp}/></div>
-          <div><span style={lbl}>TEMPERATURA</span><input value={temp} onChange={e=>setTemp(e.target.value)} placeholder="es. caldo" style={inp}/></div>
+          <div><span style={lbl}>TEMPERATURA</span>
+            <div style={{position:'relative'}}>
+              <select value={temp} onChange={e=>setTemp(e.target.value)} style={{...inp,WebkitAppearance:'none',appearance:'none',paddingRight:32}}>
+                <option value="">Scegli…</option>
+                {NF_TEMPS.map(t=><option key={t.k} value={t.k}>{t.l}</option>)}
+              </select>
+              <svg style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}} width="11" height="7" viewBox="0 0 11 7"><path d="M1 1l4.5 4.5L10 1" stroke={theme.sub} strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+          </div>
           <div style={{gridColumn:'span 2'}}>
             <span style={lbl}>COPERTURA</span>
             <div style={{display:'flex',gap:8}}>
