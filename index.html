@@ -2065,6 +2065,8 @@ function WalletProtoExtract({
   const inertia = React.useRef({raf:null,vel:0,lastT:0,maxS:0});
   const areaRef = React.useRef(null);
   const timer = React.useRef(null);
+  const scrollRef = React.useRef(0);
+  const cardRefs = React.useRef({});
   const ACTIVE_H=178, L_TOP=170, H=500, STEP=108, PIN=6;
   const maxScroll = Math.max(0,(list.length-1)*STEP+ACTIVE_H-H);
   const isDetail = selectedIdx!==null;
@@ -2074,6 +2076,17 @@ function WalletProtoExtract({
   React.useEffect(()=>{
     if(prevDetail.current!==isDetail){setBumpDir(isDetail?'open':'close');setBump(b=>b+1);prevDetail.current=isDetail;}
   },[isDetail]);
+  React.useEffect(()=>{ scrollRef.current=scrollY; },[scrollY]);
+  const applyScrollDirect = sy=>{
+    list.forEach((_,i)=>{
+      const el=cardRefs.current[i]; if(!el) return;
+      const s=i*STEP-sy;
+      let top,scale,opacity;
+      if(s>=PIN){top=L_TOP+s;scale=1;opacity=1;}
+      else{const d=(PIN-s)/STEP,sp=Math.max(0,PIN-Math.min(d,3)*7);top=L_TOP+sp;scale=Math.max(0.82,1-d*0.05);opacity=Math.max(0,1.18-d*0.24);}
+      el.style.top=top+'px';el.style.transform=`scale(${scale})`;el.style.opacity=opacity;
+    });
+  };
   const openCard = i=>{
     if(phase!=='closed') return;
     setSelectedIdx(i); setPhase('lifting'); clearTimeout(timer.current);
@@ -2089,7 +2102,7 @@ function WalletProtoExtract({
     if(inertia.current.raf){cancelAnimationFrame(inertia.current.raf);inertia.current.raf=null;}
     const rect=areaRef.current.getBoundingClientRect();
     const now=performance.now();
-    drag.current={active:true,startY:e.clientY,startScroll:scrollY,moved:false,id:e.pointerId,downLocalY:e.clientY-rect.top,lastY:e.clientY,lastT:now,velPxMs:0};
+    drag.current={active:true,startY:e.clientY,startScroll:scrollRef.current,moved:false,id:e.pointerId,downLocalY:e.clientY-rect.top,lastY:e.clientY,lastT:now,velPxMs:0};
     try{e.currentTarget.setPointerCapture(e.pointerId);}catch(_){}
     setDragging(true);
   };
@@ -2101,7 +2114,9 @@ function WalletProtoExtract({
     const dt=now-drag.current.lastT;
     if(dt>0) drag.current.velPxMs=(e.clientY-drag.current.lastY)/dt;
     drag.current.lastY=e.clientY; drag.current.lastT=now;
-    setScrollY(Math.max(0,Math.min(maxScroll,drag.current.startScroll-dy)));
+    const newSY=Math.max(0,Math.min(maxScroll,drag.current.startScroll-dy));
+    scrollRef.current=newSY;
+    applyScrollDirect(newSY);
   };
   const onAreaUp = e=>{
     if(!drag.current.active) return;
@@ -2111,26 +2126,26 @@ function WalletProtoExtract({
       const card=el&&el.closest('[data-cardidx]');
       if(card) openCard(parseInt(card.getAttribute('data-cardidx'),10));
     } else {
-      const vel=drag.current.velPxMs; // px/ms, positive=finger moved down=scroll up
-      if(Math.abs(vel)>0.1){
+      const vel=drag.current.velPxMs;
+      if(Math.abs(vel)>0.08){
         const ref=inertia.current;
-        ref.vel=-vel; // negate: drag up (vel<0) → scroll down (ref.vel>0 increases scrollY)
+        ref.vel=-vel;
         ref.lastT=performance.now();
         ref.maxS=maxScroll;
         const step=now=>{
           const dt=Math.min(now-ref.lastT,32); ref.lastT=now;
-          ref.vel*=Math.pow(0.92,dt/16.67);
-          if(Math.abs(ref.vel)<0.02){ref.raf=null;return;}
-          setScrollY(prev=>{
-            const next=prev+ref.vel*dt;
-            const clamped=Math.max(0,Math.min(ref.maxS,next));
-            if(clamped!==next) ref.vel=0;
-            return clamped;
-          });
-          if(Math.abs(ref.vel)>=0.02) ref.raf=requestAnimationFrame(step);
-          else ref.raf=null;
+          ref.vel*=Math.pow(0.97,dt/16.67);
+          if(Math.abs(ref.vel)<0.005){ref.raf=null;setScrollY(scrollRef.current);return;}
+          const next=scrollRef.current+ref.vel*dt;
+          const clamped=Math.max(0,Math.min(ref.maxS,next));
+          if(clamped!==next) ref.vel=0;
+          scrollRef.current=clamped;
+          applyScrollDirect(clamped);
+          ref.raf=requestAnimationFrame(step);
         };
         ref.raf=requestAnimationFrame(step);
+      } else {
+        setScrollY(scrollRef.current);
       }
     }
   };
@@ -2140,7 +2155,7 @@ function WalletProtoExtract({
   else if(phase==='closing'){dur=300;ease=EASE_CLOSE_QUICK;}
   else{dur=360;ease=EASE_CLOSE_CALM;}
   const layoutClosed = i=>{
-    const sy=i*STEP-scrollY;
+    const sy=i*STEP-scrollRef.current;
     if(sy>=PIN) return {top:L_TOP+sy,height:ACTIVE_H,scale:1,opacity:1,z:300+i};
     const depth=(PIN-sy)/STEP;
     const syPinned=Math.max(0,PIN-Math.min(depth,3)*7);
@@ -2249,7 +2264,7 @@ function WalletProtoExtract({
             const pos=posFor(i);
             const noAnim=phase==='closed'&&dragging;
             return (
-              <div key={p.code} data-cardidx={i} style={{position:'absolute',left:0,right:0,top:pos.top,height:pos.height,opacity:pos.opacity,zIndex:pos.z,transform:`scale(${pos.scale})`,transformOrigin:'50% 0%',pointerEvents:pos.opacity>0.2?'auto':'none',cursor:'inherit',transition:noAnim?'none':`top ${dur}ms ${ease}, height ${dur}ms ${ease}, transform ${dur}ms ${ease}, opacity ${Math.round(dur*0.8)}ms ease`,borderRadius:22,overflow:'hidden',boxShadow:isSel&&phase!=='closed'?'0 26px 48px rgba(0,0,0,0.22)':'0 10px 24px rgba(0,0,0,0.12)'}}>
+              <div key={p.code} data-cardidx={i} ref={el=>{if(el)cardRefs.current[i]=el;else delete cardRefs.current[i];}} style={{position:'absolute',left:0,right:0,top:pos.top,height:pos.height,opacity:pos.opacity,zIndex:pos.z,transform:`scale(${pos.scale})`,transformOrigin:'50% 0%',pointerEvents:pos.opacity>0.2?'auto':'none',cursor:'inherit',transition:noAnim?'none':`top ${dur}ms ${ease}, height ${dur}ms ${ease}, transform ${dur}ms ${ease}, opacity ${Math.round(dur*0.8)}ms ease`,borderRadius:22,overflow:'hidden',boxShadow:isSel&&phase!=='closed'?'0 26px 48px rgba(0,0,0,0.22)':'0 10px 24px rgba(0,0,0,0.12)'}}>
                 {isSel?<UnifiedCard pantone={p} recipeVisible={recipeVisible} headerH={headerH} headerOnly={cardStyle==='split'&&recipeVisible} onEdit={onEdit}/>:<WalletCardV2 pantone={p} expanded={false}/>}
               </div>
             );
