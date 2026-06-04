@@ -1286,7 +1286,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
         <div style={{flex:1,minWidth:0,display:'flex',padding:'10px 28px 26px 16px'}}>
           <div ref={colRef} style={{width:600,flexShrink:0,display:'flex',flexDirection:'column',minHeight:0}}>
             <div key={'card-'+selected.code} style={{height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:34,overflow:'hidden',position:'relative',margin:'0 10px',...surface(theme),border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 20px 50px ${rgba('#000',0.10)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1)`,animation:`mBreath .6s cubic-bezier(.32,1.12,.4,1) both`,transformOrigin:'top center'}}>
-              <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'18px 34px 14px 14px',flexShrink:0,position:'relative',transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
+              <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'18px 14px 14px',flexShrink:0,position:'relative',transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
                 <div style={{position:'absolute',top:14,right:14,display:'flex',gap:10}}>
                   {[IcoStar,IcoEdit].map((Ic,i)=>(
                     <button key={i} onClick={i===1&&onEdit?()=>onEdit(selected.code):undefined} style={{width:40,height:40,borderRadius:99,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:rgba(fg==='#fff'?'#fff':'#000',0.12),border:`1.4px solid ${rgba(fg==='#fff'?'#fff':'#000',0.3)}`}}>
@@ -1297,8 +1297,8 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                 <span style={{fontFamily:'Nebulica',fontSize:12,letterSpacing:1.6,fontWeight:700,color:fg,opacity:0.72}}>{selected.family.toUpperCase()} · PANTONE</span>
                 <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:24,marginTop:8}}>
                   <PantoneCode code={selected.code} fg={fg} size={80} theme={theme}/>
-                  <div style={{textAlign:'right',paddingBottom:6,paddingRight:100}}>
-                    <div style={{fontFamily:'Nebulica',fontSize:20,fontWeight:500,color:fg,letterSpacing:-0.6}}>{selected.name}</div>
+                  <div style={{textAlign:'right',paddingBottom:6}}>
+                    <div style={{fontFamily:'Nebulica',fontSize:20,fontWeight:500,color:fg,letterSpacing:-0.6,paddingRight:90}}>{selected.name}</div>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:10,marginTop:4}}>
                       {coverLvl(selected.copertura)>0&&<div style={{display:'flex',gap:5}}>{[0,1,2].map(i=>{const fill=i<coverLvl(selected.copertura);return <span key={i} style={{width:14,height:14,borderRadius:99,flexShrink:0,background:fill?fg:'transparent',opacity:fill?0.8:1,boxShadow:fill?'none':`inset 0 0 0 1.5px ${rgba(fg,0.4)}`}}/>;})}</div>}
                       {selected.page>0&&<span style={{fontFamily:'"JetBrains Mono",monospace',fontSize:11.5,color:fg,opacity:0.7,letterSpacing:0.4}}>PAG.{selected.page}</span>}
@@ -1306,7 +1306,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   </div>
                 </div>
               </div>
-              <div ref={bodyWrapRef} style={{flex:1,minHeight:0,overflowY:'auto',padding:'18px 14px 34px',WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 10px)',maskImage:'linear-gradient(to bottom, transparent 0, #000 10px)'}}>
+              <div ref={bodyWrapRef} style={{flex:1,minHeight:0,overflowY:'auto',padding:'18px 14px 8px',WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 10px)',maskImage:'linear-gradient(to bottom, transparent 0, #000 10px)'}}>
                 <div ref={bodyInnerRef} key={'b-'+selected.code+anim} style={{animation:anim==='morph'?'none':`mRise .5s ${SPRING_SOFT} both`}}>
                   <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:8,animation:stagger?`dkpop .5s ${SPRING_SOFT} .05s both`:'none'}}>
                     <span style={{fontFamily:'Nebulica',fontSize:12,letterSpacing:1.6,fontWeight:700,color:theme.sub}}>QUANTITÀ DA PRODURRE</span>
