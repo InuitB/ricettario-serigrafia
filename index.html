@@ -1233,7 +1233,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
     if(!col||!hd||!bi) return;
     const bw=theme.borders?theme.borderWidth*2:2;
     const avail=col.clientHeight-bw;
-    const natural=hd.offsetHeight+bi.scrollHeight+40+bw; // 40 = bodyWrap padding (18+22)
+    const natural=hd.offsetHeight+bi.scrollHeight+23+bw; // 23 = bodyWrap padding (18+5)
     setCardH(Math.min(natural,avail));
   },[selected&&selected.code,anim,qty,theme.cardSurface,theme.display,theme.borders,theme.borderWidth]);
 
