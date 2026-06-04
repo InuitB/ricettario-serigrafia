@@ -5,6 +5,9 @@
 
 const SHEET_ID = '1uIirqJTLIu74AQo5VeaDVRcFNykF1q0oVp4jTihaUtw';
 
+// Forza la dose come numero JS — evita che Sheets interpreti "34.48" come orario
+function toDose(v) { const n = parseFloat(v); return isNaN(n) ? (v || '') : n; }
+
 function doGet(e) {
   try {
     const action = (e.parameter || {}).action;
@@ -204,7 +207,7 @@ function editRicetta(data) {
       }
     }
     data.componenti.forEach(c => {
-      comp.appendRow([finalId, c.Inchiostro, c['Dose_40g (g)'] || '']);
+      comp.appendRow([finalId, c.Inchiostro, toDose(c['Dose_40g (g)'])]);
     });
   }
 
@@ -333,7 +336,7 @@ function promuoviSperimentazione(data) {
     comp.appendRow([
       data.Pantone_ID,
       c.Inchiostro,
-      c['Dose_40g (g)'] || ''
+      toDose(c['Dose_40g (g)'])
     ]);
   });
 
