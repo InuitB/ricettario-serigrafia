@@ -590,10 +590,71 @@ function SettingsPanel({open, onClose, settings, setSetting, theme}) {
 
 
 /* ═══════════════════ DESKTOP NUOVA / EDIT SHEETS ═══════════════════ */
+function guessFamily(hexStr) {
+  const h = hexStr.replace('#','');
+  if (h.length < 6) return '';
+  const r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
+  const rf=r/255, gf=g/255, bf=b/255;
+  const max=Math.max(rf,gf,bf), min=Math.min(rf,gf,bf), l=(max+min)/2;
+  if (max===min) { return l<0.18?'nero':l>0.86?'bianco':'neutro'; }
+  const d=max-min, s=l>0.5?d/(2-max-min):d/(max+min);
+  let hue=0;
+  if(max===rf) hue=((gf-bf)/d+(gf<bf?6:0));
+  else if(max===gf) hue=(bf-rf)/d+2;
+  else hue=(rf-gf)/d+4;
+  hue=hue/6*360;
+  if (s<0.13) { return l<0.18?'nero':l>0.86?'bianco':l<0.5&&hue>28&&hue<65?'beige':'neutro'; }
+  if (hue<18||hue>=345) return 'rosso';
+  if (hue<40) return 'arancio';
+  if (hue<65) return 'giallo';
+  if (hue<150) return 'verde';
+  if (hue<195) return 'azzurro';
+  if (hue<260) return 'blu';
+  if (hue<290) return 'viola';
+  if (hue<325) return 'rosa';
+  return 'rosso';
+}
+
+function InkSearchField({value, onChange, options, style}) {
+  const [q, setQ] = React.useState(value||'');
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(()=>{ setQ(value||''); },[value]);
+  React.useEffect(()=>{
+    if(!open) return;
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target)){setOpen(false);setQ(value||'');}};
+    document.addEventListener('mousedown',h);
+    return()=>document.removeEventListener('mousedown',h);
+  },[open,value]);
+  const lq=q.toLowerCase();
+  const filtered=options.filter(o=>!lq||o.code.toLowerCase().includes(lq)||(o.name&&o.name.toLowerCase().includes(lq)));
+  const pick=o=>{onChange(o.code);setQ(o.code);setOpen(false);};
+  return (
+    <div ref={ref} style={{position:'relative',flex:2,minWidth:0}}>
+      <input value={q} onChange={e=>{setQ(e.target.value);setOpen(true);if(!e.target.value)onChange('');}}
+        onFocus={()=>setOpen(true)} placeholder="Cerca inchiostro…" autoComplete="off" style={{...style,width:'100%'}}/>
+      {open&&(
+        <div style={{position:'absolute',top:'calc(100% + 3px)',left:0,right:0,zIndex:1200,background:'#fff',border:'1px solid rgba(0,0,0,0.10)',borderRadius:12,boxShadow:'0 8px 28px rgba(0,0,0,0.16)',maxHeight:190,overflowY:'auto'}}>
+          {filtered.length===0&&<div style={{padding:'10px 14px',fontFamily:'Nebulica',fontSize:13,color:'rgba(0,0,0,0.38)'}}>Nessun risultato</div>}
+          {filtered.map(o=>(
+            <div key={o.code} onMouseDown={e=>{e.preventDefault();pick(o);}}
+              style={{padding:'9px 14px',cursor:'pointer',fontFamily:'Nebulica',fontSize:13.5,display:'flex',alignItems:'center',justifyContent:'space-between',background:o.code===value?'rgba(0,51,255,0.06)':'transparent',borderBottom:'1px solid rgba(0,0,0,0.04)'}}>
+              <span style={{fontWeight:700}}>{o.code}</span>
+              {o.name&&<span style={{color:'rgba(0,0,0,0.40)',fontSize:12,marginLeft:8}}>{o.name}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NuovaSheet({open, onClose, theme}) {
   const [pid, setPid] = React.useState('');
   const [hex, setHex] = React.useState('');
+  const [hexAuto, setHexAuto] = React.useState(false);
   const [cat, setCat] = React.useState('');
+  const [catAuto, setCatAuto] = React.useState(false);
   const [temp, setTemp] = React.useState('');
   const [cop, setCop] = React.useState('');
   const [note, setNote] = React.useState('');
@@ -603,8 +664,22 @@ function NuovaSheet({open, onClose, theme}) {
   const [msg, setMsg] = React.useState('');
 
   React.useEffect(()=>{
-    if(!open){ setPid(''); setHex(''); setCat(''); setTemp(''); setCop(''); setNote(''); setPag(''); setInks([{ink:'',dose:''},{ink:'',dose:''}]); setMsg(''); setSaving(false); }
+    if(!open){ setPid(''); setHex(''); setHexAuto(false); setCat(''); setCatAuto(false); setTemp(''); setCop(''); setNote(''); setPag(''); setInks([{ink:'',dose:''},{ink:'',dose:''}]); setMsg(''); setSaving(false); }
   },[open]);
+
+  const onPidChange = v => {
+    setPid(v);
+    const key = v.trim();
+    const dbHex = PANTONE_DB[key];
+    if (dbHex) {
+      setHex(dbHex); setHexAuto(true);
+      const fam = guessFamily(dbHex);
+      if (fam) { setCat(fam); setCatAuto(true); }
+    } else {
+      if (hexAuto) { setHex(''); setHexAuto(false); }
+      if (catAuto) { setCat(''); setCatAuto(false); }
+    }
+  };
 
   const addInkRow = ()=>{ if(inks.length<4) setInks([...inks,{ink:'',dose:''}]); };
   const removeInkRow = i=>{ if(inks.length>1) setInks(inks.filter((_,j)=>j!==i)); };
@@ -624,9 +699,14 @@ function NuovaSheet({open, onClose, theme}) {
     setSaving(false);
   };
 
-  const inkOpts = allInchiostri.length>0 ? allInchiostri.map(i=>i.Codice||i.Nome_completo) : ['AS 90','AS 65','AS 150','AS 320','AS 47','AS 12','AS 88','AS 33','AS 70'];
-  const inp = {width:'100%',padding:'10px 14px',borderRadius:12,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,background:theme.panelAlt,fontFamily:'Nebulica',fontSize:14,color:theme.ink,outline:'none',boxSizing:'border-box'};
+  const inkOpts = allInchiostri.length>0
+    ? allInchiostri.map(i=>({code:i.Codice||i.Nome_completo, name:i.Nome_completo||''}))
+    : [{code:'AS 90',name:'Base bianca'},{code:'AS 65',name:'Giallo'},{code:'AS 150',name:'Magenta'},
+       {code:'AS 320',name:'Cyan'},{code:'AS 47',name:'Nero'},{code:'AS 12',name:'Rosso'},
+       {code:'AS 88',name:'Blu'},{code:'AS 33',name:'Verde'},{code:'AS 70',name:'Arancio'}];
+  const inp = {padding:'10px 14px',borderRadius:12,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,background:theme.panelAlt,fontFamily:'Nebulica',fontSize:14,color:theme.ink,outline:'none',boxSizing:'border-box',width:'100%'};
   const lbl = {fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.sub,display:'block',marginBottom:5};
+  const autoTag = {fontFamily:'Nebulica',fontSize:10,letterSpacing:1,fontWeight:700,color:theme.accent,marginLeft:6};
 
   if(!open) return null;
   return (
@@ -638,15 +718,20 @@ function NuovaSheet({open, onClose, theme}) {
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-          <div><span style={lbl}>PANTONE ID</span><input value={pid} onChange={e=>setPid(e.target.value)} placeholder="es. 166 U" style={inp}/></div>
-          <div><span style={lbl}>HEX</span>
+          <div>
+            <span style={lbl}>PANTONE ID</span>
+            <input value={pid} onChange={e=>onPidChange(e.target.value)} placeholder="es. 166 U" style={inp}/>
+          </div>
+          <div>
+            <span style={lbl}>HEX{hexAuto&&<span style={autoTag}>· AUTO</span>}</span>
             <div style={{display:'flex',gap:8}}>
-              <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
+              <input value={hex} onChange={e=>{setHex(e.target.value);setHexAuto(false);}} placeholder="D44800" style={{...inp,flex:1}}/>
               {hex.replace('#','').length>=6&&<div style={{width:36,height:38,borderRadius:8,background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
             </div>
           </div>
-          <div><span style={lbl}>CATEGORIA</span>
-            <select value={cat} onChange={e=>setCat(e.target.value)} style={{...inp,WebkitAppearance:'none',appearance:'none'}}>
+          <div>
+            <span style={lbl}>CATEGORIA{catAuto&&<span style={autoTag}>· AUTO</span>}</span>
+            <select value={cat} onChange={e=>{setCat(e.target.value);setCatAuto(false);}} style={{...inp,WebkitAppearance:'none',appearance:'none'}}>
               <option value="">Scegli…</option>
               {FAMILIES.filter(f=>f!=='tutti').map(f=><option key={f} value={f}>{f}</option>)}
             </select>
@@ -665,16 +750,13 @@ function NuovaSheet({open, onClose, theme}) {
           </div>
           {inks.map((row,i)=>(
             <div key={i} style={{display:'flex',gap:8,alignItems:'center',marginBottom:8}}>
-              <select value={row.ink} onChange={e=>setField(i,'ink',e.target.value)} style={{...inp,flex:2,WebkitAppearance:'none',appearance:'none'}}>
-                <option value="">Inchiostro…</option>
-                {inkOpts.map(k=><option key={k} value={k}>{k}</option>)}
-              </select>
+              <InkSearchField value={row.ink} onChange={v=>setField(i,'ink',v)} options={inkOpts} style={inp}/>
               <input value={row.dose} onChange={e=>setField(i,'dose',e.target.value)} type="number" step="0.1" placeholder="g" style={{...inp,width:72,flex:'none'}}/>
               {inks.length>1&&<button onClick={()=>removeInkRow(i)} style={{width:32,height:32,borderRadius:99,border:'none',background:rgba('#000',0.06),cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><IcoClose size={12} color={theme.faint}/></button>}
             </div>
           ))}
         </div>
-        {msg&&<div style={{marginTop:10,fontFamily:'Nebulica',fontSize:13,color:msg.includes('Salvata')||msg.includes('salvata')?theme.accent:theme.sub}}>{msg}</div>}
+        {msg&&<div style={{marginTop:10,fontFamily:'Nebulica',fontSize:13,color:msg.includes('salvata')||msg.includes('Salvata')?theme.accent:theme.sub}}>{msg}</div>}
         <button onClick={submit} disabled={saving} style={{marginTop:18,width:'100%',height:52,borderRadius:99,cursor:saving?'default':'pointer',background:theme.accent,color:theme.onAccent,border:'none',fontFamily:'Nebulica',fontWeight:700,fontSize:15,opacity:saving?0.7:1}}>
           {saving?'Salvataggio…':'Salva ricetta'}
         </button>
