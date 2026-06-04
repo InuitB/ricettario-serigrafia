@@ -90,6 +90,7 @@ function hashStr(s) {
 }
 function coverLvl(c){ return {coprente:3,semi:2,trasp:1}[c]||0; }
 function copLabel(c){ return {coprente:'COPRENTE',semi:'SEMI',trasp:'TRASP.'}[c]||''; }
+const newlySaved = new Set();
 function textOnDesk(hex) {
   const h = (hex||'').replace('#','');
   if (h.length < 6) return '#0B0B0B';
@@ -706,7 +707,16 @@ function NuovaSheet({open, onClose, theme}) {
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
         body:JSON.stringify({action:'addRicetta',Pantone_ID:pid.trim(),HEX:hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,
           componenti:validInks.map(r=>({Inchiostro:r.ink,'Dose_40g (g)':r.dose}))})});
-      setMsg('Ricetta salvata!'); setTimeout(()=>onClose(), 1100);
+      setMsg('Ricetta salvata!');
+      const newId=pid.trim();
+      allRicette.push({Pantone_ID:newId,HEX:hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:''});
+      validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.ink,'Dose_40g (g)':r.dose}));
+      transformData();
+      newlySaved.add(newId);
+      window._bumpData?.();
+      setTimeout(()=>{ window._refreshData?.(); },2500);
+      setTimeout(()=>{ newlySaved.delete(newId); window._bumpData?.(); },5000);
+      setTimeout(()=>onClose(), 1100);
     }catch(e){ setMsg('Errore di connessione.'); }
     setSaving(false);
   };
@@ -1130,6 +1140,23 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
   const [selCode, setSelCode] = React.useState(null);
   const [qty, setQty] = React.useState(100);
   ensureMasterKf();
+  const listRef = React.useRef(null);
+
+  React.useEffect(()=>{
+    window._selectCode=setSelCode;
+    return()=>{ delete window._selectCode; };
+  },[]);
+
+  React.useEffect(()=>{
+    if(selCode && newlySaved.has(selCode) && listRef.current){
+      const idx = DESK_PANTONES.filter(p=>{
+        if(family!=='tutti'&&p.family!==family) return false;
+        if(inkFilter&&p.ink!==inkFilter) return false;
+        return true;
+      }).findIndex(p=>p.code===selCode);
+      if(idx>=0) setTimeout(()=>{ if(listRef.current) listRef.current.scrollTop=Math.max(0,idx*70-80); },80);
+    }
+  },[selCode]);
 
   const filtered = DESK_PANTONES.filter(p=>{
     if(family!=='tutti'&&p.family!==family) return false;
@@ -1174,13 +1201,13 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
           <div style={{paddingRight:18}}>
             <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub}}>{filtered.length} / {DESK_PANTONES.length} PANTONE</span>
           </div>
-          <div style={{flex:1,overflowY:'auto',padding:'12px 12px 22px 10px',marginTop:8,WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)',maskImage:'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)'}}>
+          <div ref={listRef} style={{flex:1,overflowY:'auto',padding:'12px 12px 22px 10px',marginTop:8,WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)',maskImage:'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)'}}>
             <div style={{position:'relative'}}>
               <div style={{position:'absolute',left:0,right:0,height:64,top:hiIdx*70,zIndex:0,opacity:hiIdx>=0?1:0,transition:`top .5s cubic-bezier(.2,.66,.24,1), opacity .25s`}}>
                 <div key={hiIdx} style={{position:'absolute',inset:0,borderRadius:99,background:rgba('#fff',theme.grey?0.5:0.58),backdropFilter:'blur(14px) saturate(150%)',WebkitBackdropFilter:'blur(14px) saturate(150%)',boxShadow:`0 8px 22px ${rgba('#000',0.08)}, inset 0 0 0 1px ${rgba('#fff',0.6)}`,animation:`mPulse .5s ${FLUID_SOFT} both`}}/>
               </div>
-              {filtered.map(p=>{const on=p.code===selected.code; return (
-                <button key={p.code} onClick={()=>setSelCode(p.code)} style={{position:'relative',zIndex:1,width:'100%',height:64,marginBottom:6,display:'flex',alignItems:'center',gap:14,textAlign:'left',cursor:'pointer',padding:'0 22px 0 14px',borderRadius:99,border:'none',background:'transparent'}}>
+              {filtered.map(p=>{const on=p.code===selected.code; const isNew=newlySaved.has(p.code); return (
+                <button key={p.code} onClick={()=>setSelCode(p.code)} style={{position:'relative',zIndex:1,width:'100%',height:64,marginBottom:6,display:'flex',alignItems:'center',gap:14,textAlign:'left',cursor:'pointer',padding:'0 22px 0 14px',borderRadius:99,border:'none',background:'transparent',animation:isNew?`newCard .6s ${SPRING_SOFT} both`:'none'}}>
                   <Swatch hex={p.hex} size={44} radius={99}/>
                   <div style={{flex:1,minWidth:0}}>
                     <span style={{fontFamily:theme.display,fontWeight:theme.isSerif?400:700,fontSize:19,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>
@@ -1190,6 +1217,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   <div style={{height:44,display:'flex',alignItems:'center'}}>
                     <div style={{display:'flex',gap:3.5}}>{[0,1,2].map(i=>{const lvl=coverLvl(p.copertura),fill=i<lvl;return <span key={i} style={{width:8,height:8,borderRadius:99,background:fill?(on?theme.accent:rgba(theme.ink,0.5)):'transparent',boxShadow:fill?'none':`inset 0 0 0 1.5px ${rgba(theme.ink,0.2)}`}}/>;})}</div>
                   </div>
+                  {isNew&&<span style={{position:'absolute',inset:0,borderRadius:99,boxShadow:`0 0 0 2.5px ${theme.accent}`,pointerEvents:'none',animation:`newRing 3.5s ${QUICK} forwards`}}/>}
                 </button>
               );})}
             </div>
@@ -1253,7 +1281,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
 function ensureMasterKf() {
   if(document.getElementById('master-kf')) return;
   const s=document.createElement('style'); s.id='master-kf';
-  s.textContent=`@keyframes mFade{from{opacity:.4;}to{opacity:1;}}@keyframes mRise{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}@keyframes mMorph{from{opacity:0;transform:translateY(-10px) scaleY(.9);}to{opacity:1;transform:translateY(0) scaleY(1);}}@keyframes mPulse{0%{transform:scale(1);}45%{transform:scale(1.025);}100%{transform:scale(1);}}@keyframes mBreath{0%{transform:scaleY(.984);}60%{transform:scaleY(1.006);}100%{transform:scaleY(1);}}`;
+  s.textContent=`@keyframes mFade{from{opacity:.4;}to{opacity:1;}}@keyframes mRise{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}@keyframes mMorph{from{opacity:0;transform:translateY(-10px) scaleY(.9);}to{opacity:1;transform:translateY(0) scaleY(1);}}@keyframes mPulse{0%{transform:scale(1);}45%{transform:scale(1.025);}100%{transform:scale(1);}}@keyframes mBreath{0%{transform:scaleY(.984);}60%{transform:scaleY(1.006);}100%{transform:scaleY(1);}}@keyframes newCard{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:translateX(0);}}@keyframes newRing{0%,60%{opacity:1;}100%{opacity:0;}}`;
   document.head.appendChild(s);
 }
 
@@ -1565,7 +1593,17 @@ function NuovaDesktop({open,onClose,theme}){
     try{
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
         body:JSON.stringify({action:'addRicetta',Pantone_ID:pantoneId.trim(),HEX:eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))})});
-      setMsg('Ricetta salvata!');setTimeout(()=>onClose(),1100);
+      setMsg('Ricetta salvata!');
+      const newId=pantoneId.trim();
+      allRicette.push({Pantone_ID:newId,HEX:eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', ')});
+      validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.name,'Dose_40g (g)':r.g}));
+      transformData();
+      newlySaved.add(newId);
+      window._bumpData?.();
+      window._selectCode?.(newId);
+      setTimeout(()=>{ window._refreshData?.(); },2500);
+      setTimeout(()=>{ newlySaved.delete(newId); window._bumpData?.(); },5000);
+      setTimeout(()=>onClose(),1100);
     }catch(e){setMsg('Errore di connessione.');}
     setSaving(false);
   };
@@ -2230,6 +2268,12 @@ function App() {
   },[]);
 
   React.useEffect(()=>{ doLoad(); },[]);
+
+  React.useEffect(()=>{
+    window._bumpData=()=>setDataVer(v=>v+1);
+    window._refreshData=()=>{ loadData().then(()=>setDataVer(v=>v+1)).catch(()=>{}); };
+    return()=>{ delete window._bumpData; delete window._refreshData; };
+  },[]);
 
   if(status==='loading') return <LoadingScreen/>;
   if(status==='error') return <ErrorScreen onRetry={doLoad}/>;
