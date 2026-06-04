@@ -124,6 +124,22 @@ function editRicetta(data) {
   aggiorna('Note',        data.Note);
   aggiorna('Progetti',    data.Progetti);
 
+  // Aggiorna Componenti se forniti
+  if (data.componenti && Array.isArray(data.componenti)) {
+    const finalId = (nuovoId && nuovoId !== data.Pantone_ID) ? nuovoId : data.Pantone_ID;
+    const compData = comp.getDataRange().getValues();
+    const compHdr  = compData[0];
+    const compIdCol = compHdr.indexOf('Pantone_ID');
+    for (let i = compData.length - 1; i >= 1; i--) {
+      if (String(compData[i][compIdCol]) === String(finalId)) {
+        comp.deleteRow(i + 1);
+      }
+    }
+    data.componenti.forEach(c => {
+      comp.appendRow([finalId, c.Inchiostro, c['Dose_40g (g)'] || '']);
+    });
+  }
+
   // Scrivi righe di log
   if (logs.length > 0) {
     log.getRange(log.getLastRow() + 1, 1, logs.length, 5).setValues(logs);

@@ -796,6 +796,9 @@ function EditSheet({open, editCode, onClose, theme}) {
   const [cop, setCop] = React.useState('');
   const [note, setNote] = React.useState('');
   const [pag, setPag] = React.useState('');
+  const [proj, setProj] = React.useState('');
+  const [inks, setInks] = React.useState([]);
+  const inkId = React.useRef(1);
   const [saving, setSaving] = React.useState(false);
   const [msg, setMsg] = React.useState('');
 
@@ -803,24 +806,41 @@ function EditSheet({open, editCode, onClose, theme}) {
     if(open && editCode){
       const r = allRicette.find(x=>x.Pantone_ID===editCode);
       setPid(editCode);
-      setHex(r ? (r.HEX||'') : '');
-      setCat(r ? ((r.Categoria||'').toLowerCase().trim()) : '');
-      setTemp(r ? (r.Temperatura||'') : '');
-      const copRaw = (r ? (r.Copertura||'') : '').toLowerCase().trim();
+      setHex((r?.HEX||'').replace('#',''));
+      setCat((r?.Categoria||'').toLowerCase().trim());
+      setTemp(r?.Temperatura||'');
+      const copRaw = (r?.Copertura||'').toLowerCase().trim();
       setCop(copRaw.startsWith('copr')?'coprente':copRaw.startsWith('semi')?'semi':copRaw.startsWith('tras')?'trasp':'');
-      setNote(r ? (r.Note||'') : '');
-      setPag(r ? (r.Pagina||'') : '');
+      setNote(r?.Note||'');
+      setPag(r?.Pagina||'');
+      setProj(r?.Progetti||'');
+      const comps = allComponenti.filter(c=>c.Pantone_ID===editCode);
+      inkId.current = comps.length + 1;
+      setInks(comps.length>0 ? comps.map((c,i)=>({id:i+1,name:c.Inchiostro||'',g:c['Dose_40g (g)']||''})) : [{id:1,name:'',g:''},{id:2,name:'',g:''}]);
       setMsg(''); setSaving(false);
     }
   },[open, editCode]);
 
+  const setInkField = (id,field,val) => setInks(a=>a.map(r=>r.id===id?{...r,[field]:val}:r));
+  const addInk = () => setInks(a=>[...a,{id:inkId.current++,name:'',g:''}]);
+  const delInk = id => setInks(a=>a.length>1?a.filter(r=>r.id!==id):a);
+
   const submit = async ()=>{
-    if(!pid.trim()||!hex.trim()||!cat){ setMsg('Compila Pantone ID, HEX e Categoria.'); return; }
+    if(!pid.trim()||!cat){ setMsg('Compila Pantone ID e Categoria.'); return; }
     setSaving(true); setMsg('');
     try{
-      const payload = {action:'editRicetta',Pantone_ID:editCode,HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag};
-      if(pid.trim()!==editCode) payload.Pantone_ID_nuovo=pid.trim();
+      const newId = pid.trim();
+      const hexVal = '#'+hex.replace('#','').trim();
+      const validInks = inks.filter(r=>r.name.trim()&&(parseFloat(r.g)||0)>0);
+      const payload = {action:'editRicetta',Pantone_ID:editCode,HEX:hexVal,Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:proj,componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))};
+      if(newId!==editCode) payload.Pantone_ID_nuovo=newId;
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+      // Ottimistico
+      const rIdx = allRicette.findIndex(x=>x.Pantone_ID===editCode);
+      if(rIdx>=0) allRicette[rIdx]={...allRicette[rIdx],Pantone_ID:newId,HEX:hexVal,Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:proj};
+      allComponenti = allComponenti.filter(c=>c.Pantone_ID!==editCode);
+      validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.name,'Dose_40g (g)':r.g}));
+      transformData(); window._bumpData?.();
       setMsg('Modifiche salvate!'); setTimeout(()=>onClose(), 1100);
     }catch(e){ setMsg('Errore di connessione.'); }
     setSaving(false);
@@ -828,20 +848,20 @@ function EditSheet({open, editCode, onClose, theme}) {
 
   const inp = {width:'100%',padding:'10px 14px',borderRadius:99,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,background:theme.panelAlt,fontFamily:'Nebulica',fontSize:14,color:theme.ink,outline:'none',boxSizing:'border-box'};
   const lbl = {fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.sub,display:'block',marginBottom:5};
+  const inkOpts = allInchiostri.length ? allInchiostri.map(i=>i.Codice||i.Nome_completo) : INK_POOL.map(i=>i.name);
 
   if(!open||!editCode) return null;
   return (
     <React.Fragment>
       <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(460px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:32,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(520px, calc(100vw - 32px))',maxHeight:'90vh',overflowY:'auto',borderRadius:32,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Modifica ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
-          <div style={{gridColumn:'span 2'}}><span style={lbl}>PANTONE ID</span><input value={pid} onChange={e=>setPid(e.target.value)} placeholder="es. 166 U" style={inp}/></div>
-        </div>
+
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+          <div style={{gridColumn:'span 2'}}><span style={lbl}>PANTONE ID</span><input value={pid} onChange={e=>setPid(e.target.value)} placeholder="es. 166 U" style={inp}/></div>
           <div><span style={lbl}>HEX</span>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
@@ -855,7 +875,7 @@ function EditSheet({open, editCode, onClose, theme}) {
             </select>
           </div>
           <div><span style={lbl}>PAGINA</span><input value={pag} onChange={e=>setPag(e.target.value)} type="number" placeholder="es. 42" style={inp}/></div>
-          <div><span style={lbl}>TEMPERATURA</span><input value={temp} onChange={e=>setTemp(e.target.value)} placeholder="es. alta" style={inp}/></div>
+          <div><span style={lbl}>TEMPERATURA</span><input value={temp} onChange={e=>setTemp(e.target.value)} placeholder="es. caldo" style={inp}/></div>
           <div style={{gridColumn:'span 2'}}>
             <span style={lbl}>COPERTURA</span>
             <div style={{display:'flex',gap:8}}>
@@ -865,10 +885,27 @@ function EditSheet({open, editCode, onClose, theme}) {
               })}
             </div>
           </div>
+          <div style={{gridColumn:'span 2'}}><span style={lbl}>PROGETTI</span><input value={proj} onChange={e=>setProj(e.target.value)} placeholder="es. Brand Aurora, Packaging Olio" style={inp}/></div>
+          <div style={{gridColumn:'span 2'}}><span style={lbl}>NOTE</span>
+            <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="note…" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.45}}/>
+          </div>
         </div>
-        <div style={{marginTop:14}}><span style={lbl}>NOTE</span>
-          <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="note…" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.45}}/>
+
+        <div style={{marginTop:18}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+            <span style={lbl}>FORMULA · dose a 40 g</span>
+            <button onClick={addInk} style={{height:30,padding:'0 14px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:12,border:`1px solid ${theme.line}`,background:theme.panelAlt,color:theme.ink}}>+ Aggiungi</button>
+          </div>
+          <datalist id="edit-ink-opts">{inkOpts.map(n=><option key={n} value={n}/>)}</datalist>
+          {inks.map(row=>(
+            <div key={row.id} style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
+              <input list="edit-ink-opts" value={row.name} onChange={e=>setInkField(row.id,'name',e.target.value)} placeholder="es. AS 40" style={{...inp,flex:1,padding:'8px 14px'}}/>
+              <input value={row.g} onChange={e=>setInkField(row.id,'g',e.target.value)} type="number" step="0.01" placeholder="g" style={{...inp,width:84,padding:'8px 10px',textAlign:'right'}}/>
+              <button onClick={()=>delInk(row.id)} style={{width:32,height:32,borderRadius:99,border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',color:theme.sub,fontFamily:'Nebulica',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>×</button>
+            </div>
+          ))}
         </div>
+
         {msg&&<div style={{marginTop:10,fontFamily:'Nebulica',fontSize:13,color:msg.includes('Modif')||msg.includes('salvate')?theme.accent:theme.sub}}>{msg}</div>}
         <button onClick={submit} disabled={saving} style={{marginTop:18,width:'100%',height:52,borderRadius:99,cursor:saving?'default':'pointer',background:theme.accent,color:theme.onAccent,border:'none',fontFamily:'Nebulica',fontWeight:700,fontSize:15,opacity:saving?0.7:1}}>
           {saving?'Salvataggio…':'Salva modifiche'}
