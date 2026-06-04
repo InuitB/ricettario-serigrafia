@@ -737,7 +737,7 @@ function NuovaSheet({open, onClose, theme}) {
   return (
     <React.Fragment>
       <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(530px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:32,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(530px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:32,background:theme.panel,outline:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Nuova ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
@@ -856,7 +856,7 @@ function EditSheet({open, editCode, onClose, theme}) {
   return (
     <React.Fragment>
       <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(520px, calc(100vw - 32px))',maxHeight:'90vh',overflowY:'auto',borderRadius:32,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(520px, calc(100vw - 32px))',maxHeight:'90vh',overflowY:'auto',borderRadius:32,background:theme.panel,outline:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Modifica ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
@@ -1933,7 +1933,7 @@ function SplitRecipePanel({pantone, open, easeIn, easeOut, pillBorders=true, bor
   const [qty, setQty] = React.useState(100);
   React.useEffect(()=>{ setQty(100); },[pantone.code]);
   return (
-    <div style={{position:'absolute',top:298,left:12,right:12,bottom:88,background:'#fff',borderRadius:20,border:pillBorders?`${borderWidth}px solid #0B0B0B`:'none',boxShadow:'0 8px 32px rgba(0,0,0,0.14)',zIndex:500,transform:open?'translateY(0)':'translateY(120%)',transition:`transform .48s ${open?easeIn:easeOut}`,overflow:'auto',WebkitOverflowScrolling:'touch'}}>
+    <div style={{position:'absolute',top:298,left:12,right:12,bottom:88,background:'#fff',borderRadius:20,outline:pillBorders?`${borderWidth}px solid #0B0B0B`:'none',boxShadow:'0 8px 32px rgba(0,0,0,0.14)',zIndex:500,transform:open?'translateY(0)':'translateY(120%)',transition:`transform .48s ${open?easeIn:easeOut}`,overflow:'auto',WebkitOverflowScrolling:'touch'}}>
       <div style={{paddingBottom:24}}>
         <div style={{width:36,height:4,borderRadius:99,background:'rgba(0,0,0,0.14)',margin:'10px auto 0'}}/>
         <UnifiedRecipeBody pantone={pantone} qty={qty} onChange={setQty}/>
