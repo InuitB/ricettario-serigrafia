@@ -6,7 +6,7 @@
 const SHEET_ID = '1uIirqJTLIu74AQo5VeaDVRcFNykF1q0oVp4jTihaUtw';
 
 // Forza la dose come numero JS — evita che Sheets interpreti "34.48" come orario
-function toDose(v) { const n = parseFloat(v); return isNaN(n) ? (v || '') : n; }
+function toDose(v) { const s = String(v || '').replace(',', '.'); const n = parseFloat(s); return isNaN(n) ? (v || '') : n; }
 
 function doGet(e) {
   try {
