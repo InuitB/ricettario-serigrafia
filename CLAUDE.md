@@ -19,7 +19,8 @@ Ospitata su GitHub Pages, usa Google Sheets come database tramite Apps Script.
 - **PDF:** jsPDF 2.5.1 (CDN cdnjs) — generazione etichette termiche lato client
 - **Backend:** Google Apps Script (`Code.gs`) — esposto come Web App POST endpoint
 - **Database:** Google Sheets (4 fogli: Ricette, Componenti, Inchiostri, Log + Sperimentazioni)
-- **Deploy:** GitHub Pages (branch main, file index.html nella root)
+- **Deploy frontend:** GitHub Pages (branch `main`, file `index.html` nella root)
+- **Deploy backend:** clasp — `clasp push && clasp deploy --deploymentId <ID> --description "..."` — credenziali in `~/.clasprc.json`, già funzionante nell'ambiente Claude Code web
 
 ---
 
@@ -217,6 +218,15 @@ Il thumb `.seg-thumb` si anima con `transform: translateX(100%)` quando attivo s
 
 Tutte le POST usano `mode: 'no-cors'` e `Content-Type: text/plain`.
 
+**Convenzione nomi campo (CRITICO):** il frontend invia i campi in CamelCase esatto: `Pantone_ID`, `HEX`, `Categoria`, `Temperatura`, `Copertura`, `Note`, `Pagina`, `Progetti`. I componenti usano `Inchiostro` e `'Dose_40g (g)'`. `Code.gs` deve leggere i campi con questi nomi esatti — mai in minuscolo.
+
+**Deployment clasp:**
+```
+clasp push --force           # carica Code.gs + appsscript.json (solo questi, vedi .claspignore)
+clasp deploy --deploymentId AKfycbx1LQGufzvgcs66YUVc0em1iY7DRrugIKI9fcheXzmbpSl8RHmyEeJ2fF2Ma_XD5_A --description "descrizione v9+"
+```
+Versione attuale live: **@9**. Dopo ogni modifica a `Code.gs`: push + deploy con versione incrementata.
+
 ---
 
 ## Convenzioni CSS
@@ -226,6 +236,25 @@ Tutte le POST usano `mode: 'no-cors'` e `Content-Type: text/plain`.
 - **Colore sfondo app (wallet):** `#F4EFE2` (beige caldo)
 - Le sheet (modifica, nuova, promuovi) salgono dal basso con `translateY(100%) → translateY(0)` + overlay blur
 - Classi wallet con prefisso `wallet-` (card, stack, blob) e `wrs-` (wallet recipe sheet)
+
+---
+
+## App mobile — struttura React (index.html)
+
+L'app rileva automaticamente mobile vs desktop. Su mobile (<768px o touch) usa `MobileApp` → `WalletProtoExtract`. Su desktop usa `DesktopApp` con 3 modalità (master, wallet, gallery).
+
+### Componenti mobile principali
+- `WalletProtoExtract` — lista card wallet + dettaglio formula. Props: `bg`, `accent`, `pillBorders`, `borderWidth`, `grain`, `blobAnim`, `blobShape`, `blobSpeed`, `onSettings`, `cardStyle`
+- `MobileSettingsPanel` — pannello impostazioni che sale dal basso
+- `MobileApp` — root mobile; gestisce settings state e passa `onSettings`
+
+### Layout header mobile (valori correnti)
+- Titolo "Ricettario": `top:48`
+- TOP BAR (search + cerchi): `top: isDetail?58:88`
+- `L_TOP=170` (punto di partenza stack card)
+- Cerchio impostazioni: `left:0` (esterno alla pill, a sinistra)
+- Cerchio filtro/modifica: `right:0` (esterno alla pill, a destra)
+- Pill di ricerca: `left:46` in lista, `left:0` in dettaglio, sfondo = `bg`
 
 ---
 
