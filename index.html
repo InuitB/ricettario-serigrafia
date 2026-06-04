@@ -817,6 +817,7 @@ function EditSheet({open, editCode, onClose, theme}) {
     <React.Fragment>
       <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
       <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(460px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:32,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Modifica ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
         </div>
@@ -1298,7 +1299,8 @@ function nfLookupHex(code){
   if(!code) return null;
   const raw=code.trim();
   const cands=[raw,raw.toUpperCase(),raw.toUpperCase().replace(/([0-9])([A-Z])$/,'$1 $2'),raw.replace(/\s+/,' ').toUpperCase()];
-  for(const k of cands){if(PANTONE_DB[k]) return PANTONE_DB[k];}
+  const hit=cands.find(k=>PANTONE_DB[k]);
+  if(hit) return PANTONE_DB[hit];
   const kn=raw.toLowerCase().replace(/\s/g,'');
   const p=DESK_PANTONES.find(p=>p.code.toLowerCase().replace(/\s/g,'')===kn);
   return p?p.hex:null;
