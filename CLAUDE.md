@@ -22,6 +22,15 @@ Ospitata su GitHub Pages, usa Google Sheets come database tramite Apps Script.
 - **Deploy frontend:** GitHub Pages (branch `main`, file `index.html` nella root)
 - **Deploy backend:** clasp — `clasp push && clasp deploy --deploymentId <ID> --description "..."` — credenziali in `~/.clasprc.json`, già funzionante nell'ambiente Claude Code web
 
+> **⚠️ REGOLA DEPLOY — DA SEGUIRE SEMPRE:**
+> La sessione Claude Code sviluppa su un branch separato (es. `claude/pantone-color-app-NZq5T`),
+> ma GitHub Pages pubblica **solo `main`**. Dopo ogni push al branch di sviluppo, sincronizzare
+> obbligatoriamente con:
+> ```
+> git push origin HEAD:main
+> ```
+> Senza questo passaggio le modifiche esistono nel repo ma **non sono visibili nell'app live**.
+
 ---
 
 ## Struttura Google Sheet
