@@ -14,7 +14,7 @@ Ospitata su GitHub Pages, usa Google Sheets come database tramite Apps Script.
 
 ## Stack tecnico
 
-- **Frontend:** Single HTML file (`index.html`) — zero framework, vanilla JS + CSS
+- **Frontend:** Single HTML file (`index.html`) — **React 18 + Babel standalone** (`type="text/babel"`), no build step
 - **Font:** Nebulica (Regular 400 + Bold 700) — embedded come base64 nel CSS
 - **PDF:** jsPDF 2.5.1 (CDN cdnjs) — generazione etichette termiche lato client
 - **Backend:** Google Apps Script (`Code.gs`) — esposto come Web App POST endpoint
@@ -60,7 +60,8 @@ let activeId = null             // Pantone_ID della ricetta aperta
 let activeSperimId = null       // Sperim_ID della sperimentazione aperta
 let activeQty = 100             // quantità selezionata (g) per il calcolo dosi
 let currentPanel = 'archivio'  // 'archivio' | 'sperim'
-const PANTONE_NAMES = {...}     // dizionario 570 nomi Pantone (es. '166 U': 'Blaze Orange')
+const PANTONE_NAMES = {...}     // dizionario 1707 nomi Pantone — 571 ufficiali + 1136 auto-generati via HSL
+const PANTONE_OFFICIAL = new Set([...]) // 571 chiavi ufficiali — usato in transformData per appendere '*' ai nomi auto
 const NEBULICA_B64 = '...'     // font Regular base64 per jsPDF
 const NEBULICA_BOLD_B64 = '...' // font Bold base64 per jsPDF
 
@@ -234,7 +235,7 @@ Tutte le POST usano `mode: 'no-cors'` e `Content-Type: text/plain`.
 clasp push --force           # carica Code.gs + appsscript.json (solo questi, vedi .claspignore)
 clasp deploy --deploymentId AKfycbx1LQGufzvgcs66YUVc0em1iY7DRrugIKI9fcheXzmbpSl8RHmyEeJ2fF2Ma_XD5_A --description "descrizione v9+"
 ```
-Versione attuale live: **@9**. Dopo ogni modifica a `Code.gs`: push + deploy con versione incrementata.
+Versione attuale live: **@11**. Dopo ogni modifica a `Code.gs`: push + deploy con versione incrementata.
 
 ---
 
@@ -248,9 +249,28 @@ Versione attuale live: **@9**. Dopo ogni modifica a `Code.gs`: push + deploy con
 
 ---
 
-## App mobile — struttura React (index.html)
+## App struttura React (index.html)
 
 L'app rileva automaticamente mobile vs desktop. Su mobile (<768px o touch) usa `MobileApp` → `WalletProtoExtract`. Su desktop usa `DesktopApp` con 3 modalità (master, wallet, gallery).
+
+### Architettura globali cross-component
+- `window._bumpData()` → forza re-render dopo mutazione di allRicette/allComponenti
+- `window._refreshData()` → ricarica dati da Google Sheet (delay 6s per attendere commit Apps Script)
+- `window._selectCode(code)` → seleziona una ricetta nella MasterMode
+- `newlySaved` (Set) → codici appena salvati, usati per animazione "new card"
+
+### Componente MasterMode (desktop principale — ~riga 1240)
+- **Header row** (h:88): Logo + SearchPill (w:600) + FilterButton + NuovaPill + spazio + ModeOrb
+- **Detail column** (w:600): card con `borderRadius:34`, `margin:'0 10px'`, `position:'relative'`
+- **Card header** (`position:'relative'`, `padding:'18px 34px 14px'`):
+  - Bottoni ★ e ✏ → `position:'absolute', top:14, right:14` (nested-radius: card r=34, button r=20 → inset=14)
+  - Name div → `paddingRight:100` per evitare overlap con i bottoni assoluti
+- **Card body** (`padding:'18px 34px 22px'`): usa `bodyInnerRef.scrollHeight` per misura altezza
+- **`useLayoutEffect`** deps: `[selected&&selected.code, anim, qty, theme.cardSurface, theme.display, theme.borders, theme.borderWidth]`
+
+### iOS 26 nested-radius — principio applicato
+- Card outer `borderRadius:34` → padding contenuto = 34px → nested element `borderRadius:20` → inset = 34-20 = **14px**
+- Card ha `margin:'0 10px'` per "floating" visivo
 
 ### Componenti mobile principali
 - `WalletProtoExtract` — lista card wallet + dettaglio formula. Props: `bg`, `accent`, `pillBorders`, `borderWidth`, `grain`, `blobAnim`, `blobShape`, `blobSpeed`, `onSettings`, `cardStyle`
@@ -265,6 +285,16 @@ L'app rileva automaticamente mobile vs desktop. Su mobile (<768px o touch) usa `
 - Cerchio filtro/modifica: `right:0` (esterno alla pill, a destra)
 - Pill di ricerca: `left:46` in lista, `left:0` in dettaglio, sfondo = `bg`
 
+### transformData() — logica nomi
+```js
+const nameRaw = PANTONE_NAMES[code];
+const name = nameRaw ? (PANTONE_OFFICIAL.has(code) ? nameRaw : nameRaw + '*') : code;
+// '*' appeso ai 1136 nomi auto-generati (non ufficiali Pantone)
+```
+
+### EditSheet — ordine campi (riga ~791)
+Pantone ID → HEX + Categoria → Pagina + Temperatura → Copertura → Formula (inchiostri/dosi) → Note + Progetti
+
 ---
 
 ## Cose da fare ancora (backlog)
@@ -275,3 +305,13 @@ L'app rileva automaticamente mobile vs desktop. Su mobile (<768px o touch) usa `
 - Inchiostri accessibili dal dettaglio toccando il codice inchiostro
 - Scelta layout etichetta (E, F, G, H proposti) da implementare in stampaPDF
 - Possibilità di modificare gli inchiostri di una ricetta esistente
+
+## Ultime modifiche (sessione 2026-06-04)
+
+- **PANTONE_NAMES** espanso da 571 a 1707 voci con nomi auto-generati via HSL
+- **Asterisco nomi auto**: `PANTONE_OFFICIAL` Set (571 chiavi ufficiali) → nomi auto mostrano `*` es. `Soft Green*`
+- **Bottoni card header nested-radius**: ★ e ✏ ora `position:absolute, top:14, right:14` — curva concentrica con card (r=34, btn r=20, inset=14)
+- **addRicetta fix**: Code.gs riscritta per leggere colonne per nome header (evita bug posizionale)
+- **Altezza card**: usa `bodyInnerRef.scrollHeight` — non più `bodyWrapRef` (che restituisce clientHeight con flex:1)
+- **Barra di ricerca** spostata in header row (allineata a Logo e ModeOrb), larghezza 600px
+- **EditSheet**: riordine campi — formula in mezzo, note/progetti in fondo
