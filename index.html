@@ -16,6 +16,7 @@ body{font-family:'Nebulica',system-ui,sans-serif;-webkit-font-smoothing:antialia
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&display=swap">
+<meta name="theme-color" content="#F4EFE2">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -1015,11 +1016,13 @@ function IconFolder({size=28,color='currentColor',filled=false,sw=1.8}) {
 function IconPenPlus({size=28,color='currentColor',filled=false,sw=1.8}) {
   return <svg width={size} height={size} viewBox="0 0 28 28" fill="none"><path d="M17.5 4.3 22.8 9.6 11.5 20.9l-6.2.9.9-6.2L17.5 4.3z" stroke={color} strokeWidth={sw} strokeLinejoin="round" fill="none"/><path d="M15.8 6 21 11.3" stroke={color} strokeWidth={sw} strokeLinecap="round"/><circle cx="22.5" cy="22.5" r="3.6" fill={color}/><path d="M22.5 20.7v3.6M20.7 22.5h3.6" stroke="#fff" strokeWidth="1.7" strokeLinecap="round"/></svg>;
 }
-function IconGear({size=18, color='currentColor', sw=1.6}) {
+function IcoTune({size=17, color='currentColor', sw=1.75}) {
   return (
-    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
-      <path d="M8.1 2.3a2 2 0 0 1 3.8 0l.2.8c.4.1.7.3 1 .5l.8-.3a2 2 0 0 1 2.3 1l.9 1.6a2 2 0 0 1-.5 2.5l-.6.4v1.2l.6.5a2 2 0 0 1 .5 2.5l-.9 1.5a2 2 0 0 1-2.3 1l-.8-.3c-.3.2-.6.4-1 .5l-.2.8a2 2 0 0 1-3.8 0l-.2-.8a6 6 0 0 1-1-.5l-.8.3a2 2 0 0 1-2.3-1l-.9-1.5a2 2 0 0 1 .5-2.5l.6-.5V8.8l-.6-.4a2 2 0 0 1-.5-2.5l.9-1.6a2 2 0 0 1 2.3-1l.8.3a6 6 0 0 1 1-.5l.2-.8z" stroke={color} strokeWidth={sw} strokeLinejoin="round"/>
-      <circle cx="10" cy="10" r="2.5" stroke={color} strokeWidth={sw}/>
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none">
+      <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke={color} strokeWidth={sw} strokeLinecap="round"/>
+      <circle cx="5.5" cy="4.5" r="2" fill="#fff" stroke={color} strokeWidth={sw-0.15}/>
+      <circle cx="12.5" cy="9" r="2" fill="#fff" stroke={color} strokeWidth={sw-0.15}/>
+      <circle cx="7" cy="13.5" r="2" fill="#fff" stroke={color} strokeWidth={sw-0.15}/>
     </svg>
   );
 }
@@ -1154,7 +1157,7 @@ function SplitRecipePanel({pantone, open, easeIn, easeOut}) {
   const [qty, setQty] = React.useState(100);
   React.useEffect(()=>{ setQty(100); },[pantone.code]);
   return (
-    <div style={{position:'absolute',bottom:0,left:0,right:0,height:'62%',background:'#fff',borderRadius:'20px 20px 0 0',boxShadow:'0 -8px 40px rgba(0,0,0,0.18)',zIndex:500,transform:open?'translateY(0)':'translateY(110%)',transition:`transform .48s ${open?easeIn:easeOut}`,overflow:'auto',WebkitOverflowScrolling:'touch'}}>
+    <div style={{position:'absolute',bottom:8,left:12,right:12,height:'56%',background:'#fff',borderRadius:20,boxShadow:'0 8px 32px rgba(0,0,0,0.18)',zIndex:500,transform:open?'translateY(0)':'translateY(120%)',transition:`transform .48s ${open?easeIn:easeOut}`,overflow:'auto',WebkitOverflowScrolling:'touch'}}>
       <div style={{paddingBottom:80}}>
         <div style={{width:36,height:4,borderRadius:99,background:'rgba(0,0,0,0.14)',margin:'10px auto 0'}}/>
         <UnifiedRecipeBody pantone={pantone} qty={qty} onChange={setQty}/>
@@ -1240,7 +1243,7 @@ function WalletProtoExtract({
     if(phase==='closed') return layoutClosed(i);
     if(isSel){
       if(phase==='open'){
-        if(cardStyle==='split') return {top:84,height:164,opacity:1,z:999,scale:1};
+        if(cardStyle==='split') return {top:148,height:164,opacity:1,z:999,scale:1};
         return {top:detailTop,height:detailHeight,opacity:1,z:999,scale:1};
       }
       return {top:liftTop,height:ACTIVE_H,opacity:1,z:999,scale:liftScale};
@@ -1268,30 +1271,29 @@ function WalletProtoExtract({
         <filter id="wpx-grain"><feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0.35 0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0.4 0"/></filter>
         <rect width="100%" height="100%" filter="url(#wpx-grain)"/>
       </svg>}
+      {/* TITLE — sopra la barra di ricerca */}
+      <div style={{position:'absolute',top:56,left:18,right:18,zIndex:5,opacity:isDetail?0:1,transform:isDetail?'translateY(-6px)':'none',transition:'opacity .26s, transform .26s',pointerEvents:'none'}}>
+        <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:26,lineHeight:0.95,letterSpacing:-0.8,color:'#0B0B0B'}}>Ricettario</div>
+        <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.5)',marginTop:3}}>{list.length} PANTONE · SICO</div>
+      </div>
       {/* TOP BAR */}
-      <div style={{position:'absolute',top:60,left:18,right:18,zIndex:1000,height:40}}>
-        <div onClick={isDetail?onBack:undefined} style={{position:'absolute',left:0,top:0,height:40,width:isDetail?124:onSettings?'calc(100% - 96px)':'calc(100% - 50px)',borderRadius:99,overflow:'hidden',background:'#fff',border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',cursor:isDetail?'pointer':'default',pointerEvents:(isDetail?recipeVisible:true)?'auto':'none',transition:'width .54s cubic-bezier(.34,1.56,.55,1)',zIndex:2}}>
-          <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',padding:'0 16px',gap:10,whiteSpace:'nowrap',pointerEvents:'none',opacity:isDetail?0:1,transition:isDetail?'opacity .12s ease':'opacity .28s ease .12s'}}>
-            <IconSearch color="#0B0B0B"/><span style={{fontFamily:'Nebulica',fontSize:14,color:'rgba(0,0,0,0.4)'}}>cerca pantone…</span>
+      <div style={{position:'absolute',top:100,left:18,right:18,zIndex:1000,height:40}}>
+        <div onClick={isDetail?onBack:undefined} style={{position:'absolute',left:0,top:0,height:40,width:isDetail?124:'calc(100% - 46px)',borderRadius:99,overflow:'hidden',background:'#fff',border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',cursor:isDetail?'pointer':'default',pointerEvents:(isDetail?recipeVisible:true)?'auto':'none',transition:'width .54s cubic-bezier(.34,1.56,.55,1)',zIndex:2}}>
+          <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',gap:8,padding:'0 10px 0 14px',whiteSpace:'nowrap',pointerEvents:'none',opacity:isDetail?0:1,transition:isDetail?'opacity .12s ease':'opacity .28s ease .12s'}}>
+            <IconSearch color="#0B0B0B" size={18}/>
+            <span style={{flex:1,fontFamily:'Nebulica',fontSize:14,color:'rgba(0,0,0,0.4)',overflow:'hidden'}}>cerca pantone…</span>
+            {onSettings&&<div onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onSettings();}} style={{width:34,height:34,borderRadius:99,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer',pointerEvents:'auto',background:'rgba(0,0,0,0.06)',marginRight:2}}>
+              <IcoTune color="#0B0B0B"/>
+            </div>}
           </div>
           <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',padding:'0 14px 0 12px',gap:6,whiteSpace:'nowrap',pointerEvents:'none',opacity:isDetail?1:0,transition:isDetail?'opacity .26s ease .14s':'opacity .12s ease'}}>
             <IconBack color="#0B0B0B"/><span style={{fontFamily:'Nebulica',fontSize:14,fontWeight:600,color:'#0B0B0B'}}>Ricette</span>
           </div>
         </div>
-        {onSettings&&(
-          <div onClick={onSettings} style={{position:'absolute',right:50,top:0,width:40,height:40,borderRadius:99,background:'#fff',border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,opacity:isDetail?0:1,pointerEvents:isDetail?'none':'auto',transition:'opacity .22s ease'}}>
-            <IconGear color="#0B0B0B"/>
-          </div>
-        )}
         <div key={'circle-'+bump} style={{position:'absolute',right:0,top:0,width:40,height:40,borderRadius:99,background:'#fff',border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:(isDetail?recipeVisible:true)?'auto':'none',zIndex:2,animation:bump?`wp2circleBump .46s cubic-bezier(.34,1.4,.5,1) ${bumpDir==='close'?'.26s':'0s'} both`:'none'}}>
           <div style={{position:'absolute',opacity:isDetail?0:1,transition:isDetail?'opacity .12s':'opacity .16s .26s'}}><IconFilter color="#0B0B0B"/></div>
           <div style={{position:'absolute',opacity:isDetail?1:0,transition:isDetail?'opacity .2s .06s':'opacity .14s .24s'}}><IconEdit color="#0B0B0B"/></div>
         </div>
-      </div>
-      {/* TITLE */}
-      <div style={{position:'absolute',top:110,left:18,right:18,zIndex:5,opacity:isDetail?0:1,transform:isDetail?'translateY(-6px)':'none',transition:'opacity .26s, transform .26s',pointerEvents:'none'}}>
-        <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:30,lineHeight:0.95,letterSpacing:-1,color:'#0B0B0B'}}>Ricettario</div>
-        <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.5)',marginTop:3}}>{list.length} PANTONE · SICO</div>
       </div>
       {/* CARDS */}
       <div ref={areaRef} onPointerDown={onAreaDown} onPointerMove={onAreaMove} onPointerUp={onAreaUp} onPointerCancel={onAreaUp}
@@ -1302,14 +1304,13 @@ function WalletProtoExtract({
             const pos=posFor(i);
             const noAnim=phase==='closed'&&dragging;
             return (
-              <div key={p.code} data-cardidx={i} style={{position:'absolute',left:0,right:0,top:pos.top,height:pos.height,opacity:pos.opacity,zIndex:pos.z,transform:`scale(${pos.scale})`,transformOrigin:'50% 0%',pointerEvents:pos.opacity>0.2?'auto':'none',cursor:'inherit',transition:noAnim?'none':`top ${dur}ms ${ease}, height ${dur}ms ${ease}, transform ${dur}ms ${ease}, opacity ${Math.round(dur*0.8)}ms ease`,filter:isSel&&phase!=='closed'?'drop-shadow(0 26px 48px rgba(0,0,0,0.24))':'drop-shadow(0 14px 28px rgba(0,0,0,0.14))'}}>
+              <div key={p.code} data-cardidx={i} style={{position:'absolute',left:0,right:0,top:pos.top,height:pos.height,opacity:pos.opacity,zIndex:pos.z,transform:`scale(${pos.scale})`,transformOrigin:'50% 0%',pointerEvents:pos.opacity>0.2?'auto':'none',cursor:'inherit',transition:noAnim?'none':`top ${dur}ms ${ease}, height ${dur}ms ${ease}, transform ${dur}ms ${ease}, opacity ${Math.round(dur*0.8)}ms ease`,borderRadius:22,overflow:'hidden',boxShadow:isSel&&phase!=='closed'?'0 26px 48px rgba(0,0,0,0.22)':'0 10px 24px rgba(0,0,0,0.12)'}}>
                 {isSel?<UnifiedCard pantone={p} recipeVisible={recipeVisible} headerH={headerH} headerOnly={cardStyle==='split'&&recipeVisible}/>:<WalletCardV2 pantone={p} expanded={false}/>}
               </div>
             );
           })}
         </div>
       </div>
-      <div style={{position:'absolute',bottom:120,left:0,right:0,textAlign:'center',zIndex:41,fontFamily:'Nebulica',fontSize:9,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.4)',opacity:isDetail?0:1,transition:'opacity .3s',pointerEvents:'none'}}>↕ TRASCINA · TOCCA UNA CARD</div>
       {cardStyle==='split'&&selected&&<SplitRecipePanel pantone={selected} open={recipeVisible} easeIn={EASE_OPEN_SPRING} easeOut={EASE_CLOSE_QUICK}/>}
       <BottomNav active={0} accent={accent} restColor="#0B0B0B" bg={bg}/>
     </div>
@@ -1401,6 +1402,11 @@ function MobileApp() {
   const setSetting = (k,v) => setSettings(s=>({...s,[k]:v}));
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const bg = settings.theme==='grey'?'#E6E4DE':'#F4EFE2';
+  React.useEffect(()=>{
+    let m=document.querySelector('meta[name="theme-color"]');
+    if(!m){m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m);}
+    m.content=bg;
+  },[bg]);
   return (
     <div style={{width:'100%',height:'100%',position:'relative'}}>
       <WalletProtoExtract
