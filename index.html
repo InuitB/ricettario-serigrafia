@@ -885,10 +885,6 @@ function EditSheet({open, editCode, onClose, theme}) {
               })}
             </div>
           </div>
-          <div style={{gridColumn:'span 2'}}><span style={lbl}>PROGETTI</span><input value={proj} onChange={e=>setProj(e.target.value)} placeholder="es. Brand Aurora, Packaging Olio" style={inp}/></div>
-          <div style={{gridColumn:'span 2'}}><span style={lbl}>NOTE</span>
-            <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="note…" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.45}}/>
-          </div>
         </div>
 
         <div style={{marginTop:18}}>
@@ -904,6 +900,13 @@ function EditSheet({open, editCode, onClose, theme}) {
               <button onClick={()=>delInk(row.id)} style={{width:32,height:32,borderRadius:99,border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',color:theme.sub,fontFamily:'Nebulica',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>×</button>
             </div>
           ))}
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginTop:14}}>
+          <div style={{gridColumn:'span 2'}}><span style={lbl}>NOTE</span>
+            <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="note…" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.45}}/>
+          </div>
+          <div style={{gridColumn:'span 2'}}><span style={lbl}>PROGETTI</span><input value={proj} onChange={e=>setProj(e.target.value)} placeholder="es. Brand Aurora, Packaging Olio" style={inp}/></div>
         </div>
 
         {msg&&<div style={{marginTop:10,fontFamily:'Nebulica',fontSize:13,color:msg.includes('Modif')||msg.includes('salvate')?theme.accent:theme.sub}}>{msg}</div>}
@@ -1241,11 +1244,12 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
         <div style={{width:352,flexShrink:0,display:'flex',alignItems:'center'}}>
           <Logo theme={theme} onSettings={onSettings}/>
         </div>
-        <div style={{flex:1,display:'flex',alignItems:'center',gap:12}}>
+        <div style={{width:600,flexShrink:0,display:'flex',alignItems:'center',gap:12}}>
           <div style={{flex:1}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca…"/></div>
           <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="right"/>
           <NuovaPill theme={theme} compact onClick={onNuova}/>
         </div>
+        <div style={{flex:1}}/>
         <ModeOrb mode={mode} onChange={setMode} theme={theme}/>
       </div>
       <div style={{position:'relative',zIndex:10,display:'flex',height:'calc(100% - 88px)'}}>
