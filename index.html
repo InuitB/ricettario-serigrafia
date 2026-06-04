@@ -19,6 +19,7 @@ body{font-family:'Nebulica',system-ui,sans-serif;-webkit-font-smoothing:antialia
 <meta name="theme-color" content="#F4EFE2">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
@@ -167,6 +168,49 @@ function makeRecipe(p) {
 }
 
 const QUANTITIES = [{label:'100 g',grams:100},{label:'300 g',grams:300},{label:'500 g',grams:500},{label:'1 kg',grams:1000}];
+
+function stampaPDF(pantone, recipe, qty) {
+  if (!window.jspdf) { alert('jsPDF non disponibile'); return; }
+  const { jsPDF } = window.jspdf;
+  const W = 57, H = 25;
+  const doc = new jsPDF({ unit:'mm', format:[W, H] });
+  const hex = (pantone.hex||'#888888').replace('#','');
+  const cr = parseInt(hex.slice(0,2),16)||0, cg = parseInt(hex.slice(2,4),16)||0, cb = parseInt(hex.slice(4,6),16)||0;
+  // border
+  doc.setDrawColor(0,0,0); doc.setLineWidth(0.35);
+  doc.roundedRect(0.8, 0.8, W-1.6, H-1.6, 2, 2, 'S');
+  // color swatch top-right
+  doc.setFillColor(cr,cg,cb); doc.roundedRect(W-14.5, 1.8, 12, 10, 1.2, 1.2, 'F');
+  doc.setDrawColor(180,180,180); doc.setLineWidth(0.15);
+  doc.roundedRect(W-14.5, 1.8, 12, 10, 1.2, 1.2, 'S');
+  // pantone code
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(0,0,0);
+  doc.text(pantone.code, 3, 8.5);
+  // name
+  doc.setFont('helvetica','normal'); doc.setFontSize(5.8); doc.setTextColor(90,90,90);
+  doc.text(pantone.name||'', 3, 12.5);
+  // separator
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.15);
+  doc.line(3, 14, W-3, 14);
+  // ink bars
+  const barMaxW = W-6, barH = 1.7, startY = 15.4;
+  recipe.inks.slice(0, 4).forEach((ink, i) => {
+    const y = startY + i * 2.3;
+    if (y + barH > H - 1.2) return;
+    const filledW = Math.max(0.8, (ink.pct/100)*barMaxW);
+    doc.setFillColor(225,225,225); doc.roundedRect(3, y, barMaxW, barH, 0.5, 0.5, 'F');
+    doc.setFillColor(cr,cg,cb); doc.roundedRect(3, y, filledW, barH, 0.5, 0.5, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(4.2); doc.setTextColor(30,30,30);
+    doc.text(ink.name, 3.8, y+1.2);
+    const grams = ((ink.pct/100)*qty).toFixed(1);
+    doc.setFont('helvetica','normal'); doc.setFontSize(4.2);
+    doc.text(`${grams}g`, W-3.2, y+1.2, {align:'right'});
+  });
+  // total
+  doc.setFont('helvetica','bold'); doc.setFontSize(5); doc.setTextColor(0,0,0);
+  doc.text(`Σ ${qty} g`, W-3.2, H-1.8, {align:'right'});
+  doc.save(`etichetta_${pantone.code.replace(/ /g,'_')}.pdf`);
+}
 const FAMILIES = ['tutti','blu','azzurro','verde','giallo','arancio','rosso','rosa','viola','marrone','beige','nero','bianco','neutro','fluo'];
 
 
@@ -325,9 +369,9 @@ function NotesBlock({note, theme}) {
   );
 }
 
-function PrintButton({theme, full=true, label='Stampa etichetta'}) {
+function PrintButton({theme, full=true, label='Stampa etichetta', onClick}) {
   return (
-    <button style={{height:52,borderRadius:99,background:theme.ink,color:'#fff',border:`1.5px solid ${theme.ink}`,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,width:full?'100%':'auto',padding:full?0:'0 26px',fontFamily:'Nebulica',fontWeight:700,fontSize:15,letterSpacing:-0.2}}>
+    <button onClick={onClick} style={{height:52,borderRadius:99,background:theme.ink,color:'#fff',border:`1.5px solid ${theme.ink}`,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,width:full?'100%':'auto',padding:full?0:'0 26px',fontFamily:'Nebulica',fontWeight:700,fontSize:15,letterSpacing:-0.2}}>
       <IcoPrinter size={19} color="#fff"/> {label}
     </button>
   );
@@ -425,9 +469,9 @@ function IconPill({Icon, onClick, theme, active=false, title, size=50}) {
   );
 }
 
-function NuovaPill({theme, compact=false}) {
+function NuovaPill({theme, compact=false, onClick}) {
   return (
-    <button style={{height:50,padding:compact?'0 18px':'0 22px',borderRadius:99,cursor:'pointer',background:theme.accent,color:theme.onAccent,border:'none',display:'inline-flex',alignItems:'center',gap:8,fontFamily:'Nebulica',fontWeight:700,fontSize:14,boxShadow:`0 6px 18px ${rgba(theme.accent,0.32)}`}}>
+    <button onClick={onClick} style={{height:50,padding:compact?'0 18px':'0 22px',borderRadius:99,cursor:'pointer',background:theme.accent,color:theme.onAccent,border:'none',display:'inline-flex',alignItems:'center',gap:8,fontFamily:'Nebulica',fontWeight:700,fontSize:14,boxShadow:`0 6px 18px ${rgba(theme.accent,0.32)}`}}>
       <IcoPlus size={19} color={theme.onAccent} sw={2}/> {compact?'Nuova':'Nuova ricetta'}
     </button>
   );
@@ -545,6 +589,176 @@ function SettingsPanel({open, onClose, settings, setSetting, theme}) {
 }
 
 
+/* ═══════════════════ DESKTOP NUOVA / EDIT SHEETS ═══════════════════ */
+function NuovaSheet({open, onClose, theme}) {
+  const [pid, setPid] = React.useState('');
+  const [hex, setHex] = React.useState('');
+  const [cat, setCat] = React.useState('');
+  const [temp, setTemp] = React.useState('');
+  const [cop, setCop] = React.useState('');
+  const [note, setNote] = React.useState('');
+  const [pag, setPag] = React.useState('');
+  const [inks, setInks] = React.useState([{ink:'',dose:''},{ink:'',dose:''}]);
+  const [saving, setSaving] = React.useState(false);
+  const [msg, setMsg] = React.useState('');
+
+  React.useEffect(()=>{
+    if(!open){ setPid(''); setHex(''); setCat(''); setTemp(''); setCop(''); setNote(''); setPag(''); setInks([{ink:'',dose:''},{ink:'',dose:''}]); setMsg(''); setSaving(false); }
+  },[open]);
+
+  const addInkRow = ()=>{ if(inks.length<4) setInks([...inks,{ink:'',dose:''}]); };
+  const removeInkRow = i=>{ if(inks.length>1) setInks(inks.filter((_,j)=>j!==i)); };
+  const setField = (i,field,val)=>setInks(inks.map((r,j)=>j===i?{...r,[field]:val}:r));
+
+  const submit = async ()=>{
+    if(!pid.trim()||!hex.trim()||!cat){ setMsg('Compila Pantone ID, HEX e Categoria.'); return; }
+    const validInks = inks.filter(r=>r.ink.trim()&&r.dose.trim());
+    if(validInks.length===0){ setMsg('Aggiungi almeno un inchiostro con la dose.'); return; }
+    setSaving(true); setMsg('');
+    try{
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'addRicetta',Pantone_ID:pid.trim(),HEX:hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,
+          componenti:validInks.map(r=>({Inchiostro:r.ink,'Dose_40g (g)':r.dose}))})});
+      setMsg('Ricetta salvata!'); setTimeout(()=>onClose(), 1100);
+    }catch(e){ setMsg('Errore di connessione.'); }
+    setSaving(false);
+  };
+
+  const inkOpts = allInchiostri.length>0 ? allInchiostri.map(i=>i.Codice||i.Nome_completo) : ['AS 90','AS 65','AS 150','AS 320','AS 47','AS 12','AS 88','AS 33','AS 70'];
+  const inp = {width:'100%',padding:'10px 14px',borderRadius:12,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,background:theme.panelAlt,fontFamily:'Nebulica',fontSize:14,color:theme.ink,outline:'none',boxSizing:'border-box'};
+  const lbl = {fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.sub,display:'block',marginBottom:5};
+
+  if(!open) return null;
+  return (
+    <React.Fragment>
+      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:530,maxHeight:'88vh',overflowY:'auto',borderRadius:28,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
+          <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Nuova ricetta</span>
+          <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+          <div><span style={lbl}>PANTONE ID</span><input value={pid} onChange={e=>setPid(e.target.value)} placeholder="es. 166 U" style={inp}/></div>
+          <div><span style={lbl}>HEX</span>
+            <div style={{display:'flex',gap:8}}>
+              <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
+              {hex.replace('#','').length>=6&&<div style={{width:36,height:38,borderRadius:8,background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
+            </div>
+          </div>
+          <div><span style={lbl}>CATEGORIA</span>
+            <select value={cat} onChange={e=>setCat(e.target.value)} style={{...inp,WebkitAppearance:'none',appearance:'none'}}>
+              <option value="">Scegli…</option>
+              {FAMILIES.filter(f=>f!=='tutti').map(f=><option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div><span style={lbl}>PAGINA</span><input value={pag} onChange={e=>setPag(e.target.value)} type="number" placeholder="es. 42" style={inp}/></div>
+          <div><span style={lbl}>TEMPERATURA</span><input value={temp} onChange={e=>setTemp(e.target.value)} placeholder="es. alta" style={inp}/></div>
+          <div><span style={lbl}>COPERTURA</span><input value={cop} onChange={e=>setCop(e.target.value)} placeholder="es. media" style={inp}/></div>
+        </div>
+        <div style={{marginTop:14}}><span style={lbl}>NOTE</span>
+          <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="note opzionali…" style={{...inp,resize:'vertical',lineHeight:1.45}}/>
+        </div>
+        <div style={{marginTop:20}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+            <span style={lbl}>INCHIOSTRI — dose a 40 g</span>
+            {inks.length<4&&<button onClick={addInkRow} style={{border:'none',background:'transparent',cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:theme.accent}}>+ Aggiungi</button>}
+          </div>
+          {inks.map((row,i)=>(
+            <div key={i} style={{display:'flex',gap:8,alignItems:'center',marginBottom:8}}>
+              <select value={row.ink} onChange={e=>setField(i,'ink',e.target.value)} style={{...inp,flex:2,WebkitAppearance:'none',appearance:'none'}}>
+                <option value="">Inchiostro…</option>
+                {inkOpts.map(k=><option key={k} value={k}>{k}</option>)}
+              </select>
+              <input value={row.dose} onChange={e=>setField(i,'dose',e.target.value)} type="number" step="0.1" placeholder="g" style={{...inp,width:72,flex:'none'}}/>
+              {inks.length>1&&<button onClick={()=>removeInkRow(i)} style={{width:32,height:32,borderRadius:99,border:'none',background:rgba('#000',0.06),cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><IcoClose size={12} color={theme.faint}/></button>}
+            </div>
+          ))}
+        </div>
+        {msg&&<div style={{marginTop:10,fontFamily:'Nebulica',fontSize:13,color:msg.includes('Salvata')||msg.includes('salvata')?theme.accent:theme.sub}}>{msg}</div>}
+        <button onClick={submit} disabled={saving} style={{marginTop:18,width:'100%',height:52,borderRadius:99,cursor:saving?'default':'pointer',background:theme.accent,color:theme.onAccent,border:'none',fontFamily:'Nebulica',fontWeight:700,fontSize:15,opacity:saving?0.7:1}}>
+          {saving?'Salvataggio…':'Salva ricetta'}
+        </button>
+      </div>
+    </React.Fragment>
+  );
+}
+
+function EditSheet({open, editCode, onClose, theme}) {
+  const [hex, setHex] = React.useState('');
+  const [cat, setCat] = React.useState('');
+  const [temp, setTemp] = React.useState('');
+  const [cop, setCop] = React.useState('');
+  const [note, setNote] = React.useState('');
+  const [pag, setPag] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [msg, setMsg] = React.useState('');
+
+  React.useEffect(()=>{
+    if(open && editCode){
+      const r = allRicette.find(x=>x.Pantone_ID===editCode);
+      setHex(r ? (r.HEX||'') : '');
+      setCat(r ? ((r.Categoria||'').toLowerCase().trim()) : '');
+      setTemp(r ? (r.Temperatura||'') : '');
+      setCop(r ? (r.Copertura||'') : '');
+      setNote(r ? (r.Note||'') : '');
+      setPag(r ? (r.Pagina||'') : '');
+      setMsg(''); setSaving(false);
+    }
+  },[open, editCode]);
+
+  const submit = async ()=>{
+    if(!hex.trim()||!cat){ setMsg('Compila HEX e Categoria.'); return; }
+    setSaving(true); setMsg('');
+    try{
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'editRicetta',Pantone_ID:editCode,HEX:hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag})});
+      setMsg('Modifiche salvate!'); setTimeout(()=>onClose(), 1100);
+    }catch(e){ setMsg('Errore di connessione.'); }
+    setSaving(false);
+  };
+
+  const inp = {width:'100%',padding:'10px 14px',borderRadius:12,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,background:theme.panelAlt,fontFamily:'Nebulica',fontSize:14,color:theme.ink,outline:'none',boxSizing:'border-box'};
+  const lbl = {fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.sub,display:'block',marginBottom:5};
+
+  if(!open||!editCode) return null;
+  return (
+    <React.Fragment>
+      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:460,maxHeight:'88vh',overflowY:'auto',borderRadius:28,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+          <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Modifica ricetta</span>
+          <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
+        </div>
+        <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.5,fontWeight:700,color:theme.sub,marginBottom:20}}>{editCode}</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+          <div><span style={lbl}>HEX</span>
+            <div style={{display:'flex',gap:8}}>
+              <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
+              {hex.replace('#','').length>=6&&<div style={{width:36,height:38,borderRadius:8,background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
+            </div>
+          </div>
+          <div><span style={lbl}>CATEGORIA</span>
+            <select value={cat} onChange={e=>setCat(e.target.value)} style={{...inp,WebkitAppearance:'none',appearance:'none'}}>
+              <option value="">Scegli…</option>
+              {FAMILIES.filter(f=>f!=='tutti').map(f=><option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div><span style={lbl}>PAGINA</span><input value={pag} onChange={e=>setPag(e.target.value)} type="number" placeholder="es. 42" style={inp}/></div>
+          <div><span style={lbl}>TEMPERATURA</span><input value={temp} onChange={e=>setTemp(e.target.value)} placeholder="es. alta" style={inp}/></div>
+          <div style={{gridColumn:'span 2'}}><span style={lbl}>COPERTURA</span><input value={cop} onChange={e=>setCop(e.target.value)} placeholder="es. media" style={inp}/></div>
+        </div>
+        <div style={{marginTop:14}}><span style={lbl}>NOTE</span>
+          <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="note…" style={{...inp,resize:'vertical',lineHeight:1.45}}/>
+        </div>
+        {msg&&<div style={{marginTop:10,fontFamily:'Nebulica',fontSize:13,color:msg.includes('Modif')||msg.includes('salvate')?theme.accent:theme.sub}}>{msg}</div>}
+        <button onClick={submit} disabled={saving} style={{marginTop:18,width:'100%',height:52,borderRadius:99,cursor:saving?'default':'pointer',background:theme.accent,color:theme.onAccent,border:'none',fontFamily:'Nebulica',fontWeight:700,fontSize:15,opacity:saving?0.7:1}}>
+          {saving?'Salvataggio…':'Salva modifiche'}
+        </button>
+      </div>
+    </React.Fragment>
+  );
+}
+
 /* ═══════════════════ DESKTOP WALLET (ROW only) ═══════════════════ */
 function WalletUnified({pantone, open, qty, setQty, theme, headerH=176, codeSize=46, onMeasure}) {
   const fg = textOnDesk(pantone.hex);
@@ -572,7 +786,7 @@ function WalletUnified({pantone, open, qty, setQty, theme, headerH=176, codeSize
         <QuantityPicker value={qty} onChange={setQty} theme={theme}/>
         <div style={{marginTop:20}}><InkFormula pantone={pantone} recipe={recipe} qty={qty} theme={theme} play={open} anim="stagger"/></div>
         <NotesBlock note={recipe.note} theme={theme}/>
-        <div style={{marginTop:20}}><PrintButton theme={theme}/></div>
+        <div style={{marginTop:20}}><PrintButton theme={theme} onClick={()=>stampaPDF(pantone, recipe, qty)}/></div>
         <div style={{marginTop:14,display:'flex',justifyContent:'space-between',fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.sub}}>
           <span>PROGETTO</span><span style={{color:theme.accent}}>→ {recipe.project}</span></div>
       </div>
@@ -580,14 +794,14 @@ function WalletUnified({pantone, open, qty, setQty, theme, headerH=176, codeSize
   );
 }
 
-function WalletTopBar({theme, mode, setMode, open, onBack, onSettings}) {
+function WalletTopBar({theme, mode, setMode, open, onBack, onSettings, onNuova}) {
   return (
     <div style={{position:'relative',zIndex:60,height:88,display:'flex',alignItems:'center',padding:'0 28px'}}>
       <Logo theme={theme} onSettings={onSettings}/>
       <div style={{position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',display:'flex',alignItems:'center',gap:12}}>
         <button onClick={onBack} style={{height:50,padding:'0 20px 0 16px',borderRadius:99,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.ink,width:open?'auto':0,paddingLeft:open?16:0,paddingRight:open?20:0,overflow:'hidden',opacity:open?1:0,pointerEvents:open?'auto':'none',transition:`opacity .35s, width .45s ${SPRING}, padding .45s ${SPRING}`,...glass(theme,{strong:true})}}>
           <IcoBack size={18} color={theme.ink}/> Ricette</button>
-        <NuovaPill theme={theme} compact/>
+        <NuovaPill theme={theme} compact onClick={onNuova}/>
       </div>
       <div style={{position:'absolute',top:17,right:28,zIndex:70}}><ModeOrb mode={mode} onChange={setMode} theme={theme}/></div>
     </div>
@@ -628,11 +842,11 @@ function WalletSideList({list, query, setQuery, selCode, onPick, theme, family, 
   );
 }
 
-function WalletMode({theme, mode, setMode, query, setQuery, onSettings}) {
-  return <WalletRow theme={theme} mode={mode} setMode={setMode} query={query} setQuery={setQuery} onSettings={onSettings}/>;
+function WalletMode({theme, mode, setMode, query, setQuery, onSettings, onNuova}) {
+  return <WalletRow theme={theme} mode={mode} setMode={setMode} query={query} setQuery={setQuery} onSettings={onSettings} onNuova={onNuova}/>;
 }
 
-function WalletRow({theme, mode, setMode, query, setQuery, onSettings, initialOpen=null}) {
+function WalletRow({theme, mode, setMode, query, setQuery, onSettings, onNuova, initialOpen=null}) {
   const [family, setFamily] = React.useState('tutti');
   const [ink, setInk] = React.useState(0);
   const list = React.useMemo(()=>DESK_PANTONES.filter(p=>(family==='tutti'||p.family===family)&&(!ink||p.ink===ink)&&(!query||`${p.code} ${p.name} ${p.family}`.toLowerCase().includes(query.toLowerCase()))),[family,ink,query,DESK_PANTONES.length]);
@@ -660,7 +874,7 @@ function WalletRow({theme, mode, setMode, query, setQuery, onSettings, initialOp
   return (
     <div style={{width:'100%',height:'100%',position:'relative'}}>
       <GrainBlobs theme={theme} blobHex={blobHex}/>
-      <WalletTopBar theme={theme} mode={mode} setMode={setMode} onSettings={onSettings} open={open} onBack={()=>setSel(null)}/>
+      <WalletTopBar theme={theme} mode={mode} setMode={setMode} onSettings={onSettings} onNuova={onNuova} open={open} onBack={()=>setSel(null)}/>
       <WalletSideList list={list} query={query} setQuery={setQuery} selCode={open?selP.code:null} onPick={openCard} theme={theme} family={family} setFamily={setFamily} ink={ink} setInk={setInk}/>
       <div onWheel={onWheel} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
         style={{position:'absolute',top:88,left:SB,right:0,bottom:0,zIndex:10,overflow:'hidden',cursor:open?'default':(drag.current.on?'grabbing':'grab'),touchAction:'none'}}>
@@ -720,7 +934,7 @@ function SwatchCard({p, theme, active, onClick}) {
   );
 }
 
-function GalleryMode({theme, mode, setMode, query, setQuery, onSettings, formulaAnim='slide'}) {
+function GalleryMode({theme, mode, setMode, query, setQuery, onSettings, formulaAnim='slide', onNuova}) {
   const [family, setFamily] = React.useState('tutti');
   const [inkFilter, setInkFilter] = React.useState(0);
   const [selCode, setSelCode] = React.useState(null);
@@ -758,7 +972,7 @@ function GalleryMode({theme, mode, setMode, query, setQuery, onSettings, formula
         <div style={{padding:'4px 36px 14px',display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
           <div style={{width:380,maxWidth:'46%'}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%"/></div>
           <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="left"/>
-          <NuovaPill theme={theme} compact/>
+          <NuovaPill theme={theme} compact onClick={onNuova}/>
           <div style={{flex:1,minWidth:0}}/>
           <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,whiteSpace:'nowrap'}}>{filtered.length} PANTONE</span>
         </div>
@@ -792,7 +1006,7 @@ function GalleryMode({theme, mode, setMode, query, setQuery, onSettings, formula
             <QuantityPicker value={qty} onChange={setQty} theme={theme}/>
             <div style={{marginTop:24}}><InkFormula key={'gf-'+sel.code+formulaAnim} pantone={sel} recipe={recipe} qty={qty} theme={theme} big play anim={formulaAnim==='stagger'?'stagger':'none'}/></div>
             <NotesBlock note={recipe.note} theme={theme}/>
-            <div style={{marginTop:22}}><PrintButton theme={theme}/></div>
+            <div style={{marginTop:22}}><PrintButton theme={theme} onClick={sel&&recipe?()=>stampaPDF(sel,recipe,qty):undefined}/></div>
             <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${theme.line}`,display:'flex',justifyContent:'space-between',fontFamily:'Nebulica',fontSize:11.5,letterSpacing:1.3,fontWeight:700,color:theme.sub}}>
               <span>PROGETTO</span><span style={{color:theme.accent}}><IcoFolder size={15} color={theme.accent}/> {recipe.project}</span>
             </div>
@@ -811,7 +1025,7 @@ function ensureGalleryKf() {
 
 
 /* ═══════════════════ DESKTOP MASTER ═══════════════════ */
-function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='rise'}) {
+function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='rise', onNuova, onEdit}) {
   const [family, setFamily] = React.useState('tutti');
   const [inkFilter, setInkFilter] = React.useState(0);
   const [selCode, setSelCode] = React.useState(null);
@@ -889,7 +1103,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
             <div ref={searchRowRef} style={{display:'flex',alignItems:'center',gap:12,marginBottom:14,flexShrink:0}}>
               <div style={{flex:1}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca…"/></div>
               <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="right"/>
-              <NuovaPill theme={theme} compact/>
+              <NuovaPill theme={theme} compact onClick={onNuova}/>
             </div>
             <div key={'card-'+selected.code} style={{height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:34,overflow:'hidden',position:'relative',...surface(theme),border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 20px 50px ${rgba('#000',0.10)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1)`,animation:`mBreath .6s cubic-bezier(.32,1.12,.4,1) both`,transformOrigin:'top center'}}>
               <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'18px 32px 14px',flexShrink:0,transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
@@ -897,7 +1111,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   <span style={{fontFamily:'Nebulica',fontSize:12,letterSpacing:1.6,fontWeight:700,color:fg,opacity:0.72}}>{selected.family.toUpperCase()} · PANTONE</span>
                   <div style={{display:'flex',gap:10}}>
                     {[IcoStar,IcoEdit].map((Ic,i)=>(
-                      <button key={i} style={{width:40,height:40,borderRadius:99,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:rgba(fg==='#fff'?'#fff':'#000',0.12),border:`1.4px solid ${rgba(fg==='#fff'?'#fff':'#000',0.3)}`}}>
+                      <button key={i} onClick={i===1&&onEdit?()=>onEdit(selected.code):undefined} style={{width:40,height:40,borderRadius:99,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:rgba(fg==='#fff'?'#fff':'#000',0.12),border:`1.4px solid ${rgba(fg==='#fff'?'#fff':'#000',0.3)}`}}>
                         <Ic size={i?18:19} color={fg}/></button>
                     ))}
                   </div>
@@ -924,8 +1138,8 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   </div>
                   <NotesBlock note={recipe.note} theme={theme}/>
                   <div style={{marginTop:14,display:'flex',gap:12,alignItems:'center'}}>
-                    <div style={{flex:1}}><PrintButton theme={theme}/></div>
-                    <button style={{display:'inline-flex',alignItems:'center',gap:9,padding:'0 22px',height:52,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:14,color:theme.ink,...glass(theme,{strong:true})}}>
+                    <div style={{flex:1}}><PrintButton theme={theme} onClick={recipe?()=>stampaPDF(selected,recipe,qty):undefined}/></div>
+                    <button onClick={onEdit?()=>onEdit(selected.code):undefined} style={{display:'inline-flex',alignItems:'center',gap:9,padding:'0 22px',height:52,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:14,color:theme.ink,...glass(theme,{strong:true})}}>
                       <IcoEdit size={17} color={theme.ink}/> Modifica</button>
                   </div>
                 </div>
@@ -963,11 +1177,13 @@ function DesktopApp({defaults}) {
   const [mode, setMode] = React.useState('master');
   const [query, setQuery] = React.useState('');
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [nuovaOpen, setNuovaOpen] = React.useState(false);
+  const [editCode, setEditCode] = React.useState(null);
   ensureModeKf();
   const ORDER=['master','wallet','gallery'];
   const dirRef = React.useRef(1);
   const changeMode = m=>{if(m===mode)return; dirRef.current=ORDER.indexOf(m)>=ORDER.indexOf(mode)?1:-1; setMode(m);};
-  const chrome = {theme, mode, setMode:changeMode, query, setQuery, onSettings:()=>setSettingsOpen(true)};
+  const chrome = {theme, mode, setMode:changeMode, query, setQuery, onSettings:()=>setSettingsOpen(true), onNuova:()=>setNuovaOpen(true), onEdit:(code)=>setEditCode(code)};
   let Body = null;
   if(mode==='master') Body=<MasterMode {...chrome} anim={settings.masterAnim||'rise'}/>;
   if(mode==='wallet') Body=<WalletMode {...chrome}/>;
@@ -980,6 +1196,8 @@ function DesktopApp({defaults}) {
         {Body}
       </div>
       <SettingsPanel open={settingsOpen} onClose={()=>setSettingsOpen(false)} settings={settings} setSetting={setSetting} theme={theme}/>
+      <NuovaSheet open={nuovaOpen} onClose={()=>setNuovaOpen(false)} theme={theme}/>
+      <EditSheet open={!!editCode} editCode={editCode} onClose={()=>setEditCode(null)} theme={theme}/>
     </div>
   );
 }
