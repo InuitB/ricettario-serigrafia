@@ -33,24 +33,29 @@ function addRicetta(data) {
   const ricette = ss.getSheetByName('Ricette');
   const comp    = ss.getSheetByName('Componenti');
 
-  ricette.appendRow([
-    data.Pantone_ID,
-    data.HEX         || '',
-    data.Categoria   || '',
-    data.Temperatura || '',
-    data.Copertura   || '',
-    data.Note        || '',
-    data.Pagina      || '',
-    data.Progetti    || ''
-  ]);
+  // Write by column header order to survive any sheet column rearrangement
+  const rHeaders = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  const fieldMap = {
+    'Pantone_ID': data.Pantone_ID || '',
+    'HEX':        data.HEX        || '',
+    'Categoria':  data.Categoria  || '',
+    'Temperatura':data.Temperatura|| '',
+    'Copertura':  data.Copertura  || '',
+    'Note':       data.Note       || '',
+    'Pagina':     data.Pagina     || '',
+    'Progetti':   data.Progetti   || ''
+  };
+  ricette.appendRow(rHeaders.map(h => fieldMap.hasOwnProperty(h) ? fieldMap[h] : ''));
 
+  const cHeaders = comp.getRange(1, 1, 1, comp.getLastColumn()).getValues()[0];
   const componenti = data.componenti || [];
   componenti.forEach(c => {
-    comp.appendRow([
-      data.Pantone_ID,
-      c.Inchiostro,
-      c['Dose_40g (g)'] || ''
-    ]);
+    const cMap = {
+      'Pantone_ID':   data.Pantone_ID  || '',
+      'Inchiostro':   c.Inchiostro     || '',
+      'Dose_40g (g)': c['Dose_40g (g)']|| ''
+    };
+    comp.appendRow(cHeaders.map(h => cMap.hasOwnProperty(h) ? cMap[h] : ''));
   });
 
   return { ok: true };

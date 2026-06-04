@@ -715,8 +715,8 @@ function NuovaSheet({open, onClose, theme}) {
       transformData();
       newlySaved.add(newId);
       window._bumpData?.();
-      setTimeout(()=>{ window._refreshData?.(); },2500);
-      setTimeout(()=>{ newlySaved.delete(newId); window._bumpData?.(); },5000);
+      setTimeout(()=>{ window._refreshData?.(); },6000);
+      setTimeout(()=>{ newlySaved.delete(newId); window._bumpData?.(); },8000);
       setTimeout(()=>onClose(), 1100);
     }catch(e){ setMsg('Errore di connessione.'); }
     setSaving(false);
@@ -1230,7 +1230,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
     const bw=theme.borders?theme.borderWidth*2:2;
     const avail=col.clientHeight-srH-14-bw;
     const natural=hd.offsetHeight+bw0.scrollHeight+bw;
-    setCardH(Math.min(natural,Math.max(280,avail)));
+    setCardH(Math.min(natural,avail));
   },[selected&&selected.code,anim,qty,theme.cardSurface,theme.display,theme.borders,theme.borderWidth]);
 
   if (!selected) return null;
@@ -1262,7 +1262,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                     <div style={{fontFamily:'Nebulica',fontSize:13,color:theme.sub,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
                   </div>
                   <div style={{height:44,display:'flex',alignItems:'center'}}>
-                    {coverLvl(p.copertura)>0&&<div style={{display:'flex',gap:4}}>{[0,1,2].map(i=>{const lvl=coverLvl(p.copertura),fill=i<lvl;return <span key={i} style={{width:11,height:11,borderRadius:99,flexShrink:0,background:fill?(on?theme.accent:rgba(theme.ink,0.5)):'transparent',boxShadow:fill?'none':`inset 0 0 0 1.5px ${rgba(theme.ink,0.24)}`}}/>;})}</div>}
+                    {coverLvl(p.copertura)>0&&<div style={{display:'flex',gap:4}}>{[0,1,2].map(i=>{const lvl=coverLvl(p.copertura),fill=i<lvl;return <span key={i} style={{width:11,height:11,borderRadius:99,flexShrink:0,background:fill?rgba(theme.ink,on?0.85:0.42):'transparent',boxShadow:fill?'none':`inset 0 0 0 1.5px ${rgba(theme.ink,0.24)}`}}/>;})}</div>}
                   </div>
                   {isNew&&<span style={{position:'absolute',inset:0,borderRadius:99,boxShadow:`0 0 0 2.5px ${theme.accent}`,pointerEvents:'none',animation:`newRing 3.5s ${QUICK} forwards`}}/>}
                 </button>
@@ -1651,8 +1651,8 @@ function NuovaDesktop({open,onClose,theme}){
       newlySaved.add(newId);
       window._bumpData?.();
       window._selectCode?.(newId);
-      setTimeout(()=>{ window._refreshData?.(); },2500);
-      setTimeout(()=>{ newlySaved.delete(newId); window._bumpData?.(); },5000);
+      setTimeout(()=>{ window._refreshData?.(); },6000);
+      setTimeout(()=>{ newlySaved.delete(newId); window._bumpData?.(); },8000);
       setTimeout(()=>onClose(),1100);
     }catch(e){setMsg('Errore di connessione.');}
     setSaving(false);
