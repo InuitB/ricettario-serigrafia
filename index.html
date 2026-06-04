@@ -1298,7 +1298,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                 <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:24,marginTop:8}}>
                   <PantoneCode code={selected.code} fg={fg} size={80} theme={theme}/>
                   <div style={{textAlign:'right',paddingBottom:6}}>
-                    <div style={{fontFamily:'Nebulica',fontSize:20,fontWeight:500,color:fg,letterSpacing:-0.6,paddingRight:90}}>{selected.name}</div>
+                    <div style={{fontFamily:'Nebulica',fontSize:20,fontWeight:500,color:fg,letterSpacing:-0.6}}>{selected.name}</div>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:10,marginTop:4}}>
                       {coverLvl(selected.copertura)>0&&<div style={{display:'flex',gap:5}}>{[0,1,2].map(i=>{const fill=i<coverLvl(selected.copertura);return <span key={i} style={{width:14,height:14,borderRadius:99,flexShrink:0,background:fill?fg:'transparent',opacity:fill?0.8:1,boxShadow:fill?'none':`inset 0 0 0 1.5px ${rgba(fg,0.4)}`}}/>;})}</div>}
                       {selected.page>0&&<span style={{fontFamily:'"JetBrains Mono",monospace',fontSize:11.5,color:fg,opacity:0.7,letterSpacing:0.4}}>PAG.{selected.page}</span>}
