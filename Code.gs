@@ -5,6 +5,18 @@
 
 const SHEET_ID = '1uIirqJTLIu74AQo5VeaDVRcFNykF1q0oVp4jTihaUtw';
 
+function doGet(e) {
+  try {
+    const action = (e.parameter || {}).action;
+    if (action === 'getFavoriti') return getFavoriti();
+    return ContentService.createTextOutput(JSON.stringify({ error: 'Azione sconosciuta' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
@@ -15,6 +27,7 @@ function doPost(e) {
       case 'deleteRicetta':           result = deleteRicetta(data);           break;
       case 'addSperimentazione':      result = addSperimentazione(data);      break;
       case 'promuoviSperimentazione': result = promuoviSperimentazione(data); break;
+      case 'togglePreferito':         result = togglePreferito(data);         break;
       default: result = { error: 'Azione sconosciuta: ' + data.action };
     }
     return ContentService
@@ -25,6 +38,56 @@ function doPost(e) {
       .createTextOutput(JSON.stringify({ error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// ── PREFERITI ────────────────────────────────────────────────────────────
+function getFavoriti() {
+  const ss      = SpreadsheetApp.openById(SHEET_ID);
+  const ricette = ss.getSheetByName('Ricette');
+  const headers = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  const prefCol = headers.indexOf('Preferiti');
+  if (prefCol === -1) {
+    return ContentService.createTextOutput(JSON.stringify({ favoriti: [] }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  const idCol = headers.indexOf('Pantone_ID');
+  const data   = ricette.getDataRange().getValues();
+  const favoriti = [];
+  for (let i = 1; i < data.length; i++) {
+    const val = data[i][prefCol];
+    if (val === 1 || val === true || String(val) === 'TRUE' || String(val) === '1') {
+      favoriti.push(String(data[i][idCol]));
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ favoriti }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function togglePreferito(data) {
+  const ss      = SpreadsheetApp.openById(SHEET_ID);
+  const ricette = ss.getSheetByName('Ricette');
+  let headers   = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  let prefCol   = headers.indexOf('Preferiti');
+
+  // Crea la colonna Preferiti se non esiste
+  if (prefCol === -1) {
+    const newCol = ricette.getLastColumn() + 1;
+    ricette.getRange(1, newCol).setValue('Preferiti');
+    prefCol = newCol - 1; // 0-based
+    headers = [...headers, 'Preferiti'];
+  }
+
+  const idCol = headers.indexOf('Pantone_ID');
+  const rData = ricette.getDataRange().getValues();
+  for (let i = 1; i < rData.length; i++) {
+    if (String(rData[i][idCol]) === String(data.Pantone_ID)) {
+      const cur   = rData[i][prefCol];
+      const isFav = cur === 1 || cur === true || String(cur) === 'TRUE' || String(cur) === '1';
+      ricette.getRange(i + 1, prefCol + 1).setValue(isFav ? 0 : 1);
+      return { ok: true, favorito: !isFav };
+    }
+  }
+  return { error: 'Ricetta non trovata: ' + data.Pantone_ID };
 }
 
 // ── AGGIUNGI RICETTA ──────────────────────────────────────────────────────

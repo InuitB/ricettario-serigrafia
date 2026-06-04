@@ -39,6 +39,7 @@ let allRicette = [];
 let allComponenti = [];
 let allInchiostri = [];
 let DESK_PANTONES = [];
+let favoritiSet = new Set();
 
 async function fetchSheet(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&headers=1`;
@@ -135,6 +136,46 @@ const INK_POOL = [
   {name:'AS 320',label:'Cyan'},{name:'AS 47',label:'Nero'},{name:'AS 12',label:'Rosso'},
   {name:'AS 88',label:'Blu'},{name:'AS 33',label:'Verde'},{name:'AS 70',label:'Arancio'},
 ];
+
+function hexToHue(hex) {
+  const h = (hex||'').replace('#','').padStart(6,'0');
+  const r = parseInt(h.slice(0,2),16)/255, g = parseInt(h.slice(2,4),16)/255, b = parseInt(h.slice(4,6),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max-min;
+  if (d === 0) return 0;
+  let hue = max===r ? (g-b)/d%6 : max===g ? (b-r)/d+2 : (r-g)/d+4;
+  return ((hue*60)+360)%360;
+}
+
+function applyFilterSort(list, {onlyFav=false, sort='default'}={}) {
+  let result = onlyFav ? list.filter(p=>favoritiSet.has(p.code)) : list.slice();
+  if (sort==='copertura_desc') result.sort((a,b)=>coverLvl(b.copertura)-coverLvl(a.copertura));
+  else if (sort==='copertura_asc') result.sort((a,b)=>coverLvl(a.copertura)-coverLvl(b.copertura));
+  else if (sort==='hue')    result.sort((a,b)=>hexToHue(a.hex)-hexToHue(b.hex));
+  else if (sort==='codice') result.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}));
+  return result;
+}
+
+async function loadFavoriti() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=getFavoriti');
+    const json = await res.json();
+    if (Array.isArray(json.favoriti)) {
+      favoritiSet = new Set(json.favoriti);
+      window._bumpData?.();
+    }
+  } catch(e) {}
+}
+
+function toggleFavorito(code) {
+  if (favoritiSet.has(code)) favoritiSet.delete(code);
+  else favoritiSet.add(code);
+  window._bumpData?.();
+  fetch(SCRIPT_URL, {
+    method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'text/plain'},
+    body: JSON.stringify({action:'togglePreferito', Pantone_ID: code})
+  }).catch(()=>{});
+}
 
 function makeRecipeFallback(p) {
   const note = NOTES[p.code] || null;
@@ -1191,6 +1232,8 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
   const [inkFilter, setInkFilter] = React.useState(0);
   const [selCode, setSelCode] = React.useState(null);
   const [qty, setQty] = React.useState(100);
+  const [soloPreferiti, setSoloPref] = React.useState(false);
+  const [sortMode, setSortMode] = React.useState('default');
   ensureMasterKf();
   const listRef = React.useRef(null);
 
@@ -1210,12 +1253,12 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
     }
   },[selCode]);
 
-  const filtered = DESK_PANTONES.filter(p=>{
+  const filtered = applyFilterSort(DESK_PANTONES.filter(p=>{
     if(family!=='tutti'&&p.family!==family) return false;
     if(inkFilter&&p.ink!==inkFilter) return false;
     if(query){const q=query.toLowerCase(); if(!`${p.code} ${p.name} ${p.family}`.toLowerCase().includes(q)) return false;}
     return true;
-  });
+  }), {onlyFav:soloPreferiti, sort:sortMode});
 
   const initCode = selCode || (filtered[0]&&filtered[0].code) || (DESK_PANTONES[0]&&DESK_PANTONES[0].code);
   const selected = DESK_PANTONES.find(p=>p.code===initCode) || filtered[0] || DESK_PANTONES[0];
@@ -1257,8 +1300,19 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
       <div style={{position:'relative',zIndex:10,display:'flex',height:'calc(100% - 88px)'}}>
         {/* LISTA */}
         <div style={{width:380,flexShrink:0,display:'flex',flexDirection:'column',padding:'6px 0 0 28px'}}>
-          <div style={{paddingRight:18}}>
+          <div style={{paddingRight:18,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
             <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub}}>{filtered.length} / {DESK_PANTONES.length} PANTONE</span>
+            <div style={{flex:1}}/>
+            <button onClick={()=>setSoloPref(v=>!v)} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:99,fontFamily:'Nebulica',fontSize:10.5,fontWeight:700,letterSpacing:0.6,cursor:'pointer',border:`1.4px solid ${soloPreferiti?theme.ink:rgba(theme.ink,0.22)}`,background:soloPreferiti?theme.ink:'transparent',color:soloPreferiti?(theme.grey?'#0B0B0B':'#fff'):theme.sub,transition:'all .2s'}}>
+              <IcoStar size={11} color={soloPreferiti?(theme.grey?'#0B0B0B':'#fff'):theme.sub} fill={soloPreferiti?(theme.grey?'#0B0B0B':'#fff'):'none'}/> PREFERITI
+            </button>
+            <select value={sortMode} onChange={e=>setSortMode(e.target.value)} style={{fontFamily:'Nebulica',fontSize:10.5,fontWeight:700,letterSpacing:0.4,padding:'3px 8px',borderRadius:99,cursor:'pointer',border:`1.4px solid ${rgba(theme.ink,0.22)}`,background:'transparent',color:theme.sub,appearance:'none',WebkitAppearance:'none',outline:'none'}}>
+              <option value="default">ORDINE FOGLIO</option>
+              <option value="hue">PER COLORE</option>
+              <option value="copertura_desc">PIÙ COPRENTE</option>
+              <option value="copertura_asc">MENO COPRENTE</option>
+              <option value="codice">CODICE A–Z</option>
+            </select>
           </div>
           <div ref={listRef} style={{flex:1,overflowY:'auto',padding:'12px 12px 22px 10px',marginTop:8,WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)',maskImage:'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)'}}>
             <div style={{position:'relative'}}>
@@ -1288,11 +1342,14 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
             <div key={'card-'+selected.code} style={{height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:34,overflow:'hidden',position:'relative',margin:'0 10px',...surface(theme),outline:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 20px 50px ${rgba('#000',0.10)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1)`,animation:`mBreath .6s cubic-bezier(.32,1.12,.4,1) both`,transformOrigin:'top center'}}>
               <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'18px 14px 14px',flexShrink:0,position:'relative',transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
                 <div style={{position:'absolute',top:14,right:14,display:'flex',gap:10}}>
-                  {[IcoStar,IcoEdit].map((Ic,i)=>(
-                    <button key={i} onClick={i===1&&onEdit?()=>onEdit(selected.code):undefined} style={{width:40,height:40,borderRadius:99,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:rgba(fg==='#fff'?'#fff':'#000',0.12),border:`1.4px solid ${rgba(fg==='#fff'?'#fff':'#000',0.3)}`}}>
-                      <Ic size={i?18:19} color={fg}/>
-                    </button>
-                  ))}
+                  {[false,true].map((isEdit,i)=>{
+                    const isFav = favoritiSet.has(selected.code);
+                    return (
+                      <button key={i} onClick={isEdit?(onEdit?()=>onEdit(selected.code):undefined):()=>toggleFavorito(selected.code)} style={{width:40,height:40,borderRadius:99,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:rgba(fg==='#fff'?'#fff':'#000',0.12),border:`1.4px solid ${rgba(fg==='#fff'?'#fff':'#000',0.3)}`}}>
+                        {isEdit?<IcoEdit size={18} color={fg}/>:<IcoStar size={19} color={fg} fill={isFav?fg:'none'}/>}
+                      </button>
+                    );
+                  })}
                 </div>
                 <span style={{fontFamily:'Nebulica',fontSize:12,letterSpacing:1.6,fontWeight:700,color:fg,opacity:0.72}}>{selected.family.toUpperCase()} · PANTONE</span>
                 <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:24,marginTop:8}}>
@@ -1954,13 +2011,16 @@ function WalletProtoExtract({
   const [searchActive, setSearchActive] = React.useState(false);
   const [filterFamily, setFilterFamily] = React.useState('tutti');
   const [filterOpen, setFilterOpen] = React.useState(false);
+  const [soloPreferiti, setSoloPref] = React.useState(false);
+  const [sortMode, setSortMode] = React.useState('default');
   const searchInputRef = React.useRef(null);
   const allList = DESK_PANTONES;
-  const list = React.useMemo(()=>allList.filter(p=>{
+  const favSize = favoritiSet.size;
+  const list = React.useMemo(()=>applyFilterSort(allList.filter(p=>{
     const matchFamily = filterFamily==='tutti'||p.family===filterFamily;
     const matchQuery = !query||`${p.code} ${p.name} ${p.family||''}`.toLowerCase().includes(query.toLowerCase());
     return matchFamily&&matchQuery;
-  }),[allList, filterFamily, query]);
+  }), {onlyFav:soloPreferiti, sort:sortMode}),[allList, filterFamily, query, soloPreferiti, sortMode, favSize]);
   const [selectedIdx, setSelectedIdx] = React.useState(null);
   const [phase, setPhase] = React.useState('closed');
   const [scrollY, setScrollY] = React.useState(0);
@@ -2121,6 +2181,19 @@ function WalletProtoExtract({
       {/* FILTER PANEL */}
       {filterOpen&&!isDetail&&(
         <div style={{position:'absolute',top:'calc(env(safe-area-inset-top, 44px) + 98px)',left:18,right:18,zIndex:999,background:bg,borderRadius:18,border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.1)',padding:'14px 16px',boxShadow:'0 8px 32px rgba(0,0,0,0.14)'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+            <button onClick={()=>setSoloPref(v=>!v)} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:99,fontFamily:'Nebulica',fontSize:12,fontWeight:700,cursor:'pointer',border:`1.4px solid ${soloPreferiti?'#0B0B0B':'rgba(11,11,11,0.22)'}`,background:soloPreferiti?'#0B0B0B':'transparent',color:soloPreferiti?'#fff':'#0B0B0B'}}>
+              <IcoStar size={13} color={soloPreferiti?'#fff':'#0B0B0B'} fill={soloPreferiti?'#fff':'none'}/> Solo preferiti
+            </button>
+          </div>
+          <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.45)',marginBottom:10}}>ORDINAMENTO</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:14}}>
+            {[['default','Foglio'],['hue','Per colore'],['copertura_desc','Più coprente'],['copertura_asc','Meno coprente'],['codice','Codice A–Z']].map(([v,l])=>(
+              <button key={v} onClick={()=>setSortMode(v)} style={{padding:'6px 12px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:12,background:sortMode===v?'#0B0B0B':'rgba(11,11,11,0.07)',color:sortMode===v?'#fff':'#0B0B0B',border:sortMode===v?'none':'1px solid rgba(11,11,11,0.14)'}}>
+                {l}
+              </button>
+            ))}
+          </div>
           <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.45)',marginBottom:10}}>FAMIGLIA COLORE</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
             {FAMILIES.map(f=>(
@@ -2317,6 +2390,7 @@ function App() {
     loadData().then(()=>{
       setDataVer(v=>v+1);
       setStatus('ready');
+      loadFavoriti();
     }).catch(err=>{
       console.error('Errore caricamento:', err);
       setStatus('error');
