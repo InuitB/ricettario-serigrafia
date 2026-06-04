@@ -720,7 +720,7 @@ function NuovaSheet({open, onClose, theme}) {
   return (
     <React.Fragment>
       <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(530px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:28,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(530px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:32,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Nuova ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
@@ -749,7 +749,7 @@ function NuovaSheet({open, onClose, theme}) {
           <div><span style={lbl}>COPERTURA</span><input value={cop} onChange={e=>setCop(e.target.value)} placeholder="es. media" style={inp}/></div>
         </div>
         <div style={{marginTop:14}}><span style={lbl}>NOTE</span>
-          <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="note opzionali…" style={{...inp,resize:'vertical',lineHeight:1.45}}/>
+          <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="note opzionali…" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.45}}/>
         </div>
         <div style={{marginTop:20}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
@@ -814,8 +814,7 @@ function EditSheet({open, editCode, onClose, theme}) {
   return (
     <React.Fragment>
       <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(460px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:28,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(460px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:32,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Modifica ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
         </div>
@@ -838,7 +837,7 @@ function EditSheet({open, editCode, onClose, theme}) {
           <div style={{gridColumn:'span 2'}}><span style={lbl}>COPERTURA</span><input value={cop} onChange={e=>setCop(e.target.value)} placeholder="es. media" style={inp}/></div>
         </div>
         <div style={{marginTop:14}}><span style={lbl}>NOTE</span>
-          <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="note…" style={{...inp,resize:'vertical',lineHeight:1.45}}/>
+          <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="note…" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.45}}/>
         </div>
         {msg&&<div style={{marginTop:10,fontFamily:'Nebulica',fontSize:13,color:msg.includes('Modif')||msg.includes('salvate')?theme.accent:theme.sub}}>{msg}</div>}
         <button onClick={submit} disabled={saving} style={{marginTop:18,width:'100%',height:52,borderRadius:99,cursor:saving?'default':'pointer',background:theme.accent,color:theme.onAccent,border:'none',fontFamily:'Nebulica',fontWeight:700,fontSize:15,opacity:saving?0.7:1}}>
