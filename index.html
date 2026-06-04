@@ -218,7 +218,8 @@ const FAMILIES = ['tutti','blu','azzurro','verde','giallo','arancio','rosso','ro
 function walletOpenHeight(pantone, headerH=150) {
   const r = makeRecipe(pantone);
   const rows = r.inks.length;
-  const body = 20+23+40+20+24+rows*47+(r.note?76:0)+20+48+14+18+26;
+  // headerH + padding + QUANTITA label + qty-grid + formula-header + ink rows + print btn + project + bottom pad + buffer
+  const body = 220 + rows * 43;
   return Math.round(headerH + body);
 }
 
@@ -711,7 +712,7 @@ function NuovaSheet({open, onClose, theme}) {
     : [{code:'AS 90',name:'Base bianca'},{code:'AS 65',name:'Giallo'},{code:'AS 150',name:'Magenta'},
        {code:'AS 320',name:'Cyan'},{code:'AS 47',name:'Nero'},{code:'AS 12',name:'Rosso'},
        {code:'AS 88',name:'Blu'},{code:'AS 33',name:'Verde'},{code:'AS 70',name:'Arancio'}];
-  const inp = {padding:'10px 14px',borderRadius:12,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,background:theme.panelAlt,fontFamily:'Nebulica',fontSize:14,color:theme.ink,outline:'none',boxSizing:'border-box',width:'100%'};
+  const inp = {padding:'10px 14px',borderRadius:99,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,background:theme.panelAlt,fontFamily:'Nebulica',fontSize:14,color:theme.ink,outline:'none',boxSizing:'border-box',width:'100%'};
   const lbl = {fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.sub,display:'block',marginBottom:5};
   const autoTag = {fontFamily:'Nebulica',fontSize:10,letterSpacing:1,fontWeight:700,color:theme.accent,marginLeft:6};
 
@@ -719,7 +720,7 @@ function NuovaSheet({open, onClose, theme}) {
   return (
     <React.Fragment>
       <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:530,maxHeight:'88vh',overflowY:'auto',borderRadius:28,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(530px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:28,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Nuova ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
@@ -731,9 +732,9 @@ function NuovaSheet({open, onClose, theme}) {
           </div>
           <div>
             <span style={lbl}>HEX{hexAuto&&<span style={autoTag}>· AUTO</span>}</span>
-            <div style={{display:'flex',gap:8}}>
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>{setHex(e.target.value);setHexAuto(false);}} placeholder="D44800" style={{...inp,flex:1}}/>
-              {hex.replace('#','').length>=6&&<div style={{width:36,height:38,borderRadius:8,background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
+              {hex.replace('#','').length>=6&&<div style={{width:36,height:36,borderRadius:'50%',background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
             </div>
           </div>
           <div>
@@ -806,14 +807,14 @@ function EditSheet({open, editCode, onClose, theme}) {
     setSaving(false);
   };
 
-  const inp = {width:'100%',padding:'10px 14px',borderRadius:12,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,background:theme.panelAlt,fontFamily:'Nebulica',fontSize:14,color:theme.ink,outline:'none',boxSizing:'border-box'};
+  const inp = {width:'100%',padding:'10px 14px',borderRadius:99,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,background:theme.panelAlt,fontFamily:'Nebulica',fontSize:14,color:theme.ink,outline:'none',boxSizing:'border-box'};
   const lbl = {fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.sub,display:'block',marginBottom:5};
 
   if(!open||!editCode) return null;
   return (
     <React.Fragment>
       <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.38)'}}/>
-      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:460,maxHeight:'88vh',overflowY:'auto',borderRadius:28,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',zIndex:910,width:'min(460px, calc(100vw - 32px))',maxHeight:'88vh',overflowY:'auto',borderRadius:28,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 40px 80px rgba(0,0,0,0.28)`,padding:'26px 28px 32px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
           <span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:22,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>Modifica ricetta</span>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={16} color={theme.ink}/></button>
@@ -821,9 +822,9 @@ function EditSheet({open, editCode, onClose, theme}) {
         <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.5,fontWeight:700,color:theme.sub,marginBottom:20}}>{editCode}</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
           <div><span style={lbl}>HEX</span>
-            <div style={{display:'flex',gap:8}}>
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
-              {hex.replace('#','').length>=6&&<div style={{width:36,height:38,borderRadius:8,background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
+              {hex.replace('#','').length>=6&&<div style={{width:36,height:36,borderRadius:'50%',background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
             </div>
           </div>
           <div><span style={lbl}>CATEGORIA</span>
@@ -1503,7 +1504,8 @@ function WalletProtoExtract({
   const [bump, setBump] = React.useState(0);
   const [bumpDir, setBumpDir] = React.useState('open');
   const prevDetail = React.useRef(false);
-  const drag = React.useRef({active:false,startY:0,startScroll:0,moved:false,id:null});
+  const drag = React.useRef({active:false,startY:0,startScroll:0,moved:false,id:null,lastY:0,lastT:0,velPxMs:0});
+  const inertia = React.useRef({raf:null,vel:0,lastT:0,maxS:0});
   const areaRef = React.useRef(null);
   const timer = React.useRef(null);
   const ACTIVE_H=178, L_TOP=170, H=500, STEP=108, PIN=6;
@@ -1511,7 +1513,7 @@ function WalletProtoExtract({
   const isDetail = selectedIdx!==null;
   const selected = isDetail?list[selectedIdx]:null;
   const recipeVisible = phase==='open';
-  React.useEffect(()=>()=>clearTimeout(timer.current),[]);
+  React.useEffect(()=>()=>{clearTimeout(timer.current);if(inertia.current.raf)cancelAnimationFrame(inertia.current.raf);},[]);
   React.useEffect(()=>{
     if(prevDetail.current!==isDetail){setBumpDir(isDetail?'open':'close');setBump(b=>b+1);prevDetail.current=isDetail;}
   },[isDetail]);
@@ -1527,8 +1529,10 @@ function WalletProtoExtract({
   };
   const onAreaDown = e=>{
     if(phase!=='closed') return;
+    if(inertia.current.raf){cancelAnimationFrame(inertia.current.raf);inertia.current.raf=null;}
     const rect=areaRef.current.getBoundingClientRect();
-    drag.current={active:true,startY:e.clientY,startScroll:scrollY,moved:false,id:e.pointerId,downLocalY:e.clientY-rect.top};
+    const now=performance.now();
+    drag.current={active:true,startY:e.clientY,startScroll:scrollY,moved:false,id:e.pointerId,downLocalY:e.clientY-rect.top,lastY:e.clientY,lastT:now,velPxMs:0};
     try{e.currentTarget.setPointerCapture(e.pointerId);}catch(_){}
     setDragging(true);
   };
@@ -1536,6 +1540,10 @@ function WalletProtoExtract({
     if(!drag.current.active) return;
     const dy=e.clientY-drag.current.startY;
     if(Math.abs(dy)>5) drag.current.moved=true;
+    const now=performance.now();
+    const dt=now-drag.current.lastT;
+    if(dt>0) drag.current.velPxMs=(e.clientY-drag.current.lastY)/dt;
+    drag.current.lastY=e.clientY; drag.current.lastT=now;
     setScrollY(Math.max(0,Math.min(maxScroll,drag.current.startScroll-dy)));
   };
   const onAreaUp = e=>{
@@ -1545,6 +1553,28 @@ function WalletProtoExtract({
       const el=document.elementFromPoint(e.clientX,e.clientY);
       const card=el&&el.closest('[data-cardidx]');
       if(card) openCard(parseInt(card.getAttribute('data-cardidx'),10));
+    } else {
+      const vel=drag.current.velPxMs; // px/ms, positive=finger moved down=scroll up
+      if(Math.abs(vel)>0.1){
+        const ref=inertia.current;
+        ref.vel=-vel; // negate: drag up (vel<0) → scroll down (ref.vel>0 increases scrollY)
+        ref.lastT=performance.now();
+        ref.maxS=maxScroll;
+        const step=now=>{
+          const dt=Math.min(now-ref.lastT,32); ref.lastT=now;
+          ref.vel*=Math.pow(0.92,dt/16.67);
+          if(Math.abs(ref.vel)<0.02){ref.raf=null;return;}
+          setScrollY(prev=>{
+            const next=prev+ref.vel*dt;
+            const clamped=Math.max(0,Math.min(ref.maxS,next));
+            if(clamped!==next) ref.vel=0;
+            return clamped;
+          });
+          if(Math.abs(ref.vel)>=0.02) ref.raf=requestAnimationFrame(step);
+          else ref.raf=null;
+        };
+        ref.raf=requestAnimationFrame(step);
+      }
     }
   };
   let dur,ease;
@@ -1565,7 +1595,7 @@ function WalletProtoExtract({
     if(isSel){
       if(phase==='open'){
         if(cardStyle==='split') return {top:118,height:170,opacity:1,z:999,scale:1};
-        return {top:detailTop,height:detailHeight,opacity:1,z:999,scale:1};
+        return {top:detailTop,height:walletOpenHeight(list[i],headerH),opacity:1,z:999,scale:1};
       }
       return {top:liftTop,height:ACTIVE_H,opacity:1,z:999,scale:liftScale};
     }
