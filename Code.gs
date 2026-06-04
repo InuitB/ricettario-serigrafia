@@ -119,6 +119,7 @@ function editRicetta(data) {
   aggiorna('HEX',         data.HEX);
   aggiorna('Categoria',   data.Categoria);
   aggiorna('Temperatura', data.Temperatura);
+  aggiorna('Copertura',   data.Copertura);
   aggiorna('Pagina',      data.Pagina);
   aggiorna('Note',        data.Note);
   aggiorna('Progetti',    data.Progetti);
