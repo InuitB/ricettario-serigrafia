@@ -1283,8 +1283,8 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
         {/* DETTAGLIO */}
         <div style={{flex:1,minWidth:0,display:'flex',padding:'10px 28px 26px 16px'}}>
           <div ref={colRef} style={{width:600,flexShrink:0,display:'flex',flexDirection:'column',minHeight:0}}>
-            <div key={'card-'+selected.code} style={{height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:34,overflow:'hidden',position:'relative',...surface(theme),border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 20px 50px ${rgba('#000',0.10)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1)`,animation:`mBreath .6s cubic-bezier(.32,1.12,.4,1) both`,transformOrigin:'top center'}}>
-              <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'18px 32px 14px',flexShrink:0,transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
+            <div key={'card-'+selected.code} style={{height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:34,overflow:'hidden',position:'relative',margin:'0 10px',...surface(theme),border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 20px 50px ${rgba('#000',0.10)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1)`,animation:`mBreath .6s cubic-bezier(.32,1.12,.4,1) both`,transformOrigin:'top center'}}>
+              <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'18px 34px 14px',flexShrink:0,transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
                   <span style={{fontFamily:'Nebulica',fontSize:12,letterSpacing:1.6,fontWeight:700,color:fg,opacity:0.72}}>{selected.family.toUpperCase()} · PANTONE</span>
                   <div style={{display:'flex',gap:10}}>
@@ -1305,7 +1305,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   </div>
                 </div>
               </div>
-              <div ref={bodyWrapRef} style={{flex:1,minHeight:0,overflowY:'auto',padding:'18px 32px 22px',WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 10px)',maskImage:'linear-gradient(to bottom, transparent 0, #000 10px)'}}>
+              <div ref={bodyWrapRef} style={{flex:1,minHeight:0,overflowY:'auto',padding:'18px 34px 22px',WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 10px)',maskImage:'linear-gradient(to bottom, transparent 0, #000 10px)'}}>
                 <div ref={bodyInnerRef} key={'b-'+selected.code+anim} style={{animation:anim==='morph'?'none':`mRise .5s ${SPRING_SOFT} both`}}>
                   <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:8,animation:stagger?`dkpop .5s ${SPRING_SOFT} .05s both`:'none'}}>
                     <span style={{fontFamily:'Nebulica',fontSize:12,letterSpacing:1.6,fontWeight:700,color:theme.sub}}>QUANTITÀ DA PRODURRE</span>
