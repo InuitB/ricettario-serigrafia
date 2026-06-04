@@ -312,6 +312,8 @@ const IcoStar    = p=><Ico {...p} d="M12 4l2.3 4.9 5.2.7-3.8 3.7.9 5.3L12 16.9 7
 const IcoFilterDecrease = p=><Ico {...p}><g stroke={p.color||'currentColor'} strokeWidth={p.sw||2} strokeLinecap="round"><line x1="3.2" y1="7" x2="20.8" y2="7"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="8.8" y1="17" x2="15.2" y2="17"/></g></Ico>;
 const IcoGear    = p=><Ico {...p}><circle cx="12" cy="12" r="3.1" stroke={p.color||'currentColor'} strokeWidth={p.sw||1.7}/><path d="M12 3.2v2.1M12 18.7v2.1M20.8 12h-2.1M5.3 12H3.2M18.2 5.8l-1.5 1.5M7.3 16.7l-1.5 1.5M18.2 18.2l-1.5-1.5M7.3 7.3 5.8 5.8" stroke={p.color||'currentColor'} strokeWidth={p.sw||1.7} strokeLinecap="round"/></Ico>;
 const IcoNote    = p=><Ico {...p} d="M5 4h11l3 3v13H5V4zM15 4v4h4M8 12h8M8 16h5"/>;
+const IcoChevron = p=><Ico {...p} d="M6 9l6 6 6-6"/>;
+const IcoCheck   = p=><Ico {...p} d="M5 12.5l4.2 4.2L19 7"/>;
 
 /* ═══════════════════ DESKTOP RECIPE COMPONENTS ═══════════════════ */
 function QuantityPicker({value, onChange, theme}) {
@@ -1248,6 +1250,338 @@ function ensureMasterKf() {
   document.head.appendChild(s);
 }
 
+/* ═══════════════════ NUOVA FORMULA DESKTOP ═══════════════════ */
+
+function squirclePath(w,h,r,n=5,pad=0){
+  const x0=pad,y0=pad,W=w-pad*2,H=h-pad*2;
+  r=Math.max(1,Math.min(r-pad,W/2,H/2));
+  const k=2/n,seg=18,pts=[];
+  const corner=(cx,cy,a0,a1)=>{for(let i=0;i<=seg;i++){const a=a0+(a1-a0)*(i/seg),c=Math.cos(a),s=Math.sin(a);pts.push([cx+r*Math.sign(c)*Math.pow(Math.abs(c),k),cy+r*Math.sign(s)*Math.pow(Math.abs(s),k)]);}};
+  corner(x0+W-r,y0+r,-Math.PI/2,0);corner(x0+W-r,y0+H-r,0,Math.PI/2);corner(x0+r,y0+H-r,Math.PI/2,Math.PI);corner(x0+r,y0+r,Math.PI,Math.PI*1.5);
+  return 'M'+pts.map(p=>p[0].toFixed(2)+' '+p[1].toFixed(2)).join(' L')+' Z';
+}
+function Squircle({radius=28,n=5,border,borderWidth=1.5,shadow,anim,outerStyle,style,className,children}){
+  const ref=React.useRef(null);
+  const [d,setD]=React.useState('');
+  const [size,setSize]=React.useState([0,0]);
+  React.useLayoutEffect(()=>{
+    const el=ref.current;
+    if(!el||typeof ResizeObserver==='undefined') return;
+    const update=()=>{const w=el.offsetWidth,h=el.offsetHeight;if(w&&h){setSize([w,h]);setD(squirclePath(w,h,radius,n));}};
+    update();const ro=new ResizeObserver(update);ro.observe(el);return()=>ro.disconnect();
+  },[radius,n]);
+  const clip=d?`path("${d}")`:'none';
+  return (
+    <div style={{position:'relative',filter:shadow?`drop-shadow(${shadow})`:'none',animation:anim||'none',...outerStyle}}>
+      <div ref={ref} className={className} style={{position:'relative',borderRadius:radius,clipPath:clip,WebkitClipPath:clip,...style}}>{children}</div>
+      {d&&border&&(<svg width={size[0]} height={size[1]} viewBox={`0 0 ${size[0]} ${size[1]}`} style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:5}}><path d={d} fill="none" stroke={border} strokeWidth={borderWidth} strokeLinejoin="round"/></svg>)}
+    </div>
+  );
+}
+
+function ensureNuovaKf(){
+  if(document.getElementById('nf-kf')) return;
+  const s=document.createElement('style');s.id='nf-kf';
+  s.textContent=`@keyframes nfPop{from{opacity:0;transform:translateY(16px) scale(.985);}to{opacity:1;transform:none;}}@keyframes nfRowIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}.nf-scroll::-webkit-scrollbar{width:10px;}.nf-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.14);border-radius:99px;border:3px solid transparent;background-clip:padding-box;}.nf-num::-webkit-outer-spin-button,.nf-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}.nf-num{-moz-appearance:textfield;}`;
+  document.head.appendChild(s);
+}
+
+const NF_CATS=['Giallo','Arancio','Rosso','Rosa','Viola','Blu','Azzurro','Verde','Marrone','Beige','Neutro','Nero','Bianco','Metallizzato','Fluo'];
+const NF_TEMPS=[{k:'caldo',l:'Caldo',dot:'#FFAB8C'},{k:'neutro',l:'Neutro',dot:'#D6D4CC'},{k:'freddo',l:'Freddo',dot:'#9FC6EE'}];
+const NF_COVERS=[{k:'coprente',l:'Coprente',lvl:3},{k:'semi',l:'Semi',lvl:2},{k:'trasp',l:'Trasp.',lvl:1}];
+
+function nfInkOpts(){
+  if(allInchiostri&&allInchiostri.length>0) return allInchiostri.map(i=>({name:i.Codice||i.Nome_completo,label:i.Nome_completo||''}));
+  return INK_POOL;
+}
+function nfLookupHex(code){
+  if(!code) return null;
+  const raw=code.trim();
+  const cands=[raw,raw.toUpperCase(),raw.toUpperCase().replace(/([0-9])([A-Z])$/,'$1 $2'),raw.replace(/\s+/,' ').toUpperCase()];
+  for(const k of cands){if(PANTONE_DB[k]) return PANTONE_DB[k];}
+  const kn=raw.toLowerCase().replace(/\s/g,'');
+  const p=DESK_PANTONES.find(p=>p.code.toLowerCase().replace(/\s/g,'')===kn);
+  return p?p.hex:null;
+}
+function nfLookupEntry(code){
+  if(!code) return null;
+  const kn=code.trim().toLowerCase().replace(/\s/g,'');
+  return DESK_PANTONES.find(p=>p.code.toLowerCase().replace(/\s/g,'')===kn)||null;
+}
+function nfEffHex(state){
+  const h=(state.hex||'').replace('#','');
+  if(/^[0-9a-f]{6}$/i.test(h)) return '#'+h;
+  if(/^[0-9a-f]{3}$/i.test(h)) return '#'+h.split('').map(c=>c+c).join('');
+  const auto=nfLookupHex(state.pantoneId);
+  return auto||null;
+}
+function nfTotalG(state){return state.inks.reduce((s,r)=>s+(parseFloat(r.g)||0),0);}
+
+// ── atomi di campo ────────────────────────────────────────────────────────────
+function NFLabel({children,optional,theme,style}){
+  return <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,marginBottom:9,...style}}>{children}{optional&&<span style={{color:theme.faint}}> (OPZIONALE)</span>}</div>;
+}
+function nfFieldBox(theme,{tall,radius}={}){
+  return {width:'100%',height:tall?'auto':54,borderRadius:radius!=null?radius:18,padding:tall?'14px 18px':'0 18px',background:theme.panel,color:theme.ink,outline:'none',border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`,fontFamily:'Nebulica',fontSize:16,boxSizing:'border-box'};
+}
+function NFInput({value,onChange,placeholder,theme,mono,pill}){
+  return <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{...nfFieldBox(theme,{radius:pill?99:undefined}),padding:pill?'0 22px':'0 18px',fontFamily:mono?'"JetBrains Mono",monospace':'Nebulica',fontSize:mono?15:16,letterSpacing:mono?0.4:0}}/>;
+}
+function NFTempDot({hex}){
+  return <span style={{width:14,height:14,borderRadius:99,flexShrink:0,background:hex,boxShadow:`inset 0 0 0 1px ${rgba('#000',0.1)}`}}/>;
+}
+function NFChoicePill({on,onClick,theme,children}){
+  return <button onClick={onClick} style={{display:'inline-flex',alignItems:'center',gap:9,padding:'11px 18px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:14.5,letterSpacing:-0.2,color:on?'#fff':theme.ink,...glass(theme,{active:on})}}>{children}</button>;
+}
+function NFSegTabs({tab,setTab,theme}){
+  const opts=[{k:'ricetta',l:'Ricetta Pantone'},{k:'sperim',l:'Sperimentazione'}];
+  const idx=opts.findIndex(o=>o.k===tab);
+  return (
+    <div style={{position:'relative',display:'flex',padding:5,borderRadius:99,width:'100%',...glass(theme,{strong:true})}}>
+      <div style={{position:'absolute',top:5,bottom:5,left:5,width:'calc((100% - 10px) / 2)',transform:`translateX(${idx*100}%)`,background:theme.accent,borderRadius:99,zIndex:0,boxShadow:`0 4px 12px ${rgba(theme.accent,0.32)}`,transition:`transform .5s ${SPRING}`}}/>
+      {opts.map(o=>{const on=o.k===tab;return <button key={o.k} onClick={()=>setTab(o.k)} style={{position:'relative',zIndex:1,flex:1,border:'none',background:'transparent',cursor:'pointer',padding:'10px 0',fontFamily:'Nebulica',fontWeight:700,fontSize:14.5,letterSpacing:-0.2,color:on?theme.onAccent:theme.sub}}>{o.l}</button>;})}
+    </div>
+  );
+}
+function NFTempPicker({value,onChange,theme}){
+  return <div style={{display:'flex',gap:10}}>{NF_TEMPS.map(t=>{const on=value===t.k;return <NFChoicePill key={t.k} on={on} onClick={()=>onChange(on?null:t.k)} theme={theme}><NFTempDot hex={t.dot}/>{t.l}</NFChoicePill>;})}</div>;
+}
+function NFCoverDots({lvl,color}){
+  return <span style={{display:'inline-flex',gap:3}}>{[0,1,2].map(i=><span key={i} style={{width:7,height:7,borderRadius:99,background:i<lvl?color:'transparent',boxShadow:`inset 0 0 0 1.4px ${color}`}}/>)}</span>;
+}
+function NFCoverPicker({value,onChange,theme}){
+  return <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{NF_COVERS.map(c=>{const on=value===c.k;return <NFChoicePill key={c.k} on={on} onClick={()=>onChange(on?null:c.k)} theme={theme}><NFCoverDots lvl={c.lvl} color={on?'#fff':theme.ink}/>{c.l}</NFChoicePill>;})}</div>;
+}
+function NFCatChips({value,onChange,theme}){
+  const [open,setOpen]=React.useState(false);
+  const VISIBLE=7;let shown=open?NF_CATS:NF_CATS.slice(0,VISIBLE);
+  if(!open&&value&&!shown.includes(value)) shown=[...shown,value];
+  const hidden=NF_CATS.length-VISIBLE;
+  return (
+    <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+      {shown.map(c=>{const on=value===c;return <button key={c} onClick={()=>onChange(on?null:c)} style={{padding:'9px 16px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:13.5,letterSpacing:-0.1,color:on?'#fff':theme.ink,...glass(theme,{active:on})}}>{c}</button>;})}
+      {hidden>0&&<button onClick={()=>setOpen(o=>!o)} style={{padding:'9px 15px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:13.5,letterSpacing:-0.1,color:theme.sub,background:'transparent',border:`1.5px dashed ${theme.borders?rgba(theme.ink,0.4):theme.line2}`,display:'inline-flex',alignItems:'center',gap:6}}>{open?'Comprimi':`+${hidden} altre`}<span style={{display:'inline-flex',transform:open?'rotate(180deg)':'none',transition:'transform .3s'}}><IcoChevron size={14} color={theme.sub}/></span></button>}
+    </div>
+  );
+}
+function NFProjTags({tags,setTags,input,setInput,theme}){
+  const add=()=>{const v=input.trim();if(v&&!tags.includes(v))setTags([...tags,v]);setInput('');};
+  return (
+    <div>
+      <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',...nfFieldBox(theme),height:'auto',minHeight:54,padding:tags.length?'9px 14px':'0 18px'}}>
+        {tags.map(t=><span key={t} style={{display:'inline-flex',alignItems:'center',gap:7,padding:'6px 8px 6px 14px',borderRadius:99,background:rgba(theme.accent,0.13),color:theme.ink,fontFamily:'Nebulica',fontWeight:700,fontSize:13.5}}>{t}<button onClick={()=>setTags(tags.filter(x=>x!==t))} style={{width:20,height:20,borderRadius:99,border:'none',cursor:'pointer',background:rgba('#000',0.08),display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0}}><IcoClose size={12} color={theme.ink}/></button></span>)}
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();add();}}} placeholder={tags.length?'':'es. Risanamento 25'} style={{flex:1,minWidth:120,border:'none',outline:'none',background:'transparent',fontFamily:'Nebulica',fontSize:16,color:theme.ink,height:36}}/>
+      </div>
+      <div style={{fontFamily:'Nebulica',fontSize:12.5,fontStyle:'italic',color:theme.faint,marginTop:8}}>scrivi il nome e premi Invio per aggiungere</div>
+    </div>
+  );
+}
+function NFInkEditor({state,theme}){
+  const opts=nfInkOpts();const total=nfTotalG(state);
+  return (
+    <div>
+      <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:11}}>
+        <NFLabel theme={theme} style={{marginBottom:0}}>INCHIOSTRI <span style={{color:theme.faint}}>(BASE 40 G)</span></NFLabel>
+        <span style={{fontFamily:'"JetBrains Mono",monospace',fontSize:12.5,fontWeight:600,color:total>0?theme.ink:theme.faint}}>Σ {total.toFixed(2)} g</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {state.inks.map((row)=>{
+          const pct=total>0?((parseFloat(row.g)||0)/total)*100:0;
+          return (
+            <div key={row.id} style={{display:'flex',alignItems:'center',gap:10,...nfFieldBox(theme,{radius:99}),padding:'0 10px 0 18px',animation:`nfRowIn .34s ${SPRING_SOFT} both`}}>
+              <div style={{position:'relative',flex:1,minWidth:0,display:'flex',alignItems:'center',gap:10}}>
+                {row.name?<span style={{width:12,height:12,borderRadius:99,background:theme.accent,flexShrink:0}}/>:<span style={{width:12,height:12,borderRadius:99,boxShadow:`inset 0 0 0 1.5px ${theme.line2}`,flexShrink:0}}/>}
+                <select value={row.name} onChange={e=>state.setInk(row.id,{name:e.target.value})} style={{appearance:'none',WebkitAppearance:'none',border:'none',outline:'none',background:'transparent',cursor:'pointer',flex:1,minWidth:0,fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:row.name?theme.ink:theme.faint,paddingRight:18}}>
+                  <option value="">Scegli inchiostro</option>
+                  {opts.map(k=><option key={k.name} value={k.name}>{k.name}{k.label?' · '+k.label:''}</option>)}
+                </select>
+                <span style={{position:'absolute',right:0,pointerEvents:'none'}}><IcoChevron size={16} color={theme.faint}/></span>
+              </div>
+              {row.name&&<span style={{fontFamily:'Nebulica',fontSize:12,color:theme.faint,flexShrink:0}}>{Math.round(pct)}%</span>}
+              <div style={{display:'flex',alignItems:'baseline',gap:3,flexShrink:0}}>
+                <input className="nf-num" type="number" min="0" step="0.01" value={row.g} placeholder="0.00" onChange={e=>state.setInk(row.id,{g:e.target.value})} style={{width:64,border:'none',outline:'none',background:'transparent',textAlign:'right',fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:theme.ink}}/>
+                <span style={{fontFamily:'Nebulica',fontSize:13,color:theme.faint}}>g</span>
+              </div>
+              <button onClick={()=>state.delInk(row.id)} title="Rimuovi" style={{width:34,height:34,borderRadius:99,flexShrink:0,border:`1.5px solid ${theme.line2}`,background:'transparent',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={14} color={theme.sub}/></button>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={state.addInk} style={{width:'100%',marginTop:10,height:52,borderRadius:99,cursor:'pointer',border:`2px dashed ${theme.borders?rgba(theme.ink,0.4):theme.line2}`,background:'transparent',color:theme.ink,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:9,fontFamily:'Nebulica',fontWeight:700,fontSize:15}}>
+        <IcoPlus size={18} color={theme.ink} sw={2}/> aggiungi inchiostro
+      </button>
+    </div>
+  );
+}
+function NFTag({fg,children}){
+  return <span style={{padding:'5px 11px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:11.5,letterSpacing:0.2,color:fg,background:rgba(fg==='#fff'?'#fff':'#000',0.14),border:`1.2px solid ${rgba(fg==='#fff'?'#fff':'#000',0.28)}`}}>{children}</span>;
+}
+function NFPreviewHeader({state,theme,size=72}){
+  const eff=nfEffHex(state);const entry=nfLookupEntry(state.pantoneId);
+  const fg=eff?textOnDesk(eff):theme.ink;
+  const name=entry?entry.name:(state.pantoneId||( state.tab==='sperim'?'Sperimentazione':'Nuova tinta'));
+  const cover=NF_COVERS.find(c=>c.k===state.cover);
+  return (
+    <div style={{position:'relative',padding:'20px 28px 16px',flexShrink:0,overflow:'hidden',background:eff||theme.panelAlt,backgroundImage:eff?'none':`repeating-linear-gradient(45deg,${theme.line} 0 10px,transparent 10px 20px)`,transition:'background .4s'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:16}}>
+        <span style={{fontFamily:'Nebulica',fontSize:11.5,letterSpacing:1.6,fontWeight:700,color:fg,opacity:0.72}}>{(state.cat||'CATEGORIA').toUpperCase()} · {state.tab==='sperim'?'SPERIM.':'PANTONE'}</span>
+        <div style={{display:'flex',gap:8}}>{state.temp&&<NFTag fg={fg}>{NF_TEMPS.find(t=>t.k===state.temp).l}</NFTag>}{cover&&<NFTag fg={fg}>{cover.l}</NFTag>}</div>
+      </div>
+      <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:20,marginTop:10}}>
+        {state.pantoneId?<PantoneCode code={state.pantoneId} fg={fg} size={size} theme={theme}/>:<span style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:size,lineHeight:0.85,color:fg,opacity:0.5,fontStyle:theme.isSerif?'italic':'normal'}}>000&nbsp;U</span>}
+        <div style={{textAlign:'right',paddingBottom:4}}>
+          <div style={{fontFamily:'Nebulica',fontSize:18,fontWeight:500,color:fg,letterSpacing:-0.5}}>{name}</div>
+          <div style={{fontFamily:'"JetBrains Mono",monospace',fontSize:11,color:fg,opacity:0.72,marginTop:4,letterSpacing:0.4}}>{(eff||'#——————').toUpperCase()}{state.page?` · PAG.${state.page}`:''}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NFIdentityFields({state,theme}){
+  const eff=nfEffHex(state);
+  return (
+    <React.Fragment>
+      <div style={{display:'flex',gap:12}}>
+        <div style={{flex:1,minWidth:0}}><NFLabel theme={theme}>PANTONE ID</NFLabel><NFInput value={state.pantoneId} onChange={state.setPantoneId} placeholder="es. 072 U" theme={theme} mono pill/></div>
+        <div style={{flex:1,minWidth:0}}><NFLabel theme={theme} optional>PAG. MAZZETTA</NFLabel><NFInput value={state.page} onChange={state.setPage} placeholder="es. 142" theme={theme} mono pill/></div>
+      </div>
+      <div>
+        <NFLabel theme={theme}>COLORE HEX{state.hexAuto&&<span style={{color:theme.accent,marginLeft:6,fontSize:10,letterSpacing:1}}> · AUTO</span>}</NFLabel>
+        <div style={{display:'flex',gap:12}}>
+          <div style={{flex:1}}><NFInput value={state.hex} onChange={state.setHexManual} placeholder="automatico dal Pantone ID" theme={theme} mono pill/></div>
+          <div style={{width:54,height:54,borderRadius:99,flexShrink:0,background:eff||'transparent',backgroundImage:eff?'none':`repeating-linear-gradient(45deg,${theme.line} 0 6px,transparent 6px 12px)`,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`}}/>
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+function NFAttributeFields({state,theme}){
+  return (
+    <React.Fragment>
+      <div><NFLabel theme={theme}>TEMPERATURA</NFLabel><NFTempPicker value={state.temp} onChange={state.setTemp} theme={theme}/></div>
+      <div><NFLabel theme={theme}>COPERTURA</NFLabel><NFCoverPicker value={state.cover} onChange={state.setCover} theme={theme}/></div>
+      <div><NFLabel theme={theme}>CATEGORIA{state.catAuto&&<span style={{color:theme.accent,marginLeft:6,fontSize:10,letterSpacing:1}}> · AUTO</span>}</NFLabel><NFCatChips value={state.cat} onChange={state.setCat} theme={theme}/></div>
+    </React.Fragment>
+  );
+}
+function NFMetaFields({state,theme}){
+  return (
+    <React.Fragment>
+      <div>
+        <NFLabel theme={theme} optional>NOTE</NFLabel>
+        <Squircle radius={18} border={theme.borders?theme.ink:theme.line2} borderWidth={theme.borders?theme.borderWidth:1.5} shadow={`0 4px 12px ${rgba('#000',0.04)}`} outerStyle={{width:'100%'}} style={{width:'100%',background:theme.panel}}>
+          <textarea value={state.note} onChange={e=>state.setNote(e.target.value)} placeholder="es. Formula custom" rows={2} style={{width:'100%',display:'block',boxSizing:'border-box',border:'none',outline:'none',background:'transparent',color:theme.ink,padding:'14px 20px',minHeight:56,lineHeight:1.4,fontFamily:'Nebulica',fontSize:16,resize:'vertical'}}/>
+        </Squircle>
+      </div>
+      <div><NFLabel theme={theme} optional>PROGETTI</NFLabel><NFProjTags tags={state.projects} setTags={state.setProjects} input={state.projInput} setInput={state.setProjInput} theme={theme}/></div>
+    </React.Fragment>
+  );
+}
+
+// ── NuovaDesktop — foglio composer a 2 colonne ────────────────────────────────
+function NuovaDesktop({open,onClose,theme}){
+  ensureNuovaKf();
+  const [tab,setTab]=React.useState('ricetta');
+  const [pantoneId,setPantoneIdRaw]=React.useState('');
+  const [hex,setHex]=React.useState('');
+  const [hexAuto,setHexAuto]=React.useState(false);
+  const [temp,setTemp]=React.useState(null);
+  const [cover,setCover]=React.useState(null);
+  const [cat,setCat]=React.useState(null);
+  const [catAuto,setCatAuto]=React.useState(false);
+  const [note,setNote]=React.useState('');
+  const [page,setPage]=React.useState('');
+  const [projects,setProjects]=React.useState([]);
+  const [projInput,setProjInput]=React.useState('');
+  const [inks,setInks]=React.useState([{id:1,name:'',g:''},{id:2,name:'',g:''}]);
+  const inkId=React.useRef(3);
+  const [saving,setSaving]=React.useState(false);
+  const [msg,setMsg]=React.useState('');
+
+  const reset=React.useCallback(()=>{
+    setTab('ricetta');setPantoneIdRaw('');setHex('');setHexAuto(false);setTemp(null);setCover(null);setCat(null);setCatAuto(false);
+    setNote('');setPage('');setProjects([]);setProjInput('');setInks([{id:1,name:'',g:''},{id:2,name:'',g:''}]);inkId.current=3;
+    setSaving(false);setMsg('');
+  },[]);
+  React.useEffect(()=>{if(!open)reset();},[open,reset]);
+
+  const setPantoneId=v=>{
+    setPantoneIdRaw(v);
+    const autoHex=nfLookupHex(v);
+    if(autoHex){setHex(autoHex);setHexAuto(true);const f=guessFamily(autoHex);if(f){setCat(f.charAt(0).toUpperCase()+f.slice(1));setCatAuto(true);}}
+    else{if(hexAuto){setHex('');setHexAuto(false);}if(catAuto){setCat(null);setCatAuto(false);}}
+  };
+  const setHexManual=v=>{setHex(v);setHexAuto(false);};
+  const addInk=()=>setInks(a=>[...a,{id:inkId.current++,name:'',g:''}]);
+  const setInk=(id,patch)=>setInks(a=>a.map(r=>r.id===id?{...r,...patch}:r));
+  const delInk=id=>setInks(a=>a.length>1?a.filter(r=>r.id!==id):a);
+
+  const state={tab,setTab,pantoneId,setPantoneId,hex,setHexManual,hexAuto,temp,setTemp,cover,setCover,cat,setCat,catAuto,note,setNote,page,setPage,projects,setProjects,projInput,setProjInput,inks,addInk,setInk,delInk};
+
+  const submit=async()=>{
+    const eff=nfEffHex(state);
+    if(!pantoneId.trim()||!eff||!cat){setMsg('Compila Pantone ID, Colore e Categoria.');return;}
+    const validInks=inks.filter(r=>r.name&&(parseFloat(r.g)||0)>0);
+    if(validInks.length===0){setMsg('Aggiungi almeno un inchiostro con la dose.');return;}
+    setSaving(true);setMsg('');
+    try{
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'addRicetta',Pantone_ID:pantoneId.trim(),HEX:eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))})});
+      setMsg('Ricetta salvata!');setTimeout(()=>onClose(),1100);
+    }catch(e){setMsg('Errore di connessione.');}
+    setSaving(false);
+  };
+
+  if(!open) return null;
+  const eff=nfEffHex(state);
+  const divider=`1px solid ${theme.line}`;
+  return (
+    <React.Fragment>
+      <div onClick={onClose} style={{position:'absolute',inset:0,zIndex:820,background:rgba('#000',0.18)}}/>
+      <div style={{position:'absolute',inset:0,zIndex:830,display:'flex',alignItems:'center',justifyContent:'center',padding:24,pointerEvents:'none'}}>
+        <Squircle radius={34} border={theme.borders?theme.ink:theme.line} borderWidth={theme.borders?theme.borderWidth:1}
+          shadow={`0 40px 90px ${rgba('#000',0.26)}`} anim={`nfPop .5s ${SPRING_SOFT} both`}
+          outerStyle={{width:1120,maxWidth:'100%',height:820,maxHeight:'calc(100vh - 48px)',pointerEvents:'auto'}}
+          style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',overflow:'hidden',...surface(theme)}}>
+          <div style={{display:'flex',alignItems:'center',gap:20,padding:'22px 28px 18px',borderBottom:divider,flexShrink:0}}>
+            <div style={{flexShrink:0}}>
+              <div style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:28,letterSpacing:-0.8,color:theme.ink,lineHeight:1,fontStyle:theme.isSerif?'italic':'normal'}}>Nuova formula</div>
+              <div style={{fontFamily:'"JetBrains Mono",monospace',fontSize:10,letterSpacing:1,color:theme.faint,marginTop:5}}>AGGIUNGE AL GOOGLE SHEET</div>
+            </div>
+            <div style={{flex:1,maxWidth:420,marginLeft:'auto'}}><NFSegTabs tab={state.tab} setTab={state.setTab} theme={theme}/></div>
+            <IconPill Icon={IcoClose} theme={theme} size={46} onClick={onClose} title="Chiudi"/>
+          </div>
+          <div style={{flex:1,minHeight:0,display:'flex'}}>
+            <div className="nf-scroll" style={{width:540,flexShrink:0,overflowY:'auto',padding:'24px 28px 28px',display:'flex',flexDirection:'column',gap:22,borderRight:divider,WebkitMaskImage:'linear-gradient(to bottom,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)',maskImage:'linear-gradient(to bottom,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)'}}>
+              <NFIdentityFields state={state} theme={theme}/>
+              <NFAttributeFields state={state} theme={theme}/>
+              <NFMetaFields state={state} theme={theme}/>
+            </div>
+            <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',minHeight:0}}>
+              <Squircle radius={24} border={theme.borders?theme.ink:theme.line} borderWidth={theme.borders?theme.borderWidth:1} shadow={`0 14px 34px ${rgba('#000',0.10)}`} outerStyle={{margin:'24px 28px 0',flexShrink:0}} style={{overflow:'hidden'}}>
+                <NFPreviewHeader state={state} theme={theme} size={62}/>
+              </Squircle>
+              <div className="nf-scroll" style={{flex:1,minHeight:0,overflowY:'auto',padding:'20px 28px 8px'}}>
+                <NFInkEditor state={state} theme={theme}/>
+              </div>
+              <div style={{padding:'10px 28px 20px',borderTop:divider,flexShrink:0}}>
+                {msg&&<div style={{fontFamily:'Nebulica',fontSize:13,color:msg.includes('salvata')?theme.accent:theme.sub,marginBottom:10}}>{msg}</div>}
+                <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                  <button onClick={onClose} style={{height:52,padding:'0 22px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:14.5,color:theme.ink,border:'none',...glass(theme,{strong:true})}}>Annulla</button>
+                  <button onClick={submit} disabled={saving} style={{flex:1,height:52,padding:'0 26px',borderRadius:99,cursor:saving?'default':'pointer',border:'none',background:saving?theme.panelAlt:theme.accent,color:saving?theme.sub:theme.onAccent,fontFamily:'Nebulica',fontWeight:700,fontSize:15,letterSpacing:-0.2,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:9,boxShadow:saving?'none':`0 8px 22px ${rgba(theme.accent,0.32)}`}}>
+                    <IcoCheck size={19} color={saving?theme.sub:theme.onAccent} sw={2.2}/> {saving?'Salvataggio…':'Salva ricetta'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Squircle>
+      </div>
+    </React.Fragment>
+  );
+}
+
 /* ═══════════════════ DESKTOP SHELL ═══════════════════ */
 const DESK_DEFAULTS = {
   theme:'cream', accent:'#0033FF', display:'Nebulica', grain:false, borders:true,
@@ -1285,7 +1619,7 @@ function DesktopApp({defaults}) {
         {Body}
       </div>
       <SettingsPanel open={settingsOpen} onClose={()=>setSettingsOpen(false)} settings={settings} setSetting={setSetting} theme={theme}/>
-      <NuovaSheet open={nuovaOpen} onClose={()=>setNuovaOpen(false)} theme={theme}/>
+      <NuovaDesktop open={nuovaOpen} onClose={()=>setNuovaOpen(false)} theme={theme}/>
       <EditSheet open={!!editCode} editCode={editCode} onClose={()=>setEditCode(null)} theme={theme}/>
     </div>
   );
