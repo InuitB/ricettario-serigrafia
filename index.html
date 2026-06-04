@@ -1015,6 +1015,14 @@ function IconFolder({size=28,color='currentColor',filled=false,sw=1.8}) {
 function IconPenPlus({size=28,color='currentColor',filled=false,sw=1.8}) {
   return <svg width={size} height={size} viewBox="0 0 28 28" fill="none"><path d="M17.5 4.3 22.8 9.6 11.5 20.9l-6.2.9.9-6.2L17.5 4.3z" stroke={color} strokeWidth={sw} strokeLinejoin="round" fill="none"/><path d="M15.8 6 21 11.3" stroke={color} strokeWidth={sw} strokeLinecap="round"/><circle cx="22.5" cy="22.5" r="3.6" fill={color}/><path d="M22.5 20.7v3.6M20.7 22.5h3.6" stroke="#fff" strokeWidth="1.7" strokeLinecap="round"/></svg>;
 }
+function IconGear({size=18, color='currentColor', sw=1.6}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M8.1 2.3a2 2 0 0 1 3.8 0l.2.8c.4.1.7.3 1 .5l.8-.3a2 2 0 0 1 2.3 1l.9 1.6a2 2 0 0 1-.5 2.5l-.6.4v1.2l.6.5a2 2 0 0 1 .5 2.5l-.9 1.5a2 2 0 0 1-2.3 1l-.8-.3c-.3.2-.6.4-1 .5l-.2.8a2 2 0 0 1-3.8 0l-.2-.8a6 6 0 0 1-1-.5l-.8.3a2 2 0 0 1-2.3-1l-.9-1.5a2 2 0 0 1 .5-2.5l.6-.5V8.8l-.6-.4a2 2 0 0 1-.5-2.5l.9-1.6a2 2 0 0 1 2.3-1l.8.3a6 6 0 0 1 1-.5l.2-.8z" stroke={color} strokeWidth={sw} strokeLinejoin="round"/>
+      <circle cx="10" cy="10" r="2.5" stroke={color} strokeWidth={sw}/>
+    </svg>
+  );
+}
 
 function BottomNav({active=0, accent='#0033FF', restColor='#222', bg='#F2F0EA', dark=false}) {
   const c0=hexToRGBA(bg,0), c1=hexToRGBA(bg,0.85), c2=hexToRGBA(bg,1);
@@ -1143,6 +1151,8 @@ function UnifiedCard({pantone, recipeVisible, headerH=150}) {
 function WalletProtoExtract({
   liftTop=196, detailTop=104, detailHeight=592, liftScale=1.05,
   headerH=150, pillBorders=true, bg='#F4EFE2',
+  accent='#0033FF', borderWidth=1.5, grain=true, blobAnim=true,
+  blobShape='morbide', blobSpeed=1, onSettings,
 }) {
   ensureBlobKeyframesV2();
   const list = DESK_PANTONES;
@@ -1220,19 +1230,28 @@ function WalletProtoExtract({
   };
   return (
     <div style={{width:'100%',height:'100%',background:bg,position:'relative',overflow:'hidden',fontFamily:'Nebulica,system-ui,sans-serif',WebkitFontSmoothing:'antialiased'}}>
-      <div style={{position:'absolute',inset:0,overflow:'hidden',pointerEvents:'none',zIndex:0,opacity:recipeVisible?1:0,transition:'opacity .45s'}}>
-        {selected&&<React.Fragment>
-          <div style={{position:'absolute',top:'15%',left:'-25%',width:380,height:380,borderRadius:'50%',background:selected.hex,filter:'blur(70px)',opacity:0.5,animation:'wp2blob1 14s ease-in-out infinite'}}/>
-          <div style={{position:'absolute',bottom:'-10%',right:'-20%',width:360,height:360,borderRadius:'50%',background:selected.hex,filter:'blur(70px)',opacity:0.6,animation:'wp2blob2 18s ease-in-out infinite'}}/>
-        </React.Fragment>}
-      </div>
-      <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0.1,mixBlendMode:'multiply',pointerEvents:'none',zIndex:1}}>
+      {(() => {
+        const blobSizes = {morbide:{s:380,b:70,o:0.55},tonde:{s:260,b:40,o:0.65},ampie:{s:560,b:110,o:0.40},nessuna:{s:0,b:0,o:0}};
+        const bs = blobSizes[blobShape]||blobSizes.morbide;
+        const sp = Math.max(0.25,blobSpeed||1);
+        const d1=(14/sp).toFixed(1), d2=(18/sp).toFixed(1);
+        const showBlob = blobAnim && blobShape!=='nessuna' && selected;
+        return (
+          <div style={{position:'absolute',inset:0,overflow:'hidden',pointerEvents:'none',zIndex:0,opacity:recipeVisible&&showBlob?1:0,transition:'opacity .45s'}}>
+            {showBlob&&<React.Fragment>
+              <div style={{position:'absolute',top:'15%',left:'-25%',width:bs.s,height:bs.s,borderRadius:'50%',background:selected.hex,filter:`blur(${bs.b}px)`,opacity:bs.o,animation:`wp2blob1 ${d1}s ease-in-out infinite`}}/>
+              <div style={{position:'absolute',bottom:'-10%',right:'-20%',width:Math.round(bs.s*0.94),height:Math.round(bs.s*0.94),borderRadius:'50%',background:selected.hex,filter:`blur(${bs.b}px)`,opacity:bs.o+0.1,animation:`wp2blob2 ${d2}s ease-in-out infinite`}}/>
+            </React.Fragment>}
+          </div>
+        );
+      })()}
+      {grain&&<svg style={{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0.1,mixBlendMode:'multiply',pointerEvents:'none',zIndex:1}}>
         <filter id="wpx-grain"><feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0.35 0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0.4 0"/></filter>
         <rect width="100%" height="100%" filter="url(#wpx-grain)"/>
-      </svg>
+      </svg>}
       {/* TOP BAR */}
       <div style={{position:'absolute',top:60,left:18,right:18,zIndex:1000,height:40}}>
-        <div onClick={isDetail?onBack:undefined} style={{position:'absolute',left:0,top:0,height:40,width:isDetail?124:'calc(100% - 50px)',borderRadius:99,overflow:'hidden',background:'#fff',border:pillBorders?'1.5px solid #0B0B0B':'1px solid rgba(0,0,0,0.08)',cursor:isDetail?'pointer':'default',pointerEvents:(isDetail?recipeVisible:true)?'auto':'none',transition:'width .54s cubic-bezier(.34,1.56,.55,1)',zIndex:2}}>
+        <div onClick={isDetail?onBack:undefined} style={{position:'absolute',left:0,top:0,height:40,width:isDetail?124:onSettings?'calc(100% - 96px)':'calc(100% - 50px)',borderRadius:99,overflow:'hidden',background:'#fff',border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',cursor:isDetail?'pointer':'default',pointerEvents:(isDetail?recipeVisible:true)?'auto':'none',transition:'width .54s cubic-bezier(.34,1.56,.55,1)',zIndex:2}}>
           <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',padding:'0 16px',gap:10,whiteSpace:'nowrap',pointerEvents:'none',opacity:isDetail?0:1,transition:isDetail?'opacity .12s ease':'opacity .28s ease .12s'}}>
             <IconSearch color="#0B0B0B"/><span style={{fontFamily:'Nebulica',fontSize:14,color:'rgba(0,0,0,0.4)'}}>cerca pantone…</span>
           </div>
@@ -1240,7 +1259,12 @@ function WalletProtoExtract({
             <IconBack color="#0B0B0B"/><span style={{fontFamily:'Nebulica',fontSize:14,fontWeight:600,color:'#0B0B0B'}}>Ricette</span>
           </div>
         </div>
-        <div key={'circle-'+bump} style={{position:'absolute',right:0,top:0,width:40,height:40,borderRadius:99,background:'#fff',border:pillBorders?'1.5px solid #0B0B0B':'1px solid rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:(isDetail?recipeVisible:true)?'auto':'none',zIndex:2,animation:bump?`wp2circleBump .46s cubic-bezier(.34,1.4,.5,1) ${bumpDir==='close'?'.26s':'0s'} both`:'none'}}>
+        {onSettings&&(
+          <div onClick={onSettings} style={{position:'absolute',right:50,top:0,width:40,height:40,borderRadius:99,background:'#fff',border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,opacity:isDetail?0:1,pointerEvents:isDetail?'none':'auto',transition:'opacity .22s ease'}}>
+            <IconGear color="#0B0B0B"/>
+          </div>
+        )}
+        <div key={'circle-'+bump} style={{position:'absolute',right:0,top:0,width:40,height:40,borderRadius:99,background:'#fff',border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:(isDetail?recipeVisible:true)?'auto':'none',zIndex:2,animation:bump?`wp2circleBump .46s cubic-bezier(.34,1.4,.5,1) ${bumpDir==='close'?'.26s':'0s'} both`:'none'}}>
           <div style={{position:'absolute',opacity:isDetail?0:1,transition:isDetail?'opacity .12s':'opacity .16s .26s'}}><IconFilter color="#0B0B0B"/></div>
           <div style={{position:'absolute',opacity:isDetail?1:0,transition:isDetail?'opacity .2s .06s':'opacity .14s .24s'}}><IconEdit color="#0B0B0B"/></div>
         </div>
@@ -1267,11 +1291,114 @@ function WalletProtoExtract({
         </div>
       </div>
       <div style={{position:'absolute',bottom:120,left:0,right:0,textAlign:'center',zIndex:41,fontFamily:'Nebulica',fontSize:9,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.4)',opacity:isDetail?0:1,transition:'opacity .3s',pointerEvents:'none'}}>↕ TRASCINA · TOCCA UNA CARD</div>
-      <BottomNav active={0} accent="#0033FF" restColor="#0B0B0B" bg={bg}/>
+      <BottomNav active={0} accent={accent} restColor="#0B0B0B" bg={bg}/>
     </div>
   );
 }
 
+
+/* ═══════════════════ MOBILE SETTINGS ═══════════════════ */
+function MobileSettingsPanel({open, onClose, settings, setSetting}) {
+  const accent = settings.accent||'#0033FF';
+  const simpleTheme = {accent, sub:'rgba(11,11,11,0.52)', ink:'#0B0B0B', line:'rgba(11,11,11,0.10)'};
+  const accents = ['#0033FF','#E4002B','#1F8A5B','#F66257','#0B0B0B'];
+  const shapes = [{k:'morbide',l:'Morbide'},{k:'tonde',l:'Tonde'},{k:'ampie',l:'Ampie'},{k:'nessuna',l:'Nessuna'}];
+  const panelBg = settings.theme==='grey'?'#E6E4DE':'#F4EFE2';
+  const Head = t => <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:'rgba(11,11,11,0.34)',margin:'14px 0 2px'}}>{t}</div>;
+  const Row = ({label,children}) => (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16,padding:'12px 0',borderTop:'1px solid rgba(11,11,11,0.10)'}}>
+      <span style={{fontFamily:'Nebulica',fontSize:14,fontWeight:600,color:'#0B0B0B',whiteSpace:'nowrap'}}>{label}</span>
+      {children}
+    </div>
+  );
+  const Block = ({label,children}) => (
+    <div style={{padding:'12px 0',borderTop:'1px solid rgba(11,11,11,0.10)'}}>
+      <div style={{fontFamily:'Nebulica',fontSize:14,fontWeight:600,color:'#0B0B0B',marginBottom:9}}>{label}</div>
+      {children}
+    </div>
+  );
+  const Pills = ({value,options,onChange}) => (
+    <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+      {options.map(o=>{const on=value===o.k; return (
+        <button key={o.k} onClick={()=>onChange(o.k)} style={{padding:'7px 13px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:12.5,background:on?'#0B0B0B':'rgba(11,11,11,0.06)',color:on?'#fff':'#0B0B0B',border:on?'none':'1px solid rgba(11,11,11,0.14)',transition:`background .22s ${QUICK}`}}>{o.l}</button>
+      );})}
+    </div>
+  );
+  return (
+    <React.Fragment>
+      <div onClick={onClose} style={{position:'absolute',inset:0,zIndex:900,background:rgba('#000',0.3),opacity:open?1:0,pointerEvents:open?'auto':'none',transition:'opacity .3s ease'}}/>
+      <div style={{position:'absolute',bottom:0,left:0,right:0,zIndex:910,background:panelBg,borderRadius:'24px 24px 0 0',boxShadow:'0 -8px 40px rgba(0,0,0,0.18)',transform:open?'translateY(0)':'translateY(100%)',transition:`transform .42s ${SPRING_SOFT}`,maxHeight:'80%',display:'flex',flexDirection:'column',pointerEvents:open?'auto':'none'}}>
+        <div style={{padding:'14px 20px 0',flexShrink:0}}>
+          <div style={{width:40,height:4,borderRadius:99,background:'rgba(0,0,0,0.18)',margin:'0 auto 12px'}}/>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
+            <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:20,letterSpacing:-0.5,color:'#0B0B0B'}}>Impostazioni</span>
+            <button onClick={onClose} style={{width:32,height:32,borderRadius:99,background:'rgba(0,0,0,0.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1 1 11" stroke="#0B0B0B" strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div style={{overflowY:'auto',padding:'0 20px 36px',flex:1,WebkitOverflowScrolling:'touch'}}>
+          {Head('GRAFICA')}
+          <Row label="Sfondo">
+            <div style={{display:'flex',gap:8}}>
+              {[{k:'cream',c:'#F4EFE2',l:'Crema'},{k:'grey',c:'#E6E4DE',l:'Grigio'}].map(o=>{
+                const on=settings.theme===o.k;
+                return <button key={o.k} onClick={()=>setSetting('theme',o.k)} style={{width:34,height:34,borderRadius:99,cursor:'pointer',background:o.c,border:on?`2.5px solid #0B0B0B`:'1px solid rgba(11,11,11,0.18)',boxShadow:on?`0 0 0 2px ${panelBg}, 0 0 0 3.5px #0B0B0B`:'none',transition:'box-shadow .2s'}}/>;
+              })}
+            </div>
+          </Row>
+          <Row label="Accento">
+            <div style={{display:'flex',gap:8}}>
+              {accents.map(c=>{const on=settings.accent===c; return (
+                <button key={c} onClick={()=>setSetting('accent',c)} style={{width:30,height:30,borderRadius:99,cursor:'pointer',background:c,border:'none',boxShadow:on?`0 0 0 2px ${panelBg}, 0 0 0 4px #0B0B0B`:`inset 0 0 0 1px rgba(0,0,0,0.1)`,transition:'box-shadow .2s'}}/>
+              );})}
+            </div>
+          </Row>
+          <Row label="Bordi neri"><IToggle value={settings.borders} onChange={v=>setSetting('borders',v)} theme={simpleTheme}/></Row>
+          <Row label="Spessore bordo"><ISlider value={settings.borderWidth} min={0.5} max={4} step={0.5} unit="px" onChange={v=>setSetting('borderWidth',v)} theme={simpleTheme}/></Row>
+          {Head('SFONDO · BLOB')}
+          <Block label="Forme blob"><Pills value={settings.blobShape} options={shapes} onChange={v=>setSetting('blobShape',v)}/></Block>
+          <Row label="Grana"><IToggle value={settings.grain} onChange={v=>setSetting('grain',v)} theme={simpleTheme}/></Row>
+          <Row label="Animazione blob"><IToggle value={settings.blobAnim} onChange={v=>setSetting('blobAnim',v)} theme={simpleTheme}/></Row>
+          <Row label="Velocità"><ISlider value={settings.blobSpeed} min={0.25} max={2.5} step={0.25} unit="×" onChange={v=>setSetting('blobSpeed',v)} theme={simpleTheme}/></Row>
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+
+const MOBILE_DEFAULTS = {
+  theme:'cream', accent:'#0033FF', borders:true, borderWidth:1.5,
+  grain:true, blobAnim:true, blobShape:'morbide', blobSpeed:1,
+};
+
+function MobileApp() {
+  const [settings, setSettings] = React.useState(MOBILE_DEFAULTS);
+  const setSetting = (k,v) => setSettings(s=>({...s,[k]:v}));
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const bg = settings.theme==='grey'?'#E6E4DE':'#F4EFE2';
+  return (
+    <div style={{width:'100%',height:'100%',position:'relative'}}>
+      <WalletProtoExtract
+        bg={bg}
+        accent={settings.accent}
+        pillBorders={settings.borders}
+        borderWidth={settings.borderWidth}
+        grain={settings.grain}
+        blobAnim={settings.blobAnim}
+        blobShape={settings.blobShape}
+        blobSpeed={settings.blobSpeed}
+        onSettings={()=>setSettingsOpen(true)}
+      />
+      <MobileSettingsPanel
+        open={settingsOpen}
+        onClose={()=>setSettingsOpen(false)}
+        settings={settings}
+        setSetting={setSetting}
+      />
+    </div>
+  );
+}
 
 /* ═══════════════════ APP ROOT ═══════════════════ */
 function LoadingScreen() {
@@ -1321,7 +1448,7 @@ function App() {
   if(status==='error') return <ErrorScreen onRetry={doLoad}/>;
 
   if(isMobile) {
-    return <WalletProtoExtract bg="#F4EFE2"/>;
+    return <MobileApp/>;
   }
   return <DesktopApp defaults={DESK_DEFAULTS}/>;
 }
