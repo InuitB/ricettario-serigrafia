@@ -806,7 +806,8 @@ function EditSheet({open, editCode, onClose, theme}) {
       setHex(r ? (r.HEX||'') : '');
       setCat(r ? ((r.Categoria||'').toLowerCase().trim()) : '');
       setTemp(r ? (r.Temperatura||'') : '');
-      setCop(r ? (r.Copertura||'') : '');
+      const copRaw = (r ? (r.Copertura||'') : '').toLowerCase().trim();
+      setCop(copRaw.startsWith('copr')?'coprente':copRaw.startsWith('semi')?'semi':copRaw.startsWith('tras')?'trasp':'');
       setNote(r ? (r.Note||'') : '');
       setPag(r ? (r.Pagina||'') : '');
       setMsg(''); setSaving(false);
@@ -855,7 +856,15 @@ function EditSheet({open, editCode, onClose, theme}) {
           </div>
           <div><span style={lbl}>PAGINA</span><input value={pag} onChange={e=>setPag(e.target.value)} type="number" placeholder="es. 42" style={inp}/></div>
           <div><span style={lbl}>TEMPERATURA</span><input value={temp} onChange={e=>setTemp(e.target.value)} placeholder="es. alta" style={inp}/></div>
-          <div style={{gridColumn:'span 2'}}><span style={lbl}>COPERTURA</span><input value={cop} onChange={e=>setCop(e.target.value)} placeholder="es. media" style={inp}/></div>
+          <div style={{gridColumn:'span 2'}}>
+            <span style={lbl}>COPERTURA</span>
+            <div style={{display:'flex',gap:8}}>
+              {[{k:'trasp',l:'Trasp.'},{k:'semi',l:'Semi'},{k:'coprente',l:'Coprente'}].map(({k,l})=>{
+                const on=cop===k;
+                return <button key={k} onClick={()=>setCop(on?'':k)} style={{flex:1,height:44,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:on?700:500,fontSize:14,border:theme.borders?`${theme.borderWidth}px solid ${on?theme.ink:theme.line}`:`1px solid ${on?theme.ink:theme.line}`,background:on?theme.ink:theme.panelAlt,color:on?theme.panel:theme.sub,transition:'background .15s,color .15s'}}>{l}</button>;
+              })}
+            </div>
+          </div>
         </div>
         <div style={{marginTop:14}}><span style={lbl}>NOTE</span>
           <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="note…" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.45}}/>
