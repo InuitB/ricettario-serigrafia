@@ -223,19 +223,28 @@ Il thumb `.seg-thumb` si anima con `transform: translateX(100%)` quando attivo s
 |--------|----------|-------------|
 | `addRicetta` | `addRicetta(data)` | aggiunge riga in Ricette + righe in Componenti |
 | `editRicetta` | `editRicetta(data)` | aggiorna campi in Ricette, logga in Log |
+| `deleteRicetta` | `deleteRicetta(data)` | elimina riga da Ricette e Componenti, logga in Log |
 | `addSperimentazione` | `addSperimentazione(data)` | crea foglio Sperimentazioni se non esiste, aggiunge riga |
 | `promuoviSperimentazione` | `promuoviSperimentazione(data)` | aggiorna stato in Sperimentazioni + copia in Ricette+Componenti |
+| `togglePreferito` | `togglePreferito(data)` | toglie/mette 1 nella colonna Preferiti del foglio Ricette |
 
-Tutte le POST usano `mode: 'no-cors'` e `Content-Type: text/plain`.
+Le POST usano `mode: 'no-cors'` e `Content-Type: text/plain`.
+Il `doGet?action=getFavoriti` è CORS-enabled e ritorna `{ favoriti: [id, ...] }` direttamente dal foglio (bypassa cache CSV).
 
 **Convenzione nomi campo (CRITICO):** il frontend invia i campi in CamelCase esatto: `Pantone_ID`, `HEX`, `Categoria`, `Temperatura`, `Copertura`, `Note`, `Pagina`, `Progetti`. I componenti usano `Inchiostro` e `'Dose_40g (g)'`. `Code.gs` deve leggere i campi con questi nomi esatti — mai in minuscolo.
 
-**Deployment clasp:**
+**toDose(v)** — helper in Code.gs che converte la dose in numero JS prima di scrivere nel foglio:
+```js
+function toDose(v) { const s = String(v || '').replace(',', '.'); const n = parseFloat(s); return isNaN(n) ? (v || '') : n; }
 ```
-clasp push --force           # carica Code.gs + appsscript.json (solo questi, vedi .claspignore)
-clasp deploy --deploymentId AKfycbx1LQGufzvgcs66YUVc0em1iY7DRrugIKI9fcheXzmbpSl8RHmyEeJ2fF2Ma_XD5_A --description "descrizione v9+"
-```
-Versione attuale live: **@11**. Dopo ogni modifica a `Code.gs`: push + deploy con versione incrementata.
+Usato in tutti e tre i punti dove si scrive `Dose_40g (g)` (addRicetta, editRicetta, promuoviSperimentazione).
+Motivo: Google Sheets con locale italiano interpreta la stringa `"34.48"` come orario (34h 48m). Passando un numero JS, Sheets non può fraintenderlo. Accetta sia punto che virgola come separatore decimale.
+
+**Deployment — ⚠️ clasp NON funziona dall'ambiente Claude Code web** (credenziali assenti).
+Ogni modifica a `Code.gs` va deployata manualmente:
+1. Aprire script.google.com → progetto Ricettario
+2. Cmd+A → incollare il contenuto aggiornato → Cmd+S
+3. Esegui il deployment → Gestisci deployment → matita → Nuova versione → Distribuisci
 
 ---
 
@@ -279,11 +288,18 @@ L'app rileva automaticamente mobile vs desktop. Su mobile (<768px o touch) usa `
 
 ### Layout header mobile (valori correnti)
 - Titolo "Ricettario": `top:48`
-- TOP BAR (search + cerchi): `top: isDetail?58:88`
+- TOP BAR (search + cerchi): `top: calc(env(safe-area-inset-top,44px) + 48px)`, `zIndex:1000`
 - `L_TOP=170` (punto di partenza stack card)
-- Cerchio impostazioni: `left:0` (esterno alla pill, a sinistra)
-- Cerchio filtro/modifica: `right:0` (esterno alla pill, a destra)
-- Pill di ricerca: `left:46` in lista, `left:0` in dettaglio, sfondo = `bg`
+- Cerchio impostazioni: `left:0` (esterno alla pill, a sinistra) — visibile solo in lista
+- Cerchio stella ★ preferito: `right:46` — visibile solo in dettaglio, chiama `toggleFavorito(selected.code)`
+- Cerchio filtro/modifica: `right:0` — filtro in lista, matita ✏ in dettaglio
+- Pill di ricerca: `left:46` in lista, `left:0` in dettaglio (diventa "← Ricette"), sfondo = `bg`
+
+### Z-index layering mobile
+- TOP BAR: `zIndex:1000`
+- NuovaSheet backdrop/panel: `zIndex:1010/1020` — sopra la top bar ✓
+- EditSheet backdrop/panel: `zIndex:1010/1020` — sopra la top bar ✓
+- MobileSettingsPanel (sale dal basso): `zIndex:900/910` — non interferisce con top bar
 
 ### transformData() — logica nomi
 ```js
@@ -315,3 +331,9 @@ Pantone ID → HEX + Categoria → Pagina + Temperatura → Copertura → Formul
 - **Altezza card**: usa `bodyInnerRef.scrollHeight` — non più `bodyWrapRef` (che restituisce clientHeight con flex:1)
 - **Barra di ricerca** spostata in header row (allineata a Logo e ModeOrb), larghezza 600px
 - **EditSheet**: riordine campi — formula in mezzo, note/progetti in fondo
+- **Safari border clipping fix**: `border` sulle card animate sostituito con `outline` (non clippato da `overflow:hidden`)
+- **Preferiti cross-device**: `doGet?action=getFavoriti` legge fresco dal foglio; `togglePreferito` POST crea colonna Preferiti se assente; UI ottimistica con `favoritiSet` globale + `window._bumpData()`
+- **Filtro e ordinamento** (mobile + desktop): per colore (hue), copertura asc/desc, codice A-Z, solo preferiti
+- **Stella ★ mobile**: cerchio a `right:46` nella top bar, visibile in dettaglio accanto alla matita
+- **Z-index sheet fix**: NuovaSheet/EditSheet alzati a 1010/1020 per coprire la top bar (zIndex:1000)
+- **toDose() in Code.gs**: converte dose in numero JS; accetta virgola o punto; evita auto-rilevamento orario da Sheets locale italiano
