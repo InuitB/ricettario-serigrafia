@@ -1134,25 +1134,41 @@ function UnifiedRecipeBody({pantone, qty, onChange}) {
   );
 }
 
-function UnifiedCard({pantone, recipeVisible, headerH=150}) {
+function UnifiedCard({pantone, recipeVisible, headerH=150, headerOnly=false}) {
   const [qty, setQty] = React.useState(100);
+  const big = headerOnly ? true : recipeVisible;
   return (
     <div style={{width:'100%',height:'100%',borderRadius:22,background:pantone.hex,position:'relative',overflow:'hidden'}}>
-      <UnifiedHeader pantone={pantone} big={recipeVisible}/>
-      <div style={{position:'absolute',left:0,right:0,top:headerH,bottom:0,background:'#fff',opacity:recipeVisible?1:0,transform:recipeVisible?'translateY(0)':'translateY(16px)',transition:'opacity .34s ease, transform .42s cubic-bezier(.2,.85,.25,1)',transitionDelay:recipeVisible?'.14s':'0s',overflow:'auto'}}>
+      <UnifiedHeader pantone={pantone} big={big}/>
+      {!headerOnly&&(
+        <div style={{position:'absolute',left:0,right:0,top:headerH,bottom:0,background:'#fff',opacity:recipeVisible?1:0,transform:recipeVisible?'translateY(0)':'translateY(16px)',transition:'opacity .34s ease, transform .42s cubic-bezier(.2,.85,.25,1)',transitionDelay:recipeVisible?'.14s':'0s',overflow:'auto'}}>
+          <UnifiedRecipeBody pantone={pantone} qty={qty} onChange={setQty}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function SplitRecipePanel({pantone, open, easeIn, easeOut}) {
+  const [qty, setQty] = React.useState(100);
+  React.useEffect(()=>{ setQty(100); },[pantone.code]);
+  return (
+    <div style={{position:'absolute',bottom:0,left:0,right:0,height:'62%',background:'#fff',borderRadius:'20px 20px 0 0',boxShadow:'0 -8px 40px rgba(0,0,0,0.18)',zIndex:500,transform:open?'translateY(0)':'translateY(110%)',transition:`transform .48s ${open?easeIn:easeOut}`,overflow:'auto',WebkitOverflowScrolling:'touch'}}>
+      <div style={{paddingBottom:80}}>
+        <div style={{width:36,height:4,borderRadius:99,background:'rgba(0,0,0,0.14)',margin:'10px auto 0'}}/>
         <UnifiedRecipeBody pantone={pantone} qty={qty} onChange={setQty}/>
       </div>
     </div>
   );
 }
 
-
 /* ═══════════════════ MOBILE: WALLET PROTO EXTRACT (V38) ═══════════════════ */
 function WalletProtoExtract({
   liftTop=196, detailTop=104, detailHeight=592, liftScale=1.05,
   headerH=150, pillBorders=true, bg='#F4EFE2',
   accent='#0033FF', borderWidth=1.5, grain=true, blobAnim=true,
-  blobShape='morbide', blobSpeed=1, onSettings,
+  blobShape='morbide', blobSpeed=1, onSettings, cardStyle='unified',
 }) {
   ensureBlobKeyframesV2();
   const list = DESK_PANTONES;
@@ -1223,7 +1239,10 @@ function WalletProtoExtract({
     const isSel=i===selectedIdx;
     if(phase==='closed') return layoutClosed(i);
     if(isSel){
-      if(phase==='open') return {top:detailTop,height:detailHeight,opacity:1,z:999,scale:1};
+      if(phase==='open'){
+        if(cardStyle==='split') return {top:84,height:164,opacity:1,z:999,scale:1};
+        return {top:detailTop,height:detailHeight,opacity:1,z:999,scale:1};
+      }
       return {top:liftTop,height:ACTIVE_H,opacity:1,z:999,scale:liftScale};
     }
     return {top:760,height:ACTIVE_H,opacity:0,z:1,scale:0.96};
@@ -1284,13 +1303,14 @@ function WalletProtoExtract({
             const noAnim=phase==='closed'&&dragging;
             return (
               <div key={p.code} data-cardidx={i} style={{position:'absolute',left:0,right:0,top:pos.top,height:pos.height,opacity:pos.opacity,zIndex:pos.z,transform:`scale(${pos.scale})`,transformOrigin:'50% 0%',pointerEvents:pos.opacity>0.2?'auto':'none',cursor:'inherit',transition:noAnim?'none':`top ${dur}ms ${ease}, height ${dur}ms ${ease}, transform ${dur}ms ${ease}, opacity ${Math.round(dur*0.8)}ms ease`,filter:isSel&&phase!=='closed'?'drop-shadow(0 26px 48px rgba(0,0,0,0.24))':'drop-shadow(0 14px 28px rgba(0,0,0,0.14))'}}>
-                {isSel?<UnifiedCard pantone={p} recipeVisible={recipeVisible} headerH={headerH}/>:<WalletCardV2 pantone={p} expanded={false}/>}
+                {isSel?<UnifiedCard pantone={p} recipeVisible={recipeVisible} headerH={headerH} headerOnly={cardStyle==='split'&&recipeVisible}/>:<WalletCardV2 pantone={p} expanded={false}/>}
               </div>
             );
           })}
         </div>
       </div>
       <div style={{position:'absolute',bottom:120,left:0,right:0,textAlign:'center',zIndex:41,fontFamily:'Nebulica',fontSize:9,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.4)',opacity:isDetail?0:1,transition:'opacity .3s',pointerEvents:'none'}}>↕ TRASCINA · TOCCA UNA CARD</div>
+      {cardStyle==='split'&&selected&&<SplitRecipePanel pantone={selected} open={recipeVisible} easeIn={EASE_OPEN_SPRING} easeOut={EASE_CLOSE_QUICK}/>}
       <BottomNav active={0} accent={accent} restColor="#0B0B0B" bg={bg}/>
     </div>
   );
@@ -1361,6 +1381,10 @@ function MobileSettingsPanel({open, onClose, settings, setSetting}) {
           <Row label="Grana"><IToggle value={settings.grain} onChange={v=>setSetting('grain',v)} theme={simpleTheme}/></Row>
           <Row label="Animazione blob"><IToggle value={settings.blobAnim} onChange={v=>setSetting('blobAnim',v)} theme={simpleTheme}/></Row>
           <Row label="Velocità"><ISlider value={settings.blobSpeed} min={0.25} max={2.5} step={0.25} unit="×" onChange={v=>setSetting('blobSpeed',v)} theme={simpleTheme}/></Row>
+          {Head('ANIMAZIONE CARD')}
+          <Block label="Stile apertura">
+            <Pills value={settings.cardStyle} options={[{k:'unified',l:'Card unica'},{k:'split',l:'Due elementi'}]} onChange={v=>setSetting('cardStyle',v)}/>
+          </Block>
         </div>
       </div>
     </React.Fragment>
@@ -1369,7 +1393,7 @@ function MobileSettingsPanel({open, onClose, settings, setSetting}) {
 
 const MOBILE_DEFAULTS = {
   theme:'cream', accent:'#0033FF', borders:true, borderWidth:1.5,
-  grain:true, blobAnim:true, blobShape:'morbide', blobSpeed:1,
+  grain:true, blobAnim:true, blobShape:'morbide', blobSpeed:1, cardStyle:'unified',
 };
 
 function MobileApp() {
@@ -1389,6 +1413,7 @@ function MobileApp() {
         blobShape={settings.blobShape}
         blobSpeed={settings.blobSpeed}
         onSettings={()=>setSettingsOpen(true)}
+        cardStyle={settings.cardStyle}
       />
       <MobileSettingsPanel
         open={settingsOpen}
