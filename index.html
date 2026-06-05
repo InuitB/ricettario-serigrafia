@@ -2067,7 +2067,8 @@ function WalletProtoExtract({
   const timer = React.useRef(null);
   const scrollRef = React.useRef(0);
   const cardRefs = React.useRef({});
-  const ACTIVE_H=178, L_TOP=170, H=500, STEP=108, PIN=6;
+  const ACTIVE_H=178, L_TOP=170, STEP=108;
+  const H = Math.max(400, window.innerHeight-L_TOP);
   const maxScroll = Math.max(0,(list.length-1)*STEP+ACTIVE_H-H);
   const isDetail = selectedIdx!==null;
   const selected = isDetail?list[selectedIdx]:null;
@@ -2078,13 +2079,12 @@ function WalletProtoExtract({
   },[isDetail]);
   React.useEffect(()=>{ scrollRef.current=scrollY; },[scrollY]);
   const applyScrollDirect = sy=>{
+    const visMax=H+ACTIVE_H*2;
     list.forEach((_,i)=>{
       const el=cardRefs.current[i]; if(!el) return;
       const s=i*STEP-sy;
-      let top,scale,opacity;
-      if(s>=PIN){top=L_TOP+s;scale=1;opacity=1;}
-      else{const d=(PIN-s)/STEP,sp=Math.max(0,PIN-Math.min(d,3)*7);top=L_TOP+sp;scale=Math.max(0.82,1-d*0.05);opacity=Math.max(0,1.18-d*0.24);}
-      el.style.top=top+'px';el.style.transform=`scale(${scale})`;el.style.opacity=opacity;
+      if(s>visMax) return;
+      el.style.top=(s>=0?L_TOP+s:L_TOP)+'px';
     });
   };
   const openCard = i=>{
@@ -2112,7 +2112,7 @@ function WalletProtoExtract({
     if(Math.abs(dy)>5) drag.current.moved=true;
     const now=performance.now();
     const dt=now-drag.current.lastT;
-    if(dt>0) drag.current.velPxMs=(e.clientY-drag.current.lastY)/dt;
+    if(dt>0){const inst=(e.clientY-drag.current.lastY)/dt;drag.current.velPxMs=drag.current.velPxMs*0.6+inst*0.4;}
     drag.current.lastY=e.clientY; drag.current.lastT=now;
     const newSY=Math.max(0,Math.min(maxScroll,drag.current.startScroll-dy));
     scrollRef.current=newSY;
@@ -2155,11 +2155,9 @@ function WalletProtoExtract({
   else if(phase==='closing'){dur=300;ease=EASE_CLOSE_QUICK;}
   else{dur=360;ease=EASE_CLOSE_CALM;}
   const layoutClosed = i=>{
-    const sy=i*STEP-scrollRef.current;
-    if(sy>=PIN) return {top:L_TOP+sy,height:ACTIVE_H,scale:1,opacity:1,z:300+i};
-    const depth=(PIN-sy)/STEP;
-    const syPinned=Math.max(0,PIN-Math.min(depth,3)*7);
-    return {top:L_TOP+syPinned,height:ACTIVE_H,scale:Math.max(0.82,1-depth*0.05),opacity:Math.max(0,1.18-depth*0.24),z:100+i};
+    const s=i*STEP-scrollRef.current;
+    if(s>=0) return {top:L_TOP+s,height:ACTIVE_H,scale:1,opacity:1,z:300+i};
+    return {top:L_TOP,height:ACTIVE_H,scale:1,opacity:1,z:100+i};
   };
   const posFor = i=>{
     const isSel=i===selectedIdx;
