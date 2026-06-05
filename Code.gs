@@ -11,12 +11,11 @@ function toDose(v) { const s = String(v || '').replace(',', '.'); const n = pars
 function doGet(e) {
   try {
     const action = (e.parameter || {}).action;
-    if (action === 'getFavoriti') return getFavoriti();
-    return ContentService.createTextOutput(JSON.stringify({ error: 'Azione sconosciuta' }))
-      .setMimeType(ContentService.MimeType.JSON);
+    if (action === 'getFavoriti')   return getFavoriti();
+    if (action === 'getInventario') return jsonResp(getInventario());
+    return jsonResp({ error: 'Azione sconosciuta' });
   } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResp({ error: err.message });
   }
 }
 
@@ -31,6 +30,9 @@ function doPost(e) {
       case 'addSperimentazione':      result = addSperimentazione(data);      break;
       case 'promuoviSperimentazione': result = promuoviSperimentazione(data); break;
       case 'togglePreferito':         result = togglePreferito(data);         break;
+      case 'aggiungiCarico':          result = aggiungiCarico(data);          break;
+      case 'registraMescola':         result = registraMescola(data);         break;
+      case 'aggiornaStock':           result = aggiornaStock(data);           break;
       default: result = { error: 'Azione sconosciuta: ' + data.action };
     }
     return ContentService
@@ -41,6 +43,11 @@ function doPost(e) {
       .createTextOutput(JSON.stringify({ error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function jsonResp(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ── PREFERITI ────────────────────────────────────────────────────────────
@@ -339,6 +346,121 @@ function promuoviSperimentazione(data) {
       toDose(c['Dose_40g (g)'])
     ]);
   });
+
+  return { ok: true };
+}
+
+// ── MAGAZZINO ─────────────────────────────────────────────────────────────
+function ensureMagazzinoSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sh = ss.getSheetByName('Magazzino');
+  if (!sh) {
+    sh = ss.insertSheet('Magazzino');
+    sh.appendRow(['Inchiostro', 'Grammi_disponibili', 'Soglia_alert', 'Note']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function ensureMovimentiSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sh = ss.getSheetByName('MovimentiMagazzino');
+  if (!sh) {
+    sh = ss.insertSheet('MovimentiMagazzino');
+    sh.appendRow(['Timestamp', 'Tipo', 'Inchiostro', 'Grammi', 'Riferimento', 'Note']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function getInventario() {
+  const sh = ensureMagazzinoSheet();
+  const data = sh.getDataRange().getValues();
+  const headers = data[0];
+  const rows = data.slice(1).map(r => {
+    const o = {};
+    headers.forEach((h, i) => { o[h] = r[i]; });
+    return {
+      inchiostro: String(o['Inchiostro'] || ''),
+      grammi:     parseFloat(o['Grammi_disponibili']) || 0,
+      soglia:     o['Soglia_alert'] !== '' ? parseFloat(o['Soglia_alert']) : null,
+      note:       String(o['Note'] || ''),
+    };
+  }).filter(r => r.inchiostro);
+  return { ok: true, inventario: rows };
+}
+
+function aggiungiCarico(data) {
+  const sh  = ensureMagazzinoSheet();
+  const mov = ensureMovimentiSheet();
+  const rows    = sh.getDataRange().getValues();
+  const headers = rows[0];
+  const inkCol  = headers.indexOf('Inchiostro');
+  const gramCol = headers.indexOf('Grammi_disponibili');
+  const ts = new Date().toISOString();
+
+  (data.carichi || []).forEach(c => {
+    let found = false;
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][inkCol]) === String(c.inchiostro)) {
+        const cur = parseFloat(rows[i][gramCol]) || 0;
+        sh.getRange(i + 1, gramCol + 1).setValue(cur + c.grammi);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      sh.appendRow([c.inchiostro, c.grammi, data.soglia || '', '']);
+    }
+    mov.appendRow([ts, 'carico', c.inchiostro, c.grammi, data.riferimento || '', data.note || '']);
+  });
+
+  return { ok: true };
+}
+
+function registraMescola(data) {
+  const sh  = ensureMagazzinoSheet();
+  const mov = ensureMovimentiSheet();
+  const rows    = sh.getDataRange().getValues();
+  const headers = rows[0];
+  const inkCol  = headers.indexOf('Inchiostro');
+  const gramCol = headers.indexOf('Grammi_disponibili');
+  const ts = new Date().toISOString();
+
+  (data.inks || []).forEach(c => {
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][inkCol]) === String(c.inchiostro)) {
+        const cur = parseFloat(rows[i][gramCol]) || 0;
+        sh.getRange(i + 1, gramCol + 1).setValue(Math.max(0, cur - c.grammi));
+        break;
+      }
+    }
+    mov.appendRow([ts, 'mescola', c.inchiostro, -c.grammi, data.riferimento || data.pantone || '', data.note || '']);
+  });
+
+  return { ok: true };
+}
+
+function aggiornaStock(data) {
+  const sh  = ensureMagazzinoSheet();
+  const rows    = sh.getDataRange().getValues();
+  const headers = rows[0];
+  const inkCol  = headers.indexOf('Inchiostro');
+  const gramCol = headers.indexOf('Grammi_disponibili');
+  const sogliaCol = headers.indexOf('Soglia_alert');
+
+  let found = false;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][inkCol]) === String(data.inchiostro)) {
+      sh.getRange(i + 1, gramCol + 1).setValue(data.grammi);
+      if (data.soglia != null) sh.getRange(i + 1, sogliaCol + 1).setValue(data.soglia);
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    sh.appendRow([data.inchiostro, data.grammi, data.soglia != null ? data.soglia : '', '']);
+  }
 
   return { ok: true };
 }
