@@ -1484,23 +1484,27 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
       <div style={{position:'relative',zIndex:10,display:'flex',height:'calc(100% - 88px)'}}>
         {/* LISTA */}
         <div style={{width:380,flexShrink:0,display:'flex',flexDirection:'column',padding:'6px 0 0 28px'}}>
-          <div style={{paddingRight:18,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-            <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,flexShrink:0}}>{filtered.length} / {DESK_PANTONES.length} PANTONE</span>
-            <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-              <button onClick={()=>setSoloPref(v=>!v)} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:99,fontFamily:'Nebulica',fontSize:10.5,fontWeight:700,letterSpacing:0.6,cursor:'pointer',border:`1.4px solid ${soloPreferiti?theme.ink:rgba(theme.ink,0.22)}`,background:soloPreferiti?theme.ink:'transparent',color:soloPreferiti?(theme.grey?'#0B0B0B':'#fff'):theme.sub,transition:'all .2s'}}>
+          <div style={{paddingRight:18,display:'flex',flexDirection:'column',gap:8}}>
+            <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub}}>{filtered.length} / {DESK_PANTONES.length} PANTONE</span>
+            <div style={{display:'flex',gap:6}}>
+              <button onClick={()=>setSoloPref(v=>!v)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'5px 8px',borderRadius:99,fontFamily:'Nebulica',fontSize:10.5,fontWeight:700,letterSpacing:0.6,cursor:'pointer',border:`1.4px solid ${soloPreferiti?theme.ink:rgba(theme.ink,0.22)}`,background:soloPreferiti?theme.ink:'transparent',color:soloPreferiti?(theme.grey?'#0B0B0B':'#fff'):theme.sub,transition:'all .2s'}}>
                 <IcoStar size={11} color={soloPreferiti?(theme.grey?'#0B0B0B':'#fff'):theme.sub} fill={soloPreferiti?(theme.grey?'#0B0B0B':'#fff'):'none'}/> PREFERITI
               </button>
-              <button onClick={()=>selectionMode?exitSelectionMode():setSelectionMode(true)} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:99,fontFamily:'Nebulica',fontSize:10.5,fontWeight:700,letterSpacing:0.6,cursor:'pointer',border:`1.4px solid ${selectionMode?theme.accent:rgba(theme.ink,0.22)}`,background:selectionMode?theme.accent:'transparent',color:selectionMode?'#fff':theme.sub,transition:'all .22s'}}>
+              <button onClick={()=>selectionMode?exitSelectionMode():setSelectionMode(true)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'5px 8px',borderRadius:99,fontFamily:'Nebulica',fontSize:10.5,fontWeight:700,letterSpacing:0.6,cursor:'pointer',border:`1.4px solid ${selectionMode?theme.accent:rgba(theme.ink,0.22)}`,background:selectionMode?theme.accent:'transparent',color:selectionMode?'#fff':theme.sub,transition:'all .22s'}}>
                 <IcoCheck size={11} color={selectionMode?'#fff':theme.sub}/> PROGETTO{selectionMode&&projectSet.size>0?` · ${projectSet.size}`:''}
               </button>
-              <select value={sortMode} onChange={e=>setSortMode(e.target.value)} style={{fontFamily:'Nebulica',fontSize:10.5,fontWeight:700,letterSpacing:0.4,padding:'3px 8px',borderRadius:99,cursor:'pointer',border:`1.4px solid ${rgba(theme.ink,0.22)}`,background:'transparent',color:theme.sub,appearance:'none',WebkitAppearance:'none',outline:'none'}}>
-                <option value="default">ORDINE FOGLIO</option>
-                <option value="hue">PER COLORE</option>
-                <option value="copertura_desc">PIÙ COPRENTE</option>
-                <option value="copertura_asc">MENO COPRENTE</option>
-                <option value="codice">CODICE A–Z</option>
-              </select>
+              <div style={{flex:1,position:'relative'}}>
+                <select value={sortMode} onChange={e=>setSortMode(e.target.value)} style={{width:'100%',fontFamily:'Nebulica',fontSize:10.5,fontWeight:700,letterSpacing:0.4,padding:'5px 22px 5px 12px',borderRadius:99,cursor:'pointer',border:`1.4px solid ${rgba(theme.ink,0.22)}`,background:'transparent',color:theme.sub,appearance:'none',WebkitAppearance:'none',outline:'none'}}>
+                  <option value="default">ORDINE FOGLIO</option>
+                  <option value="hue">PER COLORE</option>
+                  <option value="copertura_desc">PIÙ COPRENTE</option>
+                  <option value="copertura_asc">MENO COPRENTE</option>
+                  <option value="codice">CODICE A–Z</option>
+                </select>
+                <svg style={{position:'absolute',right:9,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}} width="9" height="6" viewBox="0 0 9 6"><path d="M1 1l3.5 3.5L8 1" stroke={theme.sub} strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
             </div>
+          </div>
           </div>
           <div ref={listRef} style={{flex:1,overflowY:'auto',padding:'12px 12px 22px 10px',marginTop:8,WebkitMaskImage:'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)',maskImage:'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)'}}>
             <div style={{position:'relative'}}>
