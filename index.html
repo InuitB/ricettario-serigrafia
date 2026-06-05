@@ -3137,83 +3137,44 @@ function KioskView({ rawCode }) {
       {/* Card formula (sale dal basso) */}
       <div style={{
         position:'absolute', left:0, right:0, bottom:0, top:'38%',
-        background:'#FEFCF8',
+        background:'#fff',
         borderRadius:'28px 28px 0 0',
         boxShadow:'0 -2px 36px rgba(0,0,0,0.13)',
         overflowY:'auto', WebkitOverflowScrolling:'touch',
-        padding:`24px 24px calc(env(safe-area-inset-bottom,16px) + 32px)`,
         transform: show ? 'translateY(0)' : 'translateY(100%)',
         transition:`transform 0.55s ${EASE_OPEN_SPRING} 0.05s`,
       }}>
-        {/* Pillole quantità */}
-        <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:7, marginBottom:24}}>
-          {QUANTITIES.map(q => (
-            <button key={q.grams} onClick={() => setQty(q.grams)} style={{
-              padding:'11px 0', borderRadius:99,
-              border:`1.5px solid ${qty===q.grams ? pantone.hex : 'rgba(11,11,11,0.14)'}`,
-              background: qty===q.grams ? pantone.hex : 'transparent',
-              color: qty===q.grams ? textOnDesk(pantone.hex) : '#0B0B0B',
-              fontFamily:'Nebulica', fontWeight:700, fontSize:12,
-              cursor:'pointer', outline:'none',
-              transition:'background 0.18s, border-color 0.18s, color 0.18s',
-              WebkitTapHighlightColor:'transparent',
-            }}>
-              {q.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Intestazione formula */}
-        <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:20}}>
-          <div style={{flex:1, height:1, background:'rgba(11,11,11,0.10)'}}/>
-          <span style={{fontSize:11, fontWeight:700, letterSpacing:'1.5px', color:'rgba(11,11,11,0.38)', textTransform:'uppercase'}}>
-            FORMULA · {recipe.inks.length} {recipe.inks.length===1?'INCHIOSTRO':'INCHIOSTRI'}
-          </span>
-          <div style={{flex:1, height:1, background:'rgba(11,11,11,0.10)'}}/>
-        </div>
-
-        {/* Righe inchiostro */}
-        <div style={{display:'flex', flexDirection:'column', gap:16}}>
-          {recipe.inks.map((ink, i) => {
-            const g = (ink.pct/100)*qty;
-            const gs = g < 10 ? g.toFixed(2) : g.toFixed(1);
-            return (
-              <div key={ink.name} style={{
-                opacity: show ? 1 : 0,
-                transform: show ? 'translateY(0)' : 'translateY(6px)',
-                transition:`opacity 0.4s ease ${0.3+i*0.08}s, transform 0.4s ease ${0.3+i*0.08}s`,
-              }}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6}}>
-                  <span style={{fontWeight:600, fontSize:15, color:'#0B0B0B'}}>{ink.name}</span>
-                  <span style={{fontWeight:700, fontSize:17, color:'#0B0B0B', fontVariantNumeric:'tabular-nums'}}>
-                    {gs} <span style={{fontSize:12, fontWeight:500, color:'rgba(11,11,11,0.38)'}}>g</span>
-                  </span>
-                </div>
-                <div style={{height:5, borderRadius:99, background:'rgba(11,11,11,0.07)', overflow:'hidden'}}>
-                  <div style={{
-                    height:'100%', borderRadius:99,
-                    background:pantone.hex, opacity:0.75,
-                    width:`${ink.pct}%`,
-                    transition:'width 0.35s ease',
-                  }}/>
-                </div>
+        <div style={{padding:`16px 18px calc(env(safe-area-inset-bottom,16px) + 24px)`}}>
+          <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.5)'}}>QUANTITÀ</div>
+          <div style={{marginTop:7,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
+            {[100,300,500,1000].map(q=>(
+              <div key={q} onClick={()=>setQty(q)} style={{padding:'9px 0',textAlign:'center',borderRadius:99,background:q===qty?'#0B0B0B':'#fff',color:q===qty?'#fff':'#0B0B0B',border:'1.5px solid #0B0B0B',fontFamily:'Nebulica',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                {q<1000?q+' g':'1 kg'}
               </div>
-            );
-          })}
-        </div>
-
-        {/* Totale */}
-        <div style={{
-          display:'flex', justifyContent:'space-between', alignItems:'center',
-          marginTop:22, paddingTop:18,
-          borderTop:'1.5px solid rgba(11,11,11,0.08)',
-        }}>
-          <span style={{fontSize:11, fontWeight:700, letterSpacing:'1.5px', color:'rgba(11,11,11,0.38)', textTransform:'uppercase'}}>
-            TOTALE
-          </span>
-          <span style={{fontWeight:700, fontSize:20, color:'#0B0B0B', fontVariantNumeric:'tabular-nums'}}>
-            {qty>=1000?'1 000':qty} <span style={{fontSize:13, fontWeight:500, color:'rgba(11,11,11,0.38)'}}>g</span>
-          </span>
+            ))}
+          </div>
+          <div style={{marginTop:16,display:'flex',justifyContent:'space-between',fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.5)'}}>
+            <span>FORMULA · {recipe.inks.length} INK</span><span>Σ {qty.toFixed(0)} g</span>
+          </div>
+          <div style={{marginTop:2}}>
+            {recipe.inks.map(ink=>{
+              const grams=(ink.pct/100)*qty;
+              return (
+                <div key={ink.name} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderTop:'1px solid rgba(0,0,0,0.08)'}}>
+                  <div style={{padding:'5px 11px',borderRadius:99,background:'#0B0B0B',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:11,whiteSpace:'nowrap',minWidth:56,textAlign:'center'}}>{ink.name}</div>
+                  <div style={{flex:1,height:4,borderRadius:99,background:'rgba(0,0,0,0.08)'}}>
+                    <div style={{height:'100%',width:`${ink.pct}%`,background:pantone.hex,borderRadius:99}}/>
+                  </div>
+                  <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:'#0B0B0B',minWidth:50,textAlign:'right'}}>
+                    {grams.toFixed(2)}<span style={{opacity:0.45,fontWeight:400,fontSize:10,marginLeft:2}}>g</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {recipe.project&&<div style={{marginTop:14,display:'flex',justifyContent:'space-between',fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.5)'}}>
+            <span>PROGETTO</span><span style={{color:'#0B0B0B'}}>→ {recipe.project}</span>
+          </div>}
         </div>
       </div>
     </div>
