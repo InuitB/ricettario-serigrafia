@@ -311,13 +311,13 @@ function pdfCovN(copertura) {
 // ── S1c QR · piccola 57×25mm ─────────────────────────────────────────────────
 function stampaSmall(doc, pantone, recipe, qty) {
   const W = 57, H = 25;
-  const pad = 2.0, qrSize = 19.5;
+  const pad = 2.5, qrSize = 19.5;
   const qrX = W - pad - qrSize, qrY = (H - qrSize) / 2;
   const url = `https://inuitb.github.io/ricettario-serigrafia/?pantone=${encodeURIComponent(pantone.code)}`;
   const qrData = makeQRMatrix(url);
 
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.3);
-  doc.roundedRect(0.6, 0.6, W-1.2, H-1.2, 2, 2, 'S');
+  doc.roundedRect(1.2, 1.2, W-2.4, H-2.4, 2, 2, 'S');
 
   drawQRCode(doc, qrData, qrX, qrY, qrSize);
 
@@ -343,7 +343,7 @@ function stampaSmall(doc, pantone, recipe, qty) {
 
 // ── L2 QR · grande 57×102mm ──────────────────────────────────────────────────
 function stampaLarge(doc, pantone, recipe, qty) {
-  const W = 57, H = 102, pad = 3;
+  const W = 57, H = 102, pad = 3.5;
   const nInks = recipe.inks.length;
   const qrH = 20, headerH = 27, gapAfterBox = 4;
   const formulaBoxY = headerH;
@@ -357,7 +357,7 @@ function stampaLarge(doc, pantone, recipe, qty) {
   const qrData = makeQRMatrix(url);
 
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.35);
-  doc.roundedRect(0.8, 0.8, W-1.6, H-1.6, 2, 2, 'S');
+  doc.roundedRect(1.5, 1.5, W-3.0, H-3.0, 2, 2, 'S');
 
   // Header
   doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(110,110,110);
@@ -415,15 +415,13 @@ function stampaLarge(doc, pantone, recipe, qty) {
   doc.text('PER APRIRE', txtX, txtY + 4.5);
   doc.text('LA FORMULA', txtX, txtY + 8.5);
   doc.text('PANTONE', txtX, txtY + 12.5);
-  doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(0,0,0);
-  doc.text(pantone.code, txtX, txtY + 16.5);
 }
 
 function stampaPDF(pantone, recipe, qty) {
   if (!window.jspdf) { alert('jsPDF non disponibile'); return; }
   const { jsPDF } = window.jspdf;
   const isLarge = qty >= 1000;
-  const doc = new jsPDF({ unit:'mm', format:[57, isLarge ? 102 : 25] });
+  const doc = new jsPDF({ unit:'mm', format:[57, isLarge ? 102 : 25], orientation: isLarge ? 'portrait' : 'landscape' });
   if (isLarge) stampaLarge(doc, pantone, recipe, qty);
   else stampaSmall(doc, pantone, recipe, qty);
   doc.save(`etichetta_${pantone.code.replace(/ /g,'_')}.pdf`);
