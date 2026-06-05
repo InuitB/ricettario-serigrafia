@@ -78,12 +78,20 @@ async function loadInventario() {
   } catch(e) { /* Apps Script non ancora aggiornato — OK, allInventario rimane [] */ }
 }
 
-async function postInventario(payload) {
-  await fetch(SCRIPT_URL, {
-    method:'POST', mode:'no-cors',
+async function postGAS(payload) {
+  const resp = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain'},
     body: JSON.stringify(payload),
-    headers:{'Content-Type':'text/plain'},
   });
+  let d;
+  try { d = await resp.json(); } catch(_) { return {ok:true}; }
+  if (d && d.error) throw new Error(d.error);
+  return d;
+}
+
+async function postInventario(payload) {
+  await postGAS(payload);
   await new Promise(r=>setTimeout(r,2200));
   await loadInventario();
   window._bumpData?.();
@@ -812,9 +820,8 @@ function NuovaSheet({open, onClose, theme}) {
     if(Math.abs(totale-40)>0.15){ setMsg(`⚠ Totale ${totale.toFixed(1)} g (atteso 40 g) — salva lo stesso?`); if(!msg.includes('salva lo stesso')) return; }
     setSaving(true); setMsg('');
     try{
-      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'addRicetta',Pantone_ID:pid.trim(),HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,
-          componenti:validInks.map(r=>({Inchiostro:r.ink,'Dose_40g (g)':r.dose}))})});
+      await postGAS({action:'addRicetta',Pantone_ID:pid.trim(),HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,
+          componenti:validInks.map(r=>({Inchiostro:r.ink,'Dose_40g (g)':r.dose}))});
       setMsg('Ricetta salvata!');
       const newId=pid.trim();
       allRicette.push({Pantone_ID:newId,HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:''});
@@ -951,7 +958,7 @@ function EditSheet({open, editCode, onClose, theme}) {
       const validInks = inks.filter(r=>r.name.trim()&&(parseFloat(r.g)||0)>0);
       const payload = {action:'editRicetta',Pantone_ID:editCode,HEX:hexVal,Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:proj,componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))};
       if(newId!==editCode) payload.Pantone_ID_nuovo=newId;
-      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+      await postGAS(payload);
       // Ottimistico
       const rIdx = allRicette.findIndex(x=>x.Pantone_ID===editCode);
       if(rIdx>=0) allRicette[rIdx]={...allRicette[rIdx],Pantone_ID:newId,HEX:hexVal,Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:proj};
@@ -1946,8 +1953,7 @@ function NuovaDesktop({open,onClose,theme}){
     if(validInks.length===0){setMsg('Aggiungi almeno un inchiostro con la dose.');return;}
     setSaving(true);setMsg('');
     try{
-      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'addRicetta',Pantone_ID:pantoneId.trim(),HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))})});
+      await postGAS({action:'addRicetta',Pantone_ID:pantoneId.trim(),HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))});
       setMsg('Ricetta salvata!');
       const newId=pantoneId.trim();
       allRicette.push({Pantone_ID:newId,HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', ')});

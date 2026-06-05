@@ -374,7 +374,9 @@ function ensureMovimentiSheet() {
 }
 
 function getInventario() {
-  const sh = ensureMagazzinoSheet();
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sh = ss.getSheetByName('Magazzino');
+  if (!sh) return { ok: true, inventario: [] };
   const data = sh.getDataRange().getValues();
   const headers = data[0];
   const rows = data.slice(1).map(r => {
