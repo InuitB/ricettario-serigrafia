@@ -3097,78 +3097,58 @@ function KioskView({ rawCode }) {
 
   if (!pantone) {
     return (
-      <div style={{
-        position:'fixed', inset:0, background:'#F4EFE2', display:'flex',
-        flexDirection:'column', alignItems:'center', justifyContent:'center',
-        fontFamily:'Nebulica,system-ui,sans-serif', padding:32, gap:10, textAlign:'center',
-      }}>
-        <div style={{fontWeight:700, fontSize:18, color:'#0B0B0B'}}>Colore non trovato</div>
-        <div style={{fontSize:14, color:'rgba(11,11,11,0.5)'}}>Il codice <b>{code}</b> non è presente nell'archivio.</div>
+      <div style={{position:'fixed',inset:0,background:'#F4EFE2',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:'Nebulica,system-ui,sans-serif',padding:32,gap:10,textAlign:'center'}}>
+        <div style={{fontWeight:700,fontSize:18,color:'#0B0B0B'}}>Colore non trovato</div>
+        <div style={{fontSize:14,color:'rgba(11,11,11,0.5)'}}>Il codice <b>{code}</b> non è presente nell'archivio.</div>
       </div>
     );
   }
 
-  const fg    = textOnDesk(pantone.hex);
-  const fgSub = fg === '#fff' ? 'rgba(255,255,255,0.65)' : 'rgba(11,11,11,0.48)';
-  const blobColor = fg === '#fff' ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.16)';
+  const fg = textOnDesk(pantone.hex);
+  const fgSub = fg === '#fff' ? 'rgba(255,255,255,0.7)' : 'rgba(11,11,11,0.5)';
 
   return (
     <div style={{
-      position:'fixed', inset:0, overflow:'hidden',
-      background: pantone.hex,
+      position:'fixed', inset:0, overflowY:'auto', WebkitOverflowScrolling:'touch',
+      background:'#F4EFE2',
       fontFamily:'Nebulica,system-ui,sans-serif',
+      display:'flex', alignItems:'flex-start', justifyContent:'center',
+      padding:`calc(env(safe-area-inset-top,44px) + 28px) 20px calc(env(safe-area-inset-bottom,16px) + 28px)`,
+      boxSizing:'border-box',
     }}>
-      {/* Blobs per profondità */}
-      {[
-        {top:'-18%', left:'25%',  size:'75vw', delay:0  },
-        {top:'60%',  left:'78%',  size:'60vw', delay:120},
-        {top:'40%',  left:'-12%', size:'55vw', delay:60 },
-      ].map((b,i) => (
-        <div key={i} style={{
-          position:'absolute', top:b.top, left:b.left,
-          width:b.size, height:b.size, borderRadius:'50%',
-          background:blobColor, filter:'blur(72px)',
-          opacity: show ? 1 : 0,
-          transition:`opacity 1s ease ${b.delay}ms`,
-          pointerEvents:'none', transform:'translate(-50%,-50%)',
-        }}/>
-      ))}
-
-      {/* Codice + nome (area colore in alto) */}
+      {/* Unica card unificata */}
       <div style={{
-        position:'absolute',
-        top:'calc(env(safe-area-inset-top,44px) + 40px)',
-        left:28,
+        width:'100%', maxWidth:440,
+        borderRadius:22,
+        overflow:'hidden',
+        boxShadow:'0 12px 48px rgba(0,0,0,0.18)',
         opacity: show ? 1 : 0,
-        transform: show ? 'translateY(0)' : 'translateY(-10px)',
-        transition:'opacity 0.5s ease 0.18s, transform 0.5s ease 0.18s',
+        transform: show ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.97)',
+        transition:`opacity 0.45s ease 0.06s, transform 0.55s ${EASE_OPEN_SPRING} 0.06s`,
       }}>
-        <div style={{fontWeight:700, fontSize:44, color:fg, lineHeight:1, letterSpacing:'-1px', marginBottom:8}}>
-          {pantone.code}
+        {/* Intestazione colorata */}
+        <div style={{background:pantone.hex, padding:'22px 22px 20px', position:'relative'}}>
+          <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12}}>
+            <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:60,lineHeight:0.85,letterSpacing:-2.2,color:fg}}>
+              {pantone.code.replace(' U','').replace('Black','BLACK')}
+              {pantone.code.includes(' U')&&<span style={{fontFamily:'Nebulica',fontWeight:400,opacity:0.6,marginLeft:-3}}> U</span>}
+            </div>
+            <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:600,color:fg,opacity:0.75,display:'inline-flex',alignItems:'center',gap:5,whiteSpace:'nowrap',paddingTop:6}}>
+              <span style={{width:5,height:5,borderRadius:99,background:fg,opacity:0.5}}/>{pantone.ink} ink
+            </span>
+          </div>
+          <div style={{marginTop:14,display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+            <span style={{fontFamily:'Nebulica',fontSize:15,fontWeight:500,color:fg,opacity:0.88}}>{pantone.name.replace('*','')}</span>
+            {pantone.page&&<span style={{fontFamily:'"JetBrains Mono",monospace',fontSize:10,color:fg,opacity:0.55,letterSpacing:0.6}}>PAG.{pantone.page}</span>}
+          </div>
         </div>
-        <div style={{fontSize:13, color:fgSub, letterSpacing:'1.5px', textTransform:'uppercase', fontWeight:500}}>
-          {pantone.name.replace('*','')}
-        </div>
-      </div>
 
-      {/* Card formula (sale dal basso) */}
-      <div style={{
-        position:'absolute', left:12, right:12,
-        bottom:'calc(env(safe-area-inset-bottom,16px) + 8px)', top:'36%',
-        background:'#fff',
-        borderRadius:20,
-        outline:'1.5px solid #0B0B0B',
-        boxShadow:'0 8px 32px rgba(0,0,0,0.18)',
-        overflowY:'auto', WebkitOverflowScrolling:'touch',
-        transform: show ? 'translateY(0)' : 'translateY(120%)',
-        transition:`transform 0.55s ${EASE_OPEN_SPRING} 0.05s`,
-      }}>
-        <div style={{width:36,height:4,borderRadius:99,background:'rgba(0,0,0,0.14)',margin:'10px auto 0'}}/>
-        <div style={{padding:`10px 18px 24px`}}>
+        {/* Corpo formula (bianco) */}
+        <div style={{background:'#fff',padding:'16px 18px 22px'}}>
           <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.5)'}}>QUANTITÀ</div>
           <div style={{marginTop:7,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
             {[100,300,500,1000].map(q=>(
-              <div key={q} onClick={()=>setQty(q)} style={{padding:'9px 0',textAlign:'center',borderRadius:99,background:q===qty?'#0B0B0B':'#fff',color:q===qty?'#fff':'#0B0B0B',border:'1.5px solid #0B0B0B',fontFamily:'Nebulica',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+              <div key={q} onClick={()=>setQty(q)} style={{padding:'9px 0',textAlign:'center',borderRadius:99,background:q===qty?'#0B0B0B':'#fff',color:q===qty?'#fff':'#0B0B0B',border:'1.5px solid #0B0B0B',fontFamily:'Nebulica',fontWeight:700,fontSize:12,cursor:'pointer',WebkitTapHighlightColor:'transparent'}}>
                 {q<1000?q+' g':'1 kg'}
               </div>
             ))}
@@ -3192,9 +3172,6 @@ function KioskView({ rawCode }) {
               );
             })}
           </div>
-          {recipe.project&&<div style={{marginTop:14,display:'flex',justifyContent:'space-between',fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.5)'}}>
-            <span>PROGETTO</span><span style={{color:'#0B0B0B'}}>→ {recipe.project}</span>
-          </div>}
         </div>
       </div>
     </div>
