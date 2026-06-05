@@ -805,6 +805,7 @@ function NuovaSheet({open, onClose, theme}) {
 
   const submit = async ()=>{
     if(!pid.trim()||!hex.trim()||!cat){ setMsg('Compila Pantone ID, HEX e Categoria.'); return; }
+    if(allRicette.some(r=>r.Pantone_ID===pid.trim())){ setMsg(`⚠ "${pid.trim()}" esiste già — modifica la ricetta esistente o usa un codice diverso.`); return; }
     const validInks = inks.filter(r=>r.ink.trim()&&r.dose.trim());
     if(validInks.length===0){ setMsg('Aggiungi almeno un inchiostro con la dose.'); return; }
     const totale = validInks.reduce((s,r)=>s+parseFloat(String(r.dose).replace(',','.'))||0, 0);
@@ -1940,6 +1941,7 @@ function NuovaDesktop({open,onClose,theme}){
   const submit=async()=>{
     const eff=nfEffHex(state);
     if(!pantoneId.trim()||!eff||!cat){setMsg('Compila Pantone ID, Colore e Categoria.');return;}
+    if(allRicette.some(r=>r.Pantone_ID===pantoneId.trim())){setMsg(`⚠ "${pantoneId.trim()}" esiste già — modifica la ricetta esistente o usa un codice diverso.`);return;}
     const validInks=inks.filter(r=>r.name&&(parseFloat(r.g)||0)>0);
     if(validInks.length===0){setMsg('Aggiungi almeno un inchiostro con la dose.');return;}
     setSaving(true);setMsg('');
