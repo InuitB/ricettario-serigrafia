@@ -311,14 +311,11 @@ function pdfCovN(copertura) {
 // ── S1c QR · piccola 57×25mm ─────────────────────────────────────────────────
 function stampaSmall(doc, pantone, recipe, qty) {
   const W = 57, H = 25;
-  const pad = 2.5, qrSize = 19.5;
+  const pad = 2.0, qrSize = 20;
   const qrX = W - pad - qrSize, qrY = (H - qrSize) / 2;
   const url = `https://inuitb.github.io/ricettario-serigrafia/?pantone=${encodeURIComponent(pantone.code)}`;
   const qrData = makeQRMatrix(url);
   const codeNum = pantone.code.replace(/\s+[A-Z]$/, '');
-
-  doc.setDrawColor(0,0,0); doc.setLineWidth(0.3);
-  doc.roundedRect(1.2, 1.2, W-2.4, H-2.4, 2, 2, 'S');
 
   drawQRCode(doc, qrData, qrX, qrY, qrSize);
 
@@ -332,7 +329,7 @@ function stampaSmall(doc, pantone, recipe, qty) {
 
   // coverage dots — row below code
   const cvg = pdfCovN(pantone.copertura);
-  pdfDots(doc, cvg, 3, pad + 0.6, 14.0, 0.9, 2.3);
+  pdfDots(doc, cvg, 3, pad + 0.4, 14.0, 0.9, 2.3);
 
   // page — row below dots
   if (pantone.page) {
@@ -347,65 +344,62 @@ function stampaSmall(doc, pantone, recipe, qty) {
 
 // ── L2 QR · grande 57×102mm ──────────────────────────────────────────────────
 function stampaLarge(doc, pantone, recipe, qty) {
-  const W = 57, H = 102, pad = 3.5;
+  const W = 57, H = 102, pad = 2.0;
   const nInks = recipe.inks.length;
-  const qrH = 20, headerH = 29, gapAfterBox = 4;
+  const qrH = 22, headerH = 32, gapAfterBox = 5;
   const formulaBoxY = headerH;
   const formulaMaxBottom = H - pad - qrH - gapAfterBox;
-  const rowH = Math.min(11, (formulaMaxBottom - formulaBoxY - 8) / nInks);
-  const boxH = 8 + nInks * rowH;
+  const rowH = Math.min(12, (formulaMaxBottom - formulaBoxY - 9) / nInks);
+  const boxH = 9 + nInks * rowH;
   const boxW = W - 2 * pad;
   const qrSectionY = formulaBoxY + boxH + gapAfterBox;
-  const qrSize = Math.min(16, H - pad - 1 - qrSectionY - 2);
+  const qrSize = Math.min(19, H - pad - 1 - qrSectionY - 1);
   const url = `https://inuitb.github.io/ricettario-serigrafia/?pantone=${encodeURIComponent(pantone.code)}`;
   const qrData = makeQRMatrix(url);
 
-  doc.setDrawColor(0,0,0); doc.setLineWidth(0.35);
-  doc.roundedRect(1.5, 1.5, W-3.0, H-3.0, 2, 2, 'S');
-
   // Header
-  doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(110,110,110);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(110,110,110);
   doc.text(((pantone.family||'pantone')).toUpperCase() + ' · PANTONE', pad, 5.5);
 
-  // Dots: right-aligned with formula box edge, at same row as family label
+  // Dots: right-aligned with formula box edge, same row as family label
   const cvg = pdfCovN(pantone.copertura);
-  pdfDots(doc, cvg, 3, W - pad - 2*2.8 - 1.1, 4.5, 1.1, 2.8);
+  pdfDots(doc, cvg, 3, W - pad - 2*3.0 - 1.2, 4.5, 1.2, 3.0);
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(30); doc.setTextColor(0,0,0);
-  doc.text(pantone.code, pad, 16.0);
+  doc.setFont('helvetica','bold'); doc.setFontSize(36); doc.setTextColor(0,0,0);
+  doc.text(pantone.code, pad, 17.5);
 
   // PAG. between code and name
   if (pantone.page) {
-    doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(110,110,110);
-    doc.text(`PAG.${pantone.page}`, pad, 19.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(110,110,110);
+    doc.text(`PAG.${pantone.page}`, pad, 21.5);
   }
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
-  doc.text((pantone.name||'').replace('*',''), pad, 23.0);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(0,0,0);
+  doc.text((pantone.name||'').replace('*',''), pad, 27.0);
 
   // Formula box
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.35);
   doc.roundedRect(pad, formulaBoxY, boxW, boxH, 1.5, 1.5, 'S');
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(0,0,0);
-  doc.text(`FORMULA · ${nInks} INK`, pad + 3, formulaBoxY + 5.2);
-  doc.text(`${qty} g`, W - pad - 3, formulaBoxY + 5.2, { align:'right' });
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+  doc.text(`FORMULA · ${nInks} INK`, pad + 3, formulaBoxY + 6);
+  doc.text(`${qty} g`, W - pad - 3, formulaBoxY + 6, { align:'right' });
 
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.35);
-  doc.line(pad, formulaBoxY + 8, pad + boxW, formulaBoxY + 8);
+  doc.line(pad, formulaBoxY + 9, pad + boxW, formulaBoxY + 9);
 
-  const nameSz = Math.max(7, 9.5 - nInks * 0.3);
-  const gramSz = Math.max(7.5, 10.5 - nInks * 0.3);
+  const nameSz = Math.max(8, 11 - nInks * 0.3);
+  const gramSz = Math.max(9, 12.5 - nInks * 0.3);
   recipe.inks.forEach((ink, i) => {
-    const rowY = formulaBoxY + 8 + i * rowH;
+    const rowY = formulaBoxY + 9 + i * rowH;
     const textY = rowY + rowH * 0.66;
     const g = ink.pct / 100 * qty;
     const gs = g < 10 ? g.toFixed(2) : g.toFixed(1);
     if (i > 0) { doc.setDrawColor(190,190,190); doc.setLineWidth(0.15); doc.line(pad+2, rowY, pad+boxW-2, rowY); }
     doc.setFont('helvetica','bold'); doc.setFontSize(nameSz); doc.setTextColor(0,0,0);
     doc.text(ink.name, pad + 3, textY);
-    doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(130,130,130);
-    doc.text(ink.pct.toFixed(1) + '%', W - pad - 21, textY, { align:'right' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(130,130,130);
+    doc.text(ink.pct.toFixed(1) + '%', W - pad - 22, textY, { align:'right' });
     doc.setFont('helvetica','bold'); doc.setFontSize(gramSz); doc.setTextColor(0,0,0);
     doc.text(gs + ' g', W - pad - 3, textY, { align:'right' });
   });
