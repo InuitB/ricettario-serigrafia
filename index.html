@@ -2015,41 +2015,64 @@ function NuovaDesktop({open,onClose,theme}){
 /* ═══════════════════ CARICA SHEET ═══════════════════ */
 function CaricaSheet({open, inkCode, onClose, theme, tare}) {
   const [selCode, setSelCode] = React.useState('');
-  const [jars, setJars] = React.useState([{lordo:''}]);
+  const [modo, setModo] = React.useState('pieni'); // 'pieni' | 'pesati'
+  // Pieni
+  const [nBarattoli, setNBarattoli] = React.useState(1);
+  const [gPerBarattolo, setGPerBarattolo] = React.useState('1000');
+  // Pesati
+  const [jars, setJars] = React.useState(['']);
   const [note, setNote] = React.useState('');
   const [saving, setSaving] = React.useState(false);
-  React.useEffect(()=>{if(open){setSelCode(inkCode||'');setJars([{lordo:''}]);setNote('');setSaving(false);}},[open,inkCode]);
-  const netti = jars.map(j=>{const l=parseFloat(j.lordo)||0;return l>0?Math.max(0,l-tare):0;});
-  const totale = netti.reduce((s,n)=>s+n,0);
-  const inkInfo = allInchiostri.find(i=>i.Codice===(inkCode||selCode));
-  const addJar = ()=>setJars(p=>[...p,{lordo:''}]);
-  const removeJar = i=>setJars(p=>p.filter((_,idx)=>idx!==i));
-  const setLordo = (i,v)=>setJars(p=>p.map((j,idx)=>idx===i?{...j,lordo:v}:j));
+
+  React.useEffect(()=>{
+    if(open){ setSelCode(inkCode||''); setModo('pieni'); setNBarattoli(1); setGPerBarattolo('1000'); setJars(['']); setNote(''); setSaving(false); }
+  },[open,inkCode]);
+
   const code = inkCode||selCode;
+  const inkInfo = allInchiostri.find(i=>i.Codice===code);
+
+  const totalePieni = nBarattoli * (parseFloat(gPerBarattolo)||0);
+  const netti = jars.map(v=>{ const l=parseFloat(v)||0; return l>0?Math.max(0,l-tare):0; });
+  const totalePesati = netti.reduce((s,n)=>s+n,0);
+  const totale = modo==='pieni' ? totalePieni : totalePesati;
+
+  const addJar = ()=>setJars(p=>[...p,'']);
+  const removeJar = i=>setJars(p=>p.filter((_,idx)=>idx!==i));
+  const setJarVal = (i,v)=>setJars(p=>p.map((x,idx)=>idx===i?v:x));
+
   const save = async()=>{
     if(!code||totale<=0) return;
     setSaving(true);
-    await postInventario({action:'aggiungiCarico',inchiostro:code,grammi:totale,note});
+    await postInventario({action:'aggiungiCarico', carichi:[{inchiostro:code,grammi:totale}], note});
     setSaving(false);
     onClose();
   };
+
   const iStyle={width:'100%',fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:theme.ink,background:'transparent',border:`1.4px solid ${rgba(theme.ink,0.22)}`,borderRadius:12,padding:'10px 14px',outline:'none',boxSizing:'border-box'};
+  const segBtn=(k,l)=>(<button key={k} onClick={()=>setModo(k)} style={{flex:1,padding:'9px 0',borderRadius:10,fontFamily:'Nebulica',fontWeight:700,fontSize:13,cursor:'pointer',border:'none',background:modo===k?theme.ink:'transparent',color:modo===k?'#fff':theme.sub,transition:'background .18s,color .18s'}}>{l}</button>);
+
   return (
     <>
       {open&&<div onClick={onClose} style={{position:'fixed',inset:0,zIndex:820,background:rgba('#000',0.28),backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)'}}/>}
       <div style={{position:'fixed',bottom:0,left:'50%',transform:`translateX(-50%) translateY(${open?0:100}%)`,width:520,maxHeight:'82vh',overflowY:'auto',zIndex:830,...surface(theme),borderRadius:'28px 28px 0 0',padding:'28px 28px 48px',boxShadow:`0 -24px 70px ${rgba('#000',0.18)}`,transition:`transform .38s ${SPRING_SOFT}`,borderTop:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`}}>
+        {/* Header */}
         <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
-          <div style={{flex:1}}>
-            <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:20,color:theme.ink,letterSpacing:-0.4}}>+ Carico magazzino</div>
-            <div style={{fontFamily:'Nebulica',fontSize:12,color:theme.sub,marginTop:2}}>Tara barattolo: {tare}g</div>
-          </div>
+          <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:20,color:theme.ink,letterSpacing:-0.4,flex:1}}>+ Carico magazzino</div>
           <button onClick={onClose} style={{width:36,height:36,borderRadius:99,border:`1.4px solid ${rgba(theme.ink,0.2)}`,background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><IcoClose size={15} color={theme.ink}/></button>
         </div>
+
+        {/* Segmented: Pieni / Pesati */}
+        <div style={{display:'flex',gap:4,padding:4,borderRadius:14,background:rgba(theme.ink,0.07),marginBottom:20}}>
+          {segBtn('pieni','📦  Barattoli pieni')}
+          {segBtn('pesati','⚖️  Barattoli pesati')}
+        </div>
+
+        {/* Inchiostro */}
         <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,marginBottom:8}}>INCHIOSTRO</div>
         {inkCode ? (
-          <div style={{...iStyle,display:'flex',alignItems:'center',gap:10,border:`1.4px solid ${theme.ink}`,marginBottom:20}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,border:`1.4px solid ${theme.ink}`,borderRadius:12,padding:'10px 14px',marginBottom:20}}>
             <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:13,background:theme.ink,color:'#fff',padding:'4px 12px',borderRadius:99,flexShrink:0}}>{inkCode}</span>
-            <span style={{color:theme.sub,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{inkInfo?.Nome_completo||''}</span>
+            <span style={{fontFamily:'Nebulica',color:theme.sub,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{inkInfo?.Nome_completo||''}</span>
           </div>
         ) : (
           <div style={{position:'relative',marginBottom:20}}>
@@ -2060,28 +2083,56 @@ function CaricaSheet({open, inkCode, onClose, theme, tare}) {
             <svg style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}} width="10" height="7" viewBox="0 0 10 7"><path d="M1 1l4 4 4-4" stroke={theme.sub} strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
         )}
-        <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,marginBottom:10}}>BARATTOLI</div>
-        {jars.map((jar,i)=>{
-          const lordo=parseFloat(jar.lordo)||0;
-          const netto=lordo>0?Math.max(0,lordo-tare):0;
-          return (
-            <div key={i} style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-              <div style={{flex:1,position:'relative'}}>
-                <input type="number" inputMode="decimal" placeholder={`Peso lordo barattolo ${i+1} (g)`} value={jar.lordo} onChange={e=>setLordo(i,e.target.value)} style={{...iStyle,paddingRight:lordo>0?'100px':'14px'}}/>
-                {lordo>0&&<span style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',fontFamily:'Nebulica',fontWeight:700,fontSize:13,color:theme.accent,whiteSpace:'nowrap'}}>→ {netto.toFixed(1)}g</span>}
+
+        {/* Modalità PIENI */}
+        {modo==='pieni' && (<>
+          <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,marginBottom:10}}>QUANTITÀ</div>
+          <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:12}}>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:'Nebulica',fontSize:12,color:theme.sub,marginBottom:5}}>Numero barattoli</div>
+              <div style={{display:'flex',alignItems:'center',gap:0,border:`1.4px solid ${rgba(theme.ink,0.22)}`,borderRadius:12,overflow:'hidden'}}>
+                <button onClick={()=>setNBarattoli(n=>Math.max(1,n-1))} style={{width:44,height:44,border:'none',background:'transparent',cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:20,color:theme.ink,flexShrink:0}}>−</button>
+                <span style={{flex:1,textAlign:'center',fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:theme.ink}}>{nBarattoli}</span>
+                <button onClick={()=>setNBarattoli(n=>n+1)} style={{width:44,height:44,border:'none',background:'transparent',cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:20,color:theme.ink,flexShrink:0}}>+</button>
               </div>
-              {jars.length>1&&<button onClick={()=>removeJar(i)} style={{width:34,height:34,borderRadius:99,border:`1.4px solid ${rgba(theme.ink,0.2)}`,background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><IcoClose size={13} color={theme.sub}/></button>}
             </div>
-          );
-        })}
-        <button onClick={addJar} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'6px 16px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:12,cursor:'pointer',border:`1.4px solid ${rgba(theme.ink,0.22)}`,background:'transparent',color:theme.sub,marginBottom:16}}>
-          <IcoPlus size={14} color={theme.sub}/> Aggiungi barattolo
-        </button>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:'Nebulica',fontSize:12,color:theme.sub,marginBottom:5}}>Grammi netti per barattolo</div>
+              <input type="number" inputMode="decimal" value={gPerBarattolo} onChange={e=>setGPerBarattolo(e.target.value)} style={{...iStyle,textAlign:'center'}} placeholder="es. 1000"/>
+            </div>
+          </div>
+          {totalePieni>0&&<div style={{fontFamily:'Nebulica',fontSize:12,color:theme.sub,marginBottom:16}}>{nBarattoli} × {parseFloat(gPerBarattolo)||0}g = <strong style={{color:theme.ink}}>{totalePieni.toFixed(0)}g totali</strong></div>}
+        </>)}
+
+        {/* Modalità PESATI */}
+        {modo==='pesati' && (<>
+          <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,marginBottom:6}}>PESO LORDO BARATTOLI</div>
+          <div style={{fontFamily:'Nebulica',fontSize:12,color:theme.faint,marginBottom:10}}>Tara sottratta automaticamente: {tare}g</div>
+          {jars.map((val,i)=>{
+            const l=parseFloat(val)||0;
+            const netto=l>0?Math.max(0,l-tare):0;
+            return (
+              <div key={i} style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                <div style={{flex:1,position:'relative'}}>
+                  <input type="number" inputMode="decimal" placeholder={`Barattolo ${i+1} — peso lordo (g)`} value={val} onChange={e=>setJarVal(i,e.target.value)} style={{...iStyle,paddingRight:l>0?'90px':'14px'}}/>
+                  {l>0&&<span style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',fontFamily:'Nebulica',fontWeight:700,fontSize:13,color:theme.accent,whiteSpace:'nowrap'}}>→ {netto.toFixed(0)}g</span>}
+                </div>
+                {jars.length>1&&<button onClick={()=>removeJar(i)} style={{width:34,height:34,borderRadius:99,border:`1.4px solid ${rgba(theme.ink,0.2)}`,background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><IcoClose size={13} color={theme.sub}/></button>}
+              </div>
+            );
+          })}
+          <button onClick={addJar} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'6px 16px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:12,cursor:'pointer',border:`1.4px solid ${rgba(theme.ink,0.22)}`,background:'transparent',color:theme.sub,marginBottom:16}}>
+            <IcoPlus size={14} color={theme.sub}/> Aggiungi barattolo
+          </button>
+        </>)}
+
+        {/* Totale */}
         {totale>0&&<div style={{padding:'12px 16px',borderRadius:16,background:rgba(theme.accent,0.08),border:`1px solid ${rgba(theme.accent,0.2)}`,marginBottom:16}}>
-          <span style={{fontFamily:'Nebulica',fontSize:14,color:theme.ink}}>Totale netto: </span>
-          <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:22,color:theme.accent,letterSpacing:-0.5}}>{totale.toFixed(1)}</span>
+          <span style={{fontFamily:'Nebulica',fontSize:14,color:theme.ink}}>Totale da aggiungere: </span>
+          <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:22,color:theme.accent,letterSpacing:-0.5}}>{totale.toFixed(0)}</span>
           <span style={{fontFamily:'Nebulica',fontSize:13,color:theme.sub,marginLeft:4}}>g di {code||'?'}</span>
         </div>}
+
         <input placeholder="Note (opzionale)" value={note} onChange={e=>setNote(e.target.value)} style={{...iStyle,fontWeight:400,marginBottom:16}}/>
         <button onClick={save} disabled={!code||totale<=0||saving} style={{width:'100%',height:52,borderRadius:99,background:(!code||totale<=0||saving)?rgba(theme.ink,0.18):theme.ink,color:(!code||totale<=0||saving)?theme.faint:'#fff',border:'none',cursor:(!code||totale<=0||saving)?'default':'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:15,transition:'background .2s,color .2s'}}>
           {saving?'Salvataggio in corso…':`Aggiungi ${totale>0?totale.toFixed(0)+'g':''}${code?' di '+code:' al magazzino'}`}
