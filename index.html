@@ -2946,10 +2946,166 @@ function ErrorScreen({onRetry}) {
   );
 }
 
+function KioskView({ rawCode }) {
+  const code = decodeURIComponent(rawCode.replace(/\+/g,' ')).trim();
+  const [show, setShow] = React.useState(false);
+  const [qty, setQty] = React.useState(100);
+
+  const pantone = DESK_PANTONES.find(p => p.code === code);
+  const recipe  = React.useMemo(() => pantone ? makeRecipe(pantone) : null, [code]);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setShow(true), 80);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!pantone) {
+    return (
+      <div style={{
+        position:'fixed', inset:0, background:'#F4EFE2', display:'flex',
+        flexDirection:'column', alignItems:'center', justifyContent:'center',
+        fontFamily:'Nebulica,system-ui,sans-serif', padding:32, gap:10, textAlign:'center',
+      }}>
+        <div style={{fontWeight:700, fontSize:18, color:'#0B0B0B'}}>Colore non trovato</div>
+        <div style={{fontSize:14, color:'rgba(11,11,11,0.5)'}}>Il codice <b>{code}</b> non è presente nell'archivio.</div>
+      </div>
+    );
+  }
+
+  const fg    = textOnDesk(pantone.hex);
+  const fgSub = fg === '#fff' ? 'rgba(255,255,255,0.6)' : 'rgba(11,11,11,0.48)';
+  const blobColor = fg === '#fff' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)';
+
+  return (
+    <div style={{
+      position:'fixed', inset:0, overflow:'hidden',
+      background: pantone.hex,
+      fontFamily:'Nebulica,system-ui,sans-serif',
+    }}>
+      {/* Blobs per profondità */}
+      {[
+        {top:'-18%', left:'25%',  size:'75vw', delay:0  },
+        {top:'60%',  left:'78%',  size:'60vw', delay:120},
+        {top:'40%',  left:'-12%', size:'55vw', delay:60 },
+      ].map((b,i) => (
+        <div key={i} style={{
+          position:'absolute', top:b.top, left:b.left,
+          width:b.size, height:b.size, borderRadius:'50%',
+          background:blobColor, filter:'blur(72px)',
+          opacity: show ? 1 : 0,
+          transition:`opacity 1s ease ${b.delay}ms`,
+          pointerEvents:'none', transform:'translate(-50%,-50%)',
+        }}/>
+      ))}
+
+      {/* Codice + nome (area colore in alto) */}
+      <div style={{
+        position:'absolute',
+        top:'calc(env(safe-area-inset-top,44px) + 40px)',
+        left:28,
+        opacity: show ? 1 : 0,
+        transform: show ? 'translateY(0)' : 'translateY(-10px)',
+        transition:'opacity 0.5s ease 0.18s, transform 0.5s ease 0.18s',
+      }}>
+        <div style={{fontWeight:700, fontSize:44, color:fg, lineHeight:1, letterSpacing:'-1px', marginBottom:8}}>
+          {pantone.code}
+        </div>
+        <div style={{fontSize:13, color:fgSub, letterSpacing:'1.5px', textTransform:'uppercase', fontWeight:500}}>
+          {pantone.name.replace('*','')}
+        </div>
+      </div>
+
+      {/* Card formula (sale dal basso) */}
+      <div style={{
+        position:'absolute', left:0, right:0, bottom:0, top:'38%',
+        background:'#FEFCF8',
+        borderRadius:'28px 28px 0 0',
+        boxShadow:'0 -2px 36px rgba(0,0,0,0.13)',
+        overflowY:'auto', WebkitOverflowScrolling:'touch',
+        padding:`24px 24px calc(env(safe-area-inset-bottom,16px) + 32px)`,
+        transform: show ? 'translateY(0)' : 'translateY(100%)',
+        transition:`transform 0.55s ${EASE_OPEN_SPRING} 0.05s`,
+      }}>
+        {/* Pillole quantità */}
+        <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:7, marginBottom:24}}>
+          {QUANTITIES.map(q => (
+            <button key={q.grams} onClick={() => setQty(q.grams)} style={{
+              padding:'11px 0', borderRadius:99,
+              border:`1.5px solid ${qty===q.grams ? pantone.hex : 'rgba(11,11,11,0.14)'}`,
+              background: qty===q.grams ? pantone.hex : 'transparent',
+              color: qty===q.grams ? textOnDesk(pantone.hex) : '#0B0B0B',
+              fontFamily:'Nebulica', fontWeight:700, fontSize:12,
+              cursor:'pointer', outline:'none',
+              transition:'background 0.18s, border-color 0.18s, color 0.18s',
+              WebkitTapHighlightColor:'transparent',
+            }}>
+              {q.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Intestazione formula */}
+        <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:20}}>
+          <div style={{flex:1, height:1, background:'rgba(11,11,11,0.10)'}}/>
+          <span style={{fontSize:11, fontWeight:700, letterSpacing:'1.5px', color:'rgba(11,11,11,0.38)', textTransform:'uppercase'}}>
+            FORMULA · {recipe.inks.length} {recipe.inks.length===1?'INCHIOSTRO':'INCHIOSTRI'}
+          </span>
+          <div style={{flex:1, height:1, background:'rgba(11,11,11,0.10)'}}/>
+        </div>
+
+        {/* Righe inchiostro */}
+        <div style={{display:'flex', flexDirection:'column', gap:16}}>
+          {recipe.inks.map((ink, i) => {
+            const g = (ink.pct/100)*qty;
+            const gs = g < 10 ? g.toFixed(2) : g.toFixed(1);
+            return (
+              <div key={ink.name} style={{
+                opacity: show ? 1 : 0,
+                transform: show ? 'translateY(0)' : 'translateY(6px)',
+                transition:`opacity 0.4s ease ${0.3+i*0.08}s, transform 0.4s ease ${0.3+i*0.08}s`,
+              }}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6}}>
+                  <span style={{fontWeight:600, fontSize:15, color:'#0B0B0B'}}>{ink.name}</span>
+                  <span style={{fontWeight:700, fontSize:17, color:'#0B0B0B', fontVariantNumeric:'tabular-nums'}}>
+                    {gs} <span style={{fontSize:12, fontWeight:500, color:'rgba(11,11,11,0.38)'}}>g</span>
+                  </span>
+                </div>
+                <div style={{height:5, borderRadius:99, background:'rgba(11,11,11,0.07)', overflow:'hidden'}}>
+                  <div style={{
+                    height:'100%', borderRadius:99,
+                    background:pantone.hex, opacity:0.75,
+                    width:`${ink.pct}%`,
+                    transition:'width 0.35s ease',
+                  }}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Totale */}
+        <div style={{
+          display:'flex', justifyContent:'space-between', alignItems:'center',
+          marginTop:22, paddingTop:18,
+          borderTop:'1.5px solid rgba(11,11,11,0.08)',
+        }}>
+          <span style={{fontSize:11, fontWeight:700, letterSpacing:'1.5px', color:'rgba(11,11,11,0.38)', textTransform:'uppercase'}}>
+            TOTALE
+          </span>
+          <span style={{fontWeight:700, fontSize:20, color:'#0B0B0B', fontVariantNumeric:'tabular-nums'}}>
+            {qty>=1000?'1 000':qty} <span style={{fontSize:13, fontWeight:500, color:'rgba(11,11,11,0.38)'}}>g</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [status, setStatus] = React.useState('loading');
   const [dataVer, setDataVer] = React.useState(0);
   const [isMobile] = React.useState(()=>window.innerWidth<1024);
+  const kioskCode = React.useMemo(()=>{ const p=new URLSearchParams(window.location.search); return p.get('pantone')||null; },[]);
 
   const doLoad = React.useCallback(()=>{
     setStatus('loading');
@@ -2974,6 +3130,7 @@ function App() {
 
   if(status==='loading') return <LoadingScreen/>;
   if(status==='error') return <ErrorScreen onRetry={doLoad}/>;
+  if(kioskCode) return <KioskView rawCode={kioskCode}/>;
 
   if(isMobile) {
     return <MobileApp/>;
