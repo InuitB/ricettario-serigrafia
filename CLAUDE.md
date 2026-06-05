@@ -322,18 +322,24 @@ Pantone ID → HEX + Categoria → Pagina + Temperatura → Copertura → Formul
 - Scelta layout etichetta (E, F, G, H proposti) da implementare in stampaPDF
 - Possibilità di modificare gli inchiostri di una ricetta esistente
 
-## Ultime modifiche (sessione 2026-06-04)
+## Ultime modifiche (sessione 2026-06-05)
 
-- **PANTONE_NAMES** espanso da 571 a 1707 voci con nomi auto-generati via HSL
-- **Asterisco nomi auto**: `PANTONE_OFFICIAL` Set (571 chiavi ufficiali) → nomi auto mostrano `*` es. `Soft Green*`
-- **Bottoni card header nested-radius**: ★ e ✏ ora `position:absolute, top:14, right:14` — curva concentrica con card (r=34, btn r=20, inset=14)
-- **addRicetta fix**: Code.gs riscritta per leggere colonne per nome header (evita bug posizionale)
-- **Altezza card**: usa `bodyInnerRef.scrollHeight` — non più `bodyWrapRef` (che restituisce clientHeight con flex:1)
-- **Barra di ricerca** spostata in header row (allineata a Logo e ModeOrb), larghezza 600px
-- **EditSheet**: riordine campi — formula in mezzo, note/progetti in fondo
-- **Safari border clipping fix**: `border` sulle card animate sostituito con `outline` (non clippato da `overflow:hidden`)
-- **Preferiti cross-device**: `doGet?action=getFavoriti` legge fresco dal foglio; `togglePreferito` POST crea colonna Preferiti se assente; UI ottimistica con `favoritiSet` globale + `window._bumpData()`
-- **Filtro e ordinamento** (mobile + desktop): per colore (hue), copertura asc/desc, codice A-Z, solo preferiti
-- **Stella ★ mobile**: cerchio a `right:46` nella top bar, visibile in dettaglio accanto alla matita
-- **Z-index sheet fix**: NuovaSheet/EditSheet alzati a 1010/1020 per coprire la top bar (zIndex:1000)
-- **toDose() in Code.gs**: converte dose in numero JS; accetta virgola o punto; evita auto-rilevamento orario da Sheets locale italiano
+- **PANTONE_DB espanso** da 1707 a 1882 voci: aggiunti 175 codici mancanti nelle fasce 2125–2126, 2169–2304, 2306–2336, 2366–2371 U (sorgente: JSON PMS Uncoated da repo GitHub xzz2021/public). Il **2305 U = "Golden Harvest" #9BA747** rimane confermato dall'utente e NON è stato sovrascritto.
+- **PANTONE_DB — nota qualità dati 2169–2336**: i codici in questa fascia sembrano mappare a colori già esistenti in altre serie (es. 2169 U = stesso RGB di 705 U). Probabilmente dati da un sistema Pantone-compatibile cinese, non lo standard internazionale. Usare con cautela.
+- **InkSearchField — Enter avanza ai grammi**: premendo Invio sul campo inchiostro, se il dropdown è aperto seleziona il primo suggerimento e sposta il focus al campo dose; se chiuso, sposta direttamente il focus. Aggiunto prop `onConfirm` callback.
+- **NuovaSheet — validazione 40g**: avviso morbido se il totale dose ≠ 40g (±0.15g). Prima pressione "Salva" mostra l'avviso; seconda pressione salva comunque.
+- **Mobile scroll fluido — DOM diretto**: `WalletProtoExtract` aggiornato per bypassare React durante scroll/inerzia. Usa `scrollRef` (ref) + `cardRefs` (map idx→DOM) + `applyScrollDirect(sy)` che scrive `el.style.top/transform/opacity` direttamente. `setScrollY` (state) chiamato solo al termine del gesto (un solo re-render). `layoutClosed(i)` ora legge `scrollRef.current` invece di `scrollY` state. Inerzia: decay `0.92→0.97`, soglia stop `0.02→0.005` px/ms.
+
+### WalletProtoExtract — scroll architecture (CRITICO)
+```js
+// Refs aggiunti per scroll ottimizzato:
+const scrollRef = React.useRef(0);   // source of truth durante animazione
+const cardRefs = React.useRef({});   // map i → DOM element delle card
+
+// applyScrollDirect(sy): aggiorna top/transform/opacity direttamente sul DOM
+// layoutClosed(i): legge scrollRef.current (non scrollY state)
+// onAreaMove: aggiorna scrollRef.current + chiama applyScrollDirect (NO setScrollY)
+// inertia step: aggiorna scrollRef.current + applyScrollDirect (NO setScrollY)
+// fine gesto: setScrollY(scrollRef.current) → un solo re-render React
+```
+
