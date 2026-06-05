@@ -821,7 +821,6 @@ function NuovaSheet({open, onClose, theme}) {
       transformData();
       newlySaved.add(newId);
       window._bumpData?.();
-      setTimeout(()=>{ window._refreshData?.(); },6000);
       setTimeout(()=>{ newlySaved.delete(newId); window._bumpData?.(); },8000);
       setTimeout(()=>onClose(), 1100);
     }catch(e){ setMsg('Errore di connessione.'); }
@@ -1955,7 +1954,6 @@ function NuovaDesktop({open,onClose,theme}){
       newlySaved.add(newId);
       window._bumpData?.();
       window._selectCode?.(newId);
-      setTimeout(()=>{ window._refreshData?.(); },6000);
       setTimeout(()=>{ newlySaved.delete(newId); window._bumpData?.(); },8000);
       setTimeout(()=>onClose(),1100);
     }catch(e){setMsg('Errore di connessione.');}
