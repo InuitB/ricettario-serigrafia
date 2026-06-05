@@ -267,6 +267,30 @@ function aggregateInks(codes, qty=100) {
 }
 
 // ── PDF helpers ───────────────────────────────────────────────────────────────
+function _ab2b64(buf) {
+  let s = '', bytes = new Uint8Array(buf), i = 0;
+  while (i < bytes.length) { s += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192)); i += 8192; }
+  return btoa(s);
+}
+let _pdfFonts = null;
+async function loadPDFFonts() {
+  if (_pdfFonts) return _pdfFonts;
+  const [reg, bold] = await Promise.all([
+    fetch('fonts/Nebulica-Regular.otf').then(r=>r.arrayBuffer()).then(_ab2b64),
+    fetch('fonts/Nebulica-Bold.otf').then(r=>r.arrayBuffer()).then(_ab2b64),
+  ]);
+  _pdfFonts = { reg, bold };
+  return _pdfFonts;
+}
+function applyNebulica(doc, weight) {
+  if (!_pdfFonts) return;
+  doc.addFileToVFS('Nebulica-Regular.otf', _pdfFonts.reg);
+  doc.addFileToVFS('Nebulica-Bold.otf', _pdfFonts.bold);
+  doc.addFont('Nebulica-Regular.otf', 'Nebulica', 'normal');
+  doc.addFont('Nebulica-Bold.otf', 'Nebulica', 'bold');
+  doc.setFont('Nebulica', weight);
+}
+
 function makeQRMatrix(text) {
   if (typeof qrcode === 'undefined') return null;
   const tries = [0, 5, 6, 7];
@@ -315,30 +339,35 @@ function stampaSmall(doc, pantone, recipe, qty) {
   const qrX = W - pad - qrSize, qrY = (H - qrSize) / 2;
   const url = `https://inuitb.github.io/ricettario-serigrafia/?pantone=${encodeURIComponent(pantone.code)}`;
   const qrData = makeQRMatrix(url);
+  const codeNum = pantone.code.replace(/\s+[A-Z]$/, '');
 
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.3);
   doc.roundedRect(1.2, 1.2, W-2.4, H-2.4, 2, 2, 'S');
 
   drawQRCode(doc, qrData, qrX, qrY, qrSize);
 
-  doc.setDrawColor(0,0,0); doc.setLineWidth(0.28);
-  doc.line(qrX - 1.4, pad + 0.5, qrX - 1.4, H - pad - 0.5);
+  // family label
+  const neb = _pdfFonts ? 'Nebulica' : 'helvetica';
+  doc.setFont(neb,'normal'); doc.setFontSize(5.5); doc.setTextColor(110,110,110);
+  doc.text(((pantone.family||'pantone')).toUpperCase() + ' · PANTONE', pad, 4.0);
 
-  doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(110,110,110);
-  doc.text(((pantone.family||'pantone')).toUpperCase() + ' · PANTONE', pad, 3.8);
+  // code number (no "U")
+  doc.setFont(neb,'bold'); doc.setFontSize(20); doc.setTextColor(0,0,0);
+  doc.text(codeNum, pad, 11.2);
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(0,0,0);
-  doc.text(pantone.code, pad, 10.8);
-
+  // coverage dots — row below code
   const cvg = pdfCovN(pantone.copertura);
-  const codeW = doc.getTextWidth(pantone.code);
-  pdfDots(doc, cvg, 3, pad + codeW + 1.5, 10.2, 0.85, 2.2);
+  pdfDots(doc, cvg, 3, pad + 0.6, 14.0, 0.9, 2.3);
 
-  doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(110,110,110);
-  if (pantone.page) doc.text(`PAG.${pantone.page}`, pad, 13.8);
+  // page — row below dots
+  if (pantone.page) {
+    doc.setFont(neb,'normal'); doc.setFontSize(5.5); doc.setTextColor(110,110,110);
+    doc.text(`PAG.${pantone.page}`, pad, 17.0);
+  }
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(0,0,0);
-  doc.text((pantone.name||'').replace('*',''), pad, 22.4);
+  // name
+  doc.setFont(neb,'bold'); doc.setFontSize(7.5); doc.setTextColor(0,0,0);
+  doc.text((pantone.name||'').replace('*',''), pad, 22.2);
 }
 
 // ── L2 QR · grande 57×102mm ──────────────────────────────────────────────────
@@ -356,23 +385,25 @@ function stampaLarge(doc, pantone, recipe, qty) {
   const url = `https://inuitb.github.io/ricettario-serigrafia/?pantone=${encodeURIComponent(pantone.code)}`;
   const qrData = makeQRMatrix(url);
 
+  const neb = _pdfFonts ? 'Nebulica' : 'helvetica';
+
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.35);
   doc.roundedRect(1.5, 1.5, W-3.0, H-3.0, 2, 2, 'S');
 
   // Header
-  doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(110,110,110);
+  doc.setFont(neb,'normal'); doc.setFontSize(6); doc.setTextColor(110,110,110);
   doc.text(((pantone.family||'pantone')).toUpperCase() + ' · PANTONE', pad, 5.5);
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(30); doc.setTextColor(0,0,0);
+  doc.setFont(neb,'bold'); doc.setFontSize(30); doc.setTextColor(0,0,0);
   doc.text(pantone.code, pad, 16.0);
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.setFont(neb,'bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
   doc.text((pantone.name||'').replace('*',''), pad, 22.0);
 
   const cvg = pdfCovN(pantone.copertura);
   pdfDots(doc, cvg, 3, W - pad - 8.5, 8.5, 1.1, 2.8);
   if (pantone.page) {
-    doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(110,110,110);
+    doc.setFont(neb,'normal'); doc.setFontSize(6); doc.setTextColor(110,110,110);
     doc.text(`PAG.${pantone.page}`, W - pad, 14.0, { align:'right' });
   }
 
@@ -380,7 +411,7 @@ function stampaLarge(doc, pantone, recipe, qty) {
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.35);
   doc.roundedRect(pad, formulaBoxY, boxW, boxH, 1.5, 1.5, 'S');
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(0,0,0);
+  doc.setFont(neb,'bold'); doc.setFontSize(6.5); doc.setTextColor(0,0,0);
   doc.text(`FORMULA · ${nInks} INK`, pad + 3, formulaBoxY + 5.2);
   doc.text(`${qty} g`, W - pad - 3, formulaBoxY + 5.2, { align:'right' });
 
@@ -395,11 +426,11 @@ function stampaLarge(doc, pantone, recipe, qty) {
     const g = ink.pct / 100 * qty;
     const gs = g < 10 ? g.toFixed(2) : g.toFixed(1);
     if (i > 0) { doc.setDrawColor(190,190,190); doc.setLineWidth(0.15); doc.line(pad+2, rowY, pad+boxW-2, rowY); }
-    doc.setFont('helvetica','bold'); doc.setFontSize(nameSz); doc.setTextColor(0,0,0);
+    doc.setFont(neb,'bold'); doc.setFontSize(nameSz); doc.setTextColor(0,0,0);
     doc.text(ink.name, pad + 3, textY);
-    doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(130,130,130);
+    doc.setFont(neb,'normal'); doc.setFontSize(5.5); doc.setTextColor(130,130,130);
     doc.text(ink.pct.toFixed(1) + '%', W - pad - 21, textY, { align:'right' });
-    doc.setFont('helvetica','bold'); doc.setFontSize(gramSz); doc.setTextColor(0,0,0);
+    doc.setFont(neb,'bold'); doc.setFontSize(gramSz); doc.setTextColor(0,0,0);
     doc.text(gs + ' g', W - pad - 3, textY, { align:'right' });
   });
 
@@ -409,19 +440,26 @@ function stampaLarge(doc, pantone, recipe, qty) {
   drawQRCode(doc, qrData, pad, qrSectionY + 2.5, qrSize);
   const txtX = pad + qrSize + 3.5;
   const txtY = qrSectionY + 5.5;
-  doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(0,0,0);
+  doc.setFont(neb,'bold'); doc.setFontSize(6.5); doc.setTextColor(0,0,0);
   doc.text('SCANSIONA', txtX, txtY);
-  doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(110,110,110);
+  doc.setFont(neb,'normal'); doc.setFontSize(5.5); doc.setTextColor(110,110,110);
   doc.text('PER APRIRE', txtX, txtY + 4.5);
   doc.text('LA FORMULA', txtX, txtY + 8.5);
   doc.text('PANTONE', txtX, txtY + 12.5);
 }
 
-function stampaPDF(pantone, recipe, qty) {
+async function stampaPDF(pantone, recipe, qty) {
   if (!window.jspdf) { alert('jsPDF non disponibile'); return; }
   const { jsPDF } = window.jspdf;
+  await loadPDFFonts().catch(()=>{});
   const isLarge = qty >= 1000;
   const doc = new jsPDF({ unit:'mm', format:[57, isLarge ? 102 : 25], orientation: isLarge ? 'portrait' : 'landscape' });
+  if (_pdfFonts) {
+    doc.addFileToVFS('Nebulica-Regular.otf', _pdfFonts.reg);
+    doc.addFileToVFS('Nebulica-Bold.otf', _pdfFonts.bold);
+    doc.addFont('Nebulica-Regular.otf', 'Nebulica', 'normal');
+    doc.addFont('Nebulica-Bold.otf', 'Nebulica', 'bold');
+  }
   if (isLarge) stampaLarge(doc, pantone, recipe, qty);
   else stampaSmall(doc, pantone, recipe, qty);
   doc.save(`etichetta_${pantone.code.replace(/ /g,'_')}.pdf`);
