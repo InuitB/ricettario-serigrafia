@@ -349,7 +349,7 @@ function stampaSmall(doc, pantone, recipe, qty) {
 function stampaLarge(doc, pantone, recipe, qty) {
   const W = 57, H = 102, pad = 3.5;
   const nInks = recipe.inks.length;
-  const qrH = 20, headerH = 27, gapAfterBox = 4;
+  const qrH = 20, headerH = 29, gapAfterBox = 4;
   const formulaBoxY = headerH;
   const formulaMaxBottom = H - pad - qrH - gapAfterBox;
   const rowH = Math.min(11, (formulaMaxBottom - formulaBoxY - 8) / nInks);
@@ -367,18 +367,21 @@ function stampaLarge(doc, pantone, recipe, qty) {
   doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(110,110,110);
   doc.text(((pantone.family||'pantone')).toUpperCase() + ' · PANTONE', pad, 5.5);
 
+  // Dots: right-aligned with formula box edge, at same row as family label
+  const cvg = pdfCovN(pantone.copertura);
+  pdfDots(doc, cvg, 3, W - pad - 2*2.8 - 1.1, 4.5, 1.1, 2.8);
+
   doc.setFont('helvetica','bold'); doc.setFontSize(30); doc.setTextColor(0,0,0);
   doc.text(pantone.code, pad, 16.0);
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
-  doc.text((pantone.name||'').replace('*',''), pad, 22.0);
-
-  const cvg = pdfCovN(pantone.copertura);
-  pdfDots(doc, cvg, 3, W - pad - 8.5, 8.5, 1.1, 2.8);
+  // PAG. between code and name
   if (pantone.page) {
     doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(110,110,110);
-    doc.text(`PAG.${pantone.page}`, W - pad, 14.0, { align:'right' });
+    doc.text(`PAG.${pantone.page}`, pad, 19.5);
   }
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.text((pantone.name||'').replace('*',''), pad, 23.0);
 
   // Formula box
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.35);
@@ -407,18 +410,10 @@ function stampaLarge(doc, pantone, recipe, qty) {
     doc.text(gs + ' g', W - pad - 3, textY, { align:'right' });
   });
 
-  // QR section
-  doc.setDrawColor(0,0,0); doc.setLineWidth(0.35);
-  doc.line(pad, qrSectionY, pad + boxW, qrSectionY);
-  drawQRCode(doc, qrData, pad, qrSectionY + 2.5, qrSize);
-  const txtX = pad + qrSize + 3.5;
-  const txtY = qrSectionY + 5.5;
-  doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(0,0,0);
-  doc.text('SCANSIONA', txtX, txtY);
-  doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(110,110,110);
-  doc.text('PER APRIRE', txtX, txtY + 4.5);
-  doc.text('LA FORMULA', txtX, txtY + 8.5);
-  doc.text('PANTONE', txtX, txtY + 12.5);
+  // QR section — solo codice, centrato
+  const qrX = (W - qrSize) / 2;
+  const qrYpos = qrSectionY + (H - pad - qrSectionY - qrSize) / 2;
+  drawQRCode(doc, qrData, qrX, qrYpos, qrSize);
 }
 
 function stampaPDF(pantone, recipe, qty) {
