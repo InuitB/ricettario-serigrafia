@@ -322,6 +322,79 @@ Pantone ID → HEX + Categoria → Pagina + Temperatura → Copertura → Formul
 - Scelta layout etichetta (E, F, G, H proposti) da implementare in stampaPDF
 - Possibilità di modificare gli inchiostri di una ricetta esistente
 
+## Ultime modifiche (sessione 2026-06-06)
+
+### Magazzino inventory (desktop, 4ª modalità)
+- Nuovo `MagazzinMode` — 4ª modalità desktop (icona scatola in ModeOrb)
+- `CaricaSheet` — due modalità: **Pieni** (n barattoli × g standard) e **Pesati** (lordo − tara)
+- `MescolaSheet` — conferma mescola, scala stock per inchiostro
+- Pulsante "Mescola" nella card formula di MasterMode
+- Sezione MAGAZZINO in SettingsPanel: slider tara (default 106g) e soglia alert (default 1000g)
+- `DESK_DEFAULTS`: aggiunto `tare:106, alertThreshold:1000`
+- `doLoad` chiama anche `loadInventario()` all'avvio
+
+### Bug fix critici
+- **Ricetta sparisce dopo salvataggio**: rimosso `_refreshData()` automatico 6s dopo save. Il cache gviz di Google non si aggiorna in tempo e sovrascriveva l'update ottimistico locale. L'aggiornamento locale (push in allRicette + allComponenti + transformData) è già completo e corretto.
+- **POST ora leggibile**: sostituito `mode:'no-cors'` con helper `postGAS()` che legge la risposta JSON e mostra errori reali. Tutti i salvataggi critici (addRicetta ×2, editRicetta) usano `postGAS()`.
+- **getInventario non crea più fogli**: `getInventario` in Code.gs restituisce `[]` se il foglio Magazzino non esiste, invece di crearlo. La creazione con side-effect su doGet stava bloccando l'autorizzazione Apps Script e impediva i salvataggi.
+
+### Validazione duplicati
+- Blocco salvataggio se Pantone ID già esiste in allRicette — messaggio: `⚠ "XXX U" esiste già — modifica la ricetta esistente o usa un codice diverso.`
+
+### PANTONE_DB espanso
+- Da 1882 a **1924 voci**: aggiunti 42 codici mancanti nella fascia 2381–2427 U
+- Confermato 2418 U = #008759 (verde teal, fonte Google AI)
+
+### Code.gs — stato attuale ⚠️
+Il file `Code.gs` nel repository (468 righe) è aggiornato con:
+- `postGAS()` helper pattern (no-cors rimosso)
+- `getInventario` read-only (non crea fogli)
+- Azioni magazzino: `aggiungiCarico`, `registraMescola`, `aggiornaStock`
+- `doGet` gestisce `getInventario`
+- Helper `jsonResp()`
+
+**L'utente deve ancora incollare il Code.gs completo in Apps Script e fare Deploy → Nuova versione.**
+Procedura: script.google.com → Cmd+A → incolla → Cmd+S → Deploy → Gestisci deployment → matita → Nuova versione → Distribuisci.
+Il file ha 468 righe e inizia con `// ============================================================`.
+
+### Apps Script (Code.gs) — azioni supportate (aggiornate)
+
+| action | funzione | descrizione |
+|--------|----------|-------------|
+| `addRicetta` | `addRicetta(data)` | aggiunge riga in Ricette + righe in Componenti |
+| `editRicetta` | `editRicetta(data)` | aggiorna campi in Ricette, logga in Log |
+| `deleteRicetta` | `deleteRicetta(data)` | elimina riga da Ricette e Componenti, logga in Log |
+| `addSperimentazione` | `addSperimentazione(data)` | crea foglio Sperimentazioni se non esiste, aggiunge riga |
+| `promuoviSperimentazione` | `promuoviSperimentazione(data)` | aggiorna stato in Sperimentazioni + copia in Ricette+Componenti |
+| `togglePreferito` | `togglePreferito(data)` | toglie/mette 1 nella colonna Preferiti del foglio Ricette |
+| `aggiungiCarico` | `aggiungiCarico(data)` | aggiunge grammi a Magazzino + log in MovimentiMagazzino |
+| `registraMescola` | `registraMescola(data)` | scala grammi da Magazzino per ogni inchiostro + log |
+| `aggiornaStock` | `aggiornaStock(data)` | imposta valore assoluto grammi per un inchiostro |
+
+doGet gestisce: `getFavoriti`, `getInventario`
+
+**Nuovi fogli Google Sheet creati da Apps Script:**
+- `Magazzino`: Inchiostro, Grammi_disponibili, Soglia_alert, Note
+- `MovimentiMagazzino`: Timestamp, Tipo, Inchiostro, Grammi, Riferimento, Note
+
+### POST helper (CRITICO — cambiamento architetturale)
+```js
+// NON usare più fetch con mode:'no-cors' per operazioni critiche
+// Usare postGAS(payload) che legge la risposta e lancia errori visibili
+async function postGAS(payload) {
+  const resp = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain'},
+    body: JSON.stringify(payload),
+  });
+  let d;
+  try { d = await resp.json(); } catch(_) { return {ok:true}; }
+  if (d && d.error) throw new Error(d.error);
+  return d;
+}
+```
+`togglePreferito` rimane fire-and-forget con `mode:'no-cors'` (non critico).
+
 ## Ultime modifiche (sessione 2026-06-05)
 
 - **PANTONE_DB espanso** da 1707 a 1882 voci: aggiunti 175 codici mancanti nelle fasce 2125–2126, 2169–2304, 2306–2336, 2366–2371 U (sorgente: JSON PMS Uncoated da repo GitHub xzz2021/public). Il **2305 U = "Golden Harvest" #9BA747** rimane confermato dall'utente e NON è stato sovrascritto.
