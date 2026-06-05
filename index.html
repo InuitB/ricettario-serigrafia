@@ -140,6 +140,78 @@ function rgba(hex, a) {
 }
 const hexToRGBA = rgba;
 
+/* ─── PALETTE LAB ─── */
+function hexToHSL(hex) {
+  let h=(hex||'').replace('#','');
+  if(h.length===3)h=h.split('').map(c=>c+c).join('');
+  h=h.padStart(6,'0');
+  const r=parseInt(h.slice(0,2),16)/255,g=parseInt(h.slice(2,4),16)/255,b=parseInt(h.slice(4,6),16)/255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;
+  let hh=0,s=0,l=(mx+mn)/2;
+  if(d>0){
+    s=d/(l>0.5?2-mx-mn:mx+mn);
+    hh=mx===r?((g-b)/d+(g<b?6:0))/6:mx===g?((b-r)/d+2)/6:((r-g)/d+4)/6;
+  }
+  return{h:Math.round(hh*360),s:Math.round(s*100),l:Math.round(l*100)};
+}
+function hueDist(a,b){const d=Math.abs(a-b)%360;return d>180?360-d:d;}
+const MOOD_PROFILES={
+  pastello:   {sMin:8, sMax:52,lMin:68,lMax:96,harmony:'analogous'},
+  rilassato:  {sMin:10,sMax:58,lMin:42,lMax:80,harmony:'analogous'},
+  tropicale:  {sMin:50,sMax:100,lMin:35,lMax:75,harmony:'split'},
+  pop:        {sMin:60,sMax:100,lMin:36,lMax:68,harmony:'complementary'},
+  contrastato:{sMin:25,sMax:100,lMin:10,lMax:90,harmony:'complementary',lDiff:36},
+  notturno:   {sMin:8, sMax:88,lMin:8, lMax:46,harmony:'analogous',darkBias:true},
+};
+const MOOD_LABELS_IT={pastello:'Pastello',rilassato:'Rilassato',tropicale:'Tropicale',pop:'Pop',contrastato:'Contrastato',notturno:'Notturno'};
+const MOOD_EMOJI={pastello:'🌸',rilassato:'🌊',tropicale:'🌴',pop:'⚡',contrastato:'◑',notturno:'🌙'};
+function harmonyTargetHues(anchorH,type,n){
+  const w=h=>((h%360)+360)%360;
+  const seqs={
+    complementary:[anchorH,w(anchorH+180),w(anchorH+60),w(anchorH+240),w(anchorH+120),w(anchorH+300)],
+    split:[anchorH,w(anchorH+150),w(anchorH+210),w(anchorH+30),w(anchorH+330),w(anchorH+90)],
+    analogous:Array.from({length:6},(_,i)=>w(anchorH+(i-2)*28)),
+  };
+  return(seqs[type]||seqs.analogous).slice(0,n);
+}
+function moodFit(hsl,p){
+  let s=1;
+  if(hsl.s<p.sMin||hsl.s>p.sMax)s*=0.15;
+  if(hsl.l<p.lMin||hsl.l>p.lMax)s*=0.15;
+  if(p.darkBias)s*=(1-hsl.l/100)*1.5+0.1;
+  return Math.min(s,1);
+}
+function generatePalette(pantones,mood,count,lockedCodes=new Set(),seed=0){
+  const prof=MOOD_PROFILES[mood]||MOOD_PROFILES.pastello;
+  const wh=pantones.filter(p=>p.hex&&p.hex.replace('#','').length>=6).map(p=>({...p,hsl:hexToHSL(p.hex)}));
+  if(!wh.length)return[];
+  const locked=wh.filter(p=>lockedCodes.has(p.code));
+  const anchor=locked.length?locked[0]:wh.reduce((b,p)=>moodFit(p.hsl,prof)>moodFit(b.hsl,prof)?p:b,wh[0]);
+  const targets=harmonyTargetHues(anchor.hsl.h,prof.harmony,count);
+  const slots=new Array(count).fill(null);
+  const used=new Set();
+  for(const lp of locked){
+    let bi=-1,bd=Infinity;
+    slots.forEach((s,i)=>{if(s!==null)return;const d=hueDist(lp.hsl.h,targets[i]);if(d<bd){bd=d;bi=i;}});
+    if(bi>=0){slots[bi]=lp;used.add(lp.code);}
+  }
+  for(let i=0;i<count;i++){
+    if(slots[i])continue;
+    const th=targets[i];
+    const cands=wh.filter(p=>!used.has(p.code)).map(p=>{
+      const hd=hueDist(p.hsl.h,th)/180;
+      const ms=moodFit(p.hsl,prof);
+      let bonus=0;
+      if(prof.lDiff){const f=slots.filter(Boolean);if(f.length){const avg=f.reduce((s,r)=>s+r.hsl.l,0)/f.length;bonus=Math.min(Math.abs(p.hsl.l-avg)/100,0.3)*0.15;}}
+      return{p,score:(1-hd)*0.62+ms*0.28+bonus};
+    }).sort((a,b)=>b.score-a.score);
+    if(!cands.length)continue;
+    const pick=cands[(seed+i*137)%Math.min(3,cands.length)];
+    slots[i]=pick.p;used.add(pick.p.code);
+  }
+  return slots.filter(Boolean);
+}
+
 const SPRING      = 'cubic-bezier(.34,1.56,.64,1)';
 const SPRING_SOFT = 'cubic-bezier(.22,1.2,.36,1)';
 const FLUID       = 'cubic-bezier(.4,1.25,.45,1)';
@@ -627,6 +699,7 @@ const MODES = [
   {key:'wallet',label:'Wallet',Icon:IcoFolder},
   {key:'gallery',label:'Gallery',Icon:IcoFilter},
   {key:'magazzino',label:'Magazzino',Icon:IcoBox},
+  {key:'palette',label:'Palette',Icon:IconPalette},
 ];
 
 function Logo({theme, sub=true, onSettings}) {
@@ -2451,6 +2524,79 @@ const DESK_DEFAULTS = {
   tare:106, alertThreshold:1000,
 };
 
+function PaletteModeDesktop({theme, onNuova}) {
+  const MOODS=['pastello','rilassato','tropicale','pop','contrastato','notturno'];
+  const relLabels={
+    analogous:  ['Base','Tono+','Tono−','Tono++','Tono−−','Extra'],
+    complementary:['Base','Opposto','Acc.+','Acc.−','Analogo','Var.'],
+    split:      ['Base','Split+','Split−','Analogo','Var.','Extra'],
+  };
+  const [mood,setMood]=React.useState('pastello');
+  const [count,setCount]=React.useState(5);
+  const [locked,setLocked]=React.useState(new Set());
+  const [seed,setSeed]=React.useState(0);
+  const palette=React.useMemo(()=>generatePalette(DESK_PANTONES,mood,count,locked,seed),[DESK_PANTONES.length,mood,count,locked,seed]);
+  const harmony=MOOD_PROFILES[mood]?.harmony||'analogous';
+  const relLbls=relLabels[harmony]||relLabels.analogous;
+  const isDark=mood==='notturno';
+  const moodBg={pastello:'#FFF4F8',rilassato:'#EEF4FF',tropicale:'#EDFFF4',pop:'#FFF2EE',contrastato:'#F0F0F0',notturno:'#181A2E'};
+  const toggleLock=(code)=>setLocked(prev=>{const n=new Set(prev);n.has(code)?n.delete(code):n.add(code);return n;});
+  return(
+    <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',background:moodBg[mood],transition:'background .5s',fontFamily:'Nebulica,sans-serif',overflow:'hidden'}}>
+      {/* top bar */}
+      <div style={{display:'flex',alignItems:'center',gap:16,padding:'24px 32px 0',flexShrink:0}}>
+        <div style={{fontFamily:theme.display,fontWeight:700,fontSize:26,letterSpacing:-0.8,color:isDark?'#fff':theme.ink}}>Palette Lab</div>
+        <div style={{display:'flex',gap:7,flex:1,overflowX:'auto',scrollbarWidth:'none'}}>
+          {MOODS.map(m=>{
+            const on=mood===m;
+            return(
+              <button key={m} onClick={()=>{setMood(m);setLocked(new Set());setSeed(0);}} style={{padding:'7px 14px',borderRadius:99,border:'none',cursor:'pointer',background:on?(isDark?'#fff':theme.ink):(isDark?'rgba(255,255,255,0.1)':rgba(theme.ink,0.08)),color:on?(isDark?'#0B0B0B':theme.bg):(isDark?'rgba(255,255,255,0.75)':theme.ink),fontFamily:'Nebulica',fontWeight:700,fontSize:13,whiteSpace:'nowrap',transition:'background .22s',flexShrink:0}}>
+                {MOOD_EMOJI[m]} {MOOD_LABELS_IT[m]}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+          <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:isDark?'rgba(255,255,255,0.5)':theme.faint,letterSpacing:0.8}}>N</span>
+          {[3,4,5,6].map(n=>{
+            const on=count===n;
+            return <button key={n} onClick={()=>{setCount(n);setLocked(new Set());setSeed(0);}} style={{width:34,height:34,borderRadius:10,border:'none',cursor:'pointer',background:on?theme.accent:(isDark?'rgba(255,255,255,0.1)':rgba(theme.ink,0.08)),color:on?theme.onAccent:(isDark?'rgba(255,255,255,0.75)':theme.ink),fontFamily:'Nebulica',fontWeight:700,fontSize:14,transition:'background .22s'}}>{n}</button>;
+          })}
+        </div>
+        <div style={{display:'flex',gap:8,flexShrink:0}}>
+          {locked.size>0&&<button onClick={()=>setLocked(new Set())} style={{padding:'0 16px',height:42,borderRadius:12,border:'none',cursor:'pointer',background:isDark?'rgba(255,255,255,0.1)':rgba(theme.ink,0.08),color:isDark?'#fff':theme.ink,fontFamily:'Nebulica',fontWeight:600,fontSize:13}}>Sblocca tutto</button>}
+          <button onClick={()=>setSeed(s=>s+1)} style={{padding:'0 24px',height:42,background:isDark?'rgba(255,255,255,0.9)':theme.ink,color:isDark?'#0B0B0B':theme.bg,border:'none',borderRadius:12,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>↻ Rigenera</button>
+        </div>
+      </div>
+      {/* columns */}
+      <div style={{display:'flex',flex:1,gap:8,padding:'20px 32px 32px',overflow:'hidden',minHeight:0}}>
+        {palette.map((p,i)=>{
+          const isLocked=locked.has(p.code);
+          const fg=textOnDesk(p.hex);
+          return(
+            <div key={p.code} onClick={()=>toggleLock(p.code)} style={{flex:isLocked?1.12:1,background:p.hex,borderRadius:24,display:'flex',flexDirection:'column',justifyContent:'flex-end',padding:'20px 20px 24px',position:'relative',cursor:'pointer',transition:'flex .4s cubic-bezier(.4,1.25,.45,1)',border:isLocked?`3px solid ${fg}`:'3px solid transparent',boxSizing:'border-box',boxShadow:isLocked?`0 12px 32px ${rgba(p.hex,0.5)}`:'0 4px 16px rgba(0,0,0,0.1)'}}>
+              <div style={{position:'absolute',top:14,right:14,width:28,height:28,borderRadius:9,background:isLocked?fg:rgba(fg==='#fff'?'#fff':'#0B0B0B',0.18),display:'flex',alignItems:'center',justifyContent:'center'}}>
+                {isLocked
+                  ?<svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M3 5V4a3 3 0 1 1 6 0v1M2 5h8a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" stroke={fg==='#fff'?'#0B0B0B':'#fff'} strokeWidth="1.4" strokeLinecap="round"/></svg>
+                  :<svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M3 5V4a3 3 0 1 1 6 0M2 5h8a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" stroke={fg} strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.4"/></svg>
+                }
+              </div>
+              <div>
+                <div style={{fontSize:10,fontWeight:700,letterSpacing:0.8,color:fg,opacity:0.55,marginBottom:6,textTransform:'uppercase'}}>{relLbls[i]||''}</div>
+                <div style={{fontSize:palette.length>4?20:26,fontWeight:700,color:fg,fontFamily:theme.display,lineHeight:1,letterSpacing:-0.5,wordBreak:'break-all'}}>
+                  {p.code.replace(' U','')}<span style={{fontWeight:400,opacity:0.65,fontSize:palette.length>4?16:20}}> U</span>
+                </div>
+                {p.name&&p.name!==p.code&&<div style={{fontSize:12,color:fg,opacity:0.72,marginTop:5,fontFamily:theme.display}}>{p.name.replace('*','')}</div>}
+                {p.copertura&&<div style={{fontSize:10,color:fg,opacity:0.5,marginTop:4,letterSpacing:0.5,textTransform:'uppercase',fontFamily:'"JetBrains Mono",monospace'}}>{p.copertura}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DesktopApp({defaults}) {
   const [settings, setSettings] = React.useState(()=>({...defaults}));
   React.useEffect(()=>setSettings(s=>({...s,...defaults})),[
@@ -2474,6 +2620,7 @@ function DesktopApp({defaults}) {
   if(mode==='wallet') Body=<WalletMode {...chrome}/>;
   if(mode==='gallery') Body=<GalleryMode {...chrome} formulaAnim="slide"/>;
   if(mode==='magazzino') Body=<MagazzinMode {...chrome} tare={settings.tare??106} alertThreshold={settings.alertThreshold??1000}/>;
+  if(mode==='palette') Body=<PaletteModeDesktop theme={theme} onNuova={()=>setNuovaOpen(true)}/>;
   const trans = settings.modeTransition||'liquido';
   const animName = trans==='dissolvenza'?'modeFade':(trans==='scorrimento'?(dirRef.current>0?'modeSlideR':'modeSlideL'):'modeLiquid');
   return (
@@ -2531,19 +2678,44 @@ function IcoTune({size=17, color='currentColor', sw=1.75}) {
   );
 }
 
-function BottomNav({active=0, accent='#0033FF', restColor='#222', bg='#F2F0EA', dark=false, onNuova}) {
+function IconPalette({size=24,color='currentColor',sw=1.7}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10c0 2.21-2.239 4-5 4h-1a1 1 0 0 0-1 1v.5A1.5 1.5 0 0 1 13.5 19.5C13.5 21.1 12.4 22 12 22z" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="7" cy="12.5" r="1.4" fill={color}/>
+      <circle cx="9.5" cy="7.5" r="1.4" fill={color}/>
+      <circle cx="14.5" cy="7.5" r="1.4" fill={color}/>
+      <circle cx="17" cy="12.5" r="1.4" fill={color}/>
+    </svg>
+  );
+}
+
+function BottomNav({activeKey='ricette', accent='#0033FF', restColor='#222', bg='#F2F0EA', dark=false, onNuova, onTabChange}) {
   const c0=hexToRGBA(bg,0), c1=hexToRGBA(bg,0.85), c2=hexToRGBA(bg,1);
   const rest = dark?'rgba(255,255,255,0.45)':restColor;
-  const items = [{Icon:IconBeaker,key:'ricette'},{Icon:IconFolder,key:'progetti'},{Icon:IconPenPlus,key:'nuovo'}];
+  const items = [
+    {Icon:IconBeaker,key:'ricette'},
+    {Icon:IconPalette,key:'palette'},
+    {Icon:IconPenPlus,key:'nuovo'},
+  ];
   return (
     <div style={{position:'absolute',bottom:0,left:0,right:0,paddingTop:60,paddingBottom:28,zIndex:40,pointerEvents:'none',background:`linear-gradient(to bottom, ${c0} 0%, ${c1} 55%, ${c2} 100%)`}}>
       <div style={{position:'absolute',inset:0,WebkitMaskImage:'linear-gradient(to bottom, transparent 0%, black 45%)',maskImage:'linear-gradient(to bottom, transparent 0%, black 45%)',backdropFilter:'blur(14px) saturate(140%)',WebkitBackdropFilter:'blur(14px) saturate(140%)'}}/>
-      <div style={{position:'relative',zIndex:1,display:'flex',justifyContent:'space-around',alignItems:'center',padding:'0 36px',pointerEvents:'auto'}}>
-        {items.map((it,i)=>{const isActive=i===active; const color=isActive?accent:rest; const size=isActive?34:26; return (
-          <div key={it.key} onClick={i===2?onNuova:undefined} style={{display:'flex',alignItems:'center',justifyContent:'center',cursor:i===2?'pointer':'default',transition:'transform .25s cubic-bezier(.2,.7,.3,1)',transform:isActive?'translateY(-2px)':'none'}}>
-            <it.Icon size={size} color={color} sw={isActive?2:1.7}/>
-          </div>
-        );})}
+      <div style={{position:'relative',zIndex:1,display:'flex',justifyContent:'space-around',alignItems:'center',padding:'0 28px',pointerEvents:'auto'}}>
+        {items.map((it)=>{
+          const isActive=it.key===activeKey;
+          const color=isActive?accent:rest;
+          const size=isActive?32:25;
+          const handleClick=()=>{
+            if(it.key==='nuovo'){onNuova&&onNuova();return;}
+            onTabChange&&onTabChange(it.key);
+          };
+          return (
+            <div key={it.key} onClick={handleClick} style={{display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'transform .25s cubic-bezier(.2,.7,.3,1)',transform:isActive?'translateY(-2px)':'none',padding:'4px 16px'}}>
+              <it.Icon size={size} color={color} sw={isActive?2:1.7}/>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -2680,6 +2852,7 @@ function WalletProtoExtract({
   headerH=150, pillBorders=true, bg='#F4EFE2',
   accent='#0033FF', borderWidth=1.5, grain=true, blobAnim=true,
   blobShape='morbide', blobSpeed=1, onSettings, onNuova, onEdit, cardStyle='unified',
+  activeTab='ricette', onTabChange,
 }) {
   ensureBlobKeyframesV2();
   const [query, setQuery] = React.useState('');
@@ -2912,7 +3085,7 @@ function WalletProtoExtract({
         </div>
       </div>
       {cardStyle==='split'&&selected&&<SplitRecipePanel pantone={selected} open={recipeVisible} easeIn={EASE_OPEN_SPRING} easeOut={EASE_CLOSE_QUICK} pillBorders={pillBorders} borderWidth={borderWidth}/>}
-      <BottomNav active={0} accent={accent} restColor="#0B0B0B" bg={bg} onNuova={onNuova}/>
+      <BottomNav activeKey={activeTab} accent={accent} restColor="#0B0B0B" bg={bg} onNuova={onNuova} onTabChange={onTabChange}/>
     </div>
   );
 }
@@ -2997,12 +3170,127 @@ const MOBILE_DEFAULTS = {
   grain:true, blobAnim:true, blobShape:'morbide', blobSpeed:1, cardStyle:'unified',
 };
 
+/* ═══════════════════ PALETTE VIEW (mobile) ═══════════════════ */
+function PaletteView({accent='#0033FF', bg='#F4EFE2', onTabChange, onNuova}) {
+  const MOODS=['pastello','rilassato','tropicale','pop','contrastato','notturno'];
+  const relLabels={
+    analogous:  ['Base','Tono+','Tono−','Tono++','Tono−−','Extra'],
+    complementary:['Base','Opposto','Acc.+','Acc.−','Analogo','Var.'],
+    split:      ['Base','Split+','Split−','Analogo','Var.','Extra'],
+  };
+  const moodBg={pastello:'#FFF4F8',rilassato:'#EEF4FF',tropicale:'#EDFFF4',pop:'#FFF2EE',contrastato:'#F0F0F0',notturno:'#181A2E'};
+
+  const [mood,setMood]=React.useState('pastello');
+  const [count,setCount]=React.useState(4);
+  const [locked,setLocked]=React.useState(new Set());
+  const [seed,setSeed]=React.useState(0);
+
+  const palette=React.useMemo(
+    ()=>generatePalette(DESK_PANTONES,mood,count,locked,seed),
+    [DESK_PANTONES.length,mood,count,locked,seed]
+  );
+
+  const isDark=mood==='notturno';
+  const ink=isDark?'#fff':'#0B0B0B';
+  const sub=isDark?'rgba(255,255,255,0.5)':'rgba(11,11,11,0.42)';
+  const chipBg=isDark?'rgba(255,255,255,0.1)':'rgba(11,11,11,0.07)';
+  const chipBgOn=isDark?'rgba(255,255,255,0.95)':'#0B0B0B';
+  const chipColorOn=isDark?'#0B0B0B':'#fff';
+
+  const harmony=MOOD_PROFILES[mood]?.harmony||'analogous';
+  const relLbls=relLabels[harmony]||relLabels.analogous;
+
+  const toggleLock=(code)=>{
+    setLocked(prev=>{const n=new Set(prev);n.has(code)?n.delete(code):n.add(code);return n;});
+  };
+
+  const rigenera=()=>setSeed(s=>s+1);
+
+  const changeMood=(m)=>{setMood(m);setLocked(new Set());setSeed(0);};
+  const changeCount=(n)=>{setCount(n);setLocked(new Set());setSeed(0);};
+
+  return(
+    <div style={{position:'absolute',inset:0,zIndex:100,display:'flex',flexDirection:'column',background:moodBg[mood]||bg,transition:'background .5s ease',fontFamily:'Nebulica,Arial,sans-serif',overflow:'hidden'}}>
+      {/* header */}
+      <div style={{padding:'calc(env(safe-area-inset-top,44px) + 14px) 18px 0',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:21,letterSpacing:-0.5,color:ink}}>Palette Lab</div>
+          <div style={{fontFamily:'"JetBrains Mono",monospace',fontSize:9,letterSpacing:1.1,color:sub,background:isDark?'rgba(255,255,255,0.08)':'rgba(11,11,11,0.06)',padding:'5px 10px',borderRadius:8}}>
+            {DESK_PANTONES.length} COLORI
+          </div>
+        </div>
+        {/* mood chips */}
+        <div style={{display:'flex',gap:7,overflowX:'auto',paddingBottom:4,scrollbarWidth:'none',msOverflowStyle:'none'}}>
+          {MOODS.map(m=>{
+            const on=mood===m;
+            return(
+              <button key={m} onClick={()=>changeMood(m)} style={{padding:'7px 13px',borderRadius:99,border:'none',cursor:'pointer',background:on?chipBgOn:chipBg,color:on?chipColorOn:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:13,whiteSpace:'nowrap',flexShrink:0,transition:'background .22s,color .22s'}}>
+                {MOOD_EMOJI[m]} {MOOD_LABELS_IT[m]}
+              </button>
+            );
+          })}
+        </div>
+        {/* count selector */}
+        <div style={{display:'flex',gap:6,padding:'10px 0 12px',alignItems:'center'}}>
+          <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:sub,letterSpacing:0.8,marginRight:4}}>COLORI</span>
+          {[3,4,5,6].map(n=>{
+            const on=count===n;
+            return(
+              <button key={n} onClick={()=>changeCount(n)} style={{width:34,height:34,borderRadius:10,border:'none',cursor:'pointer',background:on?accent:chipBg,color:on?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:14,transition:'background .22s',flexShrink:0}}>{n}</button>
+            );
+          })}
+        </div>
+      </div>
+      {/* color columns */}
+      <div style={{display:'flex',flex:1,gap:4,padding:'0 8px',overflow:'hidden',minHeight:0}}>
+        {palette.map((p,i)=>{
+          const isLocked=locked.has(p.code);
+          const fg=textOnDesk(p.hex);
+          const colCount=palette.length;
+          return(
+            <div key={p.code} onClick={()=>toggleLock(p.code)} style={{flex:isLocked?1.15:1,background:p.hex,borderRadius:18,display:'flex',flexDirection:'column',justifyContent:'flex-end',padding:'10px 9px 14px',position:'relative',cursor:'pointer',transition:'flex .35s cubic-bezier(.4,1.25,.45,1)',border:isLocked?`2.5px solid ${fg}`:'2.5px solid transparent',boxSizing:'border-box',overflow:'hidden',boxShadow:isLocked?`0 8px 24px ${rgba(p.hex,0.45)}`:'0 4px 12px rgba(0,0,0,0.12)'}}>
+              <div style={{position:'absolute',top:9,right:9,width:22,height:22,borderRadius:7,background:isLocked?fg:rgba(fg==='#fff'?'#fff':'#0B0B0B',0.18),display:'flex',alignItems:'center',justifyContent:'center',transition:'background .22s',flexShrink:0}}>
+                {isLocked
+                  ?<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M3 5V4a3 3 0 1 1 6 0v1M2 5h8a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" stroke={fg==='#fff'?'#0B0B0B':'#fff'} strokeWidth="1.4" strokeLinecap="round"/></svg>
+                  :<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M3 5V4a3 3 0 1 1 6 0M2 5h8a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" stroke={fg} strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.45"/></svg>
+                }
+              </div>
+              <div>
+                <div style={{fontSize:8,fontWeight:700,letterSpacing:0.7,color:fg,opacity:0.6,marginBottom:3,textTransform:'uppercase'}}>{relLbls[i]||''}</div>
+                <div style={{fontSize:colCount>4?12:14,fontWeight:700,color:fg,fontFamily:'Nebulica',lineHeight:1.1,wordBreak:'break-all'}}>
+                  {p.code.replace(' U','')}<span style={{fontWeight:400,opacity:0.68,fontSize:colCount>4?10:12}}> U</span>
+                </div>
+                {p.name&&p.name!==p.code&&<div style={{fontSize:9,color:fg,opacity:0.68,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name.replace('*','')}</div>}
+                {p.copertura&&<div style={{fontSize:8,color:fg,opacity:0.52,marginTop:2,letterSpacing:0.4,textTransform:'uppercase'}}>{p.copertura}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* footer */}
+      <div style={{padding:'12px 8px 0',display:'flex',gap:8,flexShrink:0}}>
+        {locked.size>0&&(
+          <button onClick={()=>setLocked(new Set())} style={{padding:'0 14px',height:48,borderRadius:14,border:'none',cursor:'pointer',background:isDark?'rgba(255,255,255,0.12)':'rgba(11,11,11,0.08)',color:ink,fontFamily:'Nebulica',fontWeight:600,fontSize:13,flexShrink:0}}>
+            Sblocca
+          </button>
+        )}
+        <button onClick={rigenera} style={{flex:1,height:48,background:isDark?'rgba(255,255,255,0.92)':'rgba(11,11,11,0.88)',color:isDark?'#0B0B0B':'#fff',border:'none',borderRadius:14,fontFamily:'Nebulica',fontWeight:700,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          ↻ Rigenera
+        </button>
+      </div>
+      {/* bottom nav */}
+      <BottomNav activeKey="palette" accent={accent} restColor={isDark?'rgba(255,255,255,0.5)':'#0B0B0B'} bg={isDark?'#181A2E':bg} dark={isDark} onNuova={onNuova} onTabChange={onTabChange}/>
+    </div>
+  );
+}
+
 function MobileApp() {
   const [settings, setSettings] = React.useState(MOBILE_DEFAULTS);
   const setSetting = (k,v) => setSettings(s=>({...s,[k]:v}));
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [nuovaOpen, setNuovaOpen] = React.useState(false);
   const [editCode, setEditCode] = React.useState(null);
+  const [activeTab, setActiveTab] = React.useState('ricette');
   const bg = settings.theme==='grey'?'#E6E4DE':'#F4EFE2';
   const mobileTheme = React.useMemo(()=>deriveTheme({
     theme:settings.theme, accent:settings.accent, display:'Nebulica',
@@ -3032,7 +3320,17 @@ function MobileApp() {
         onNuova={()=>setNuovaOpen(true)}
         onEdit={(code)=>setEditCode(code)}
         cardStyle={settings.cardStyle}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
+      {activeTab==='palette'&&(
+        <PaletteView
+          accent={settings.accent}
+          bg={bg}
+          onTabChange={setActiveTab}
+          onNuova={()=>setNuovaOpen(true)}
+        />
+      )}
       <MobileSettingsPanel
         open={settingsOpen}
         onClose={()=>setSettingsOpen(false)}
