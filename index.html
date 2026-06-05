@@ -216,6 +216,27 @@ function makeRecipe(p) {
 
 const QUANTITIES = [{label:'100 g',grams:100},{label:'300 g',grams:300},{label:'500 g',grams:500},{label:'1 kg',grams:1000}];
 
+function sortInkFormula(inks, key='pct_desc') {
+  const s=[...inks];
+  if(key==='pct_asc') return s.sort((a,b)=>a.pct-b.pct);
+  if(key==='name_asc') return s.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+  if(key==='name_desc') return s.sort((a,b)=>b.name.localeCompare(a.name,undefined,{numeric:true}));
+  return s.sort((a,b)=>b.pct-a.pct);
+}
+function aggregateInks(codes, qty=100) {
+  const map={};
+  codes.forEach(code=>{
+    const p=DESK_PANTONES.find(x=>x.code===code); if(!p) return;
+    const r=makeRecipe(p);
+    r.inks.forEach(ink=>{
+      if(!map[ink.name]) map[ink.name]={count:0,grams:0};
+      map[ink.name].count++;
+      map[ink.name].grams+=(ink.pct/100)*qty;
+    });
+  });
+  return Object.entries(map).map(([name,d])=>({name,...d})).sort((a,b)=>b.grams-a.grams);
+}
+
 function stampaPDF(pantone, recipe, qty) {
   if (!window.jspdf) { alert('jsPDF non disponibile'); return; }
   const { jsPDF } = window.jspdf;
@@ -373,15 +394,22 @@ function QuantityPicker({value, onChange, theme}) {
   );
 }
 
-function InkFormula({pantone, recipe, qty, theme, big=false, anim='none', play=true}) {
+function InkFormula({pantone, recipe, qty, theme, big=false, anim='none', play=true, sortInk='pct_desc', onSortChange=null}) {
+  const inks = sortInkFormula(recipe.inks, sortInk);
+  const sortOpts=[['pct_desc','↓g'],['pct_asc','↑g'],['name_asc','A–Z'],['name_desc','Z–A']];
   return (
     <div>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',fontFamily:'Nebulica',fontSize:11,letterSpacing:1.5,fontWeight:700,color:theme.sub,marginBottom:4}}>
-        <span>FORMULA · {recipe.inks.length} INK</span>
-        <span style={{fontFamily:'"JetBrains Mono",monospace',letterSpacing:0.3}}>Σ {qty.toFixed(0)} g</span>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontFamily:'Nebulica',fontSize:11,letterSpacing:1.5,fontWeight:700,color:theme.sub,marginBottom:4}}>
+        <span>FORMULA · {inks.length} INK</span>
+        <div style={{display:'flex',alignItems:'center',gap:4}}>
+          {onSortChange&&sortOpts.map(([k,l])=>(
+            <button key={k} onClick={()=>onSortChange(k)} style={{padding:'2px 8px',borderRadius:99,fontFamily:'Nebulica',fontSize:10,fontWeight:700,cursor:'pointer',background:sortInk===k?theme.ink:'transparent',color:sortInk===k?'#fff':theme.faint,border:`1.3px solid ${sortInk===k?theme.ink:rgba(theme.ink,0.18)}`,transition:'background .15s,color .15s,border-color .15s'}}>{l}</button>
+          ))}
+          <span style={{fontFamily:'"JetBrains Mono",monospace',letterSpacing:0.3,marginLeft:onSortChange?6:0}}>Σ {qty.toFixed(0)} g</span>
+        </div>
       </div>
       <div>
-        {recipe.inks.map((ink,idx)=>{
+        {inks.map((ink,idx)=>{
           const grams = (ink.pct/100)*qty;
           const delay = anim==='stagger' ? idx*90 : 0;
           return (
@@ -1259,6 +1287,122 @@ function ensureGalleryKf() {
 
 
 /* ═══════════════════ DESKTOP MASTER ═══════════════════ */
+function ProjectFormulaCard({pantone, recipe, qty, sortInk, theme}) {
+  const inks = sortInkFormula(recipe.inks, sortInk);
+  const fg = textOnDesk(pantone.hex);
+  return (
+    <div style={{width:240,flexShrink:0,borderRadius:20,overflow:'hidden',...surface(theme),outline:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 8px 24px ${rgba('#000',0.09)}`}}>
+      <div style={{background:pantone.hex,padding:'14px 16px 12px',position:'relative'}}>
+        <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:22,color:fg,letterSpacing:-0.6,lineHeight:1}}>{pantone.code}</div>
+        <div style={{fontFamily:'Nebulica',fontSize:12,color:fg,opacity:0.78,marginTop:4,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{pantone.name}</div>
+        {pantone.copertura&&coverLvl(pantone.copertura)>0&&<div style={{position:'absolute',top:14,right:14,display:'flex',gap:4}}>{[0,1,2].map(i=>{const fill=i<coverLvl(pantone.copertura);return <span key={i} style={{width:10,height:10,borderRadius:99,background:fill?fg:'transparent',opacity:fill?0.8:1,boxShadow:fill?'none':`inset 0 0 0 1.5px ${rgba(fg,0.4)}`}}/>;})}</div>}
+      </div>
+      <div style={{padding:'10px 14px 12px'}}>
+        {inks.map((ink,i)=>{
+          const grams=(ink.pct/100)*qty;
+          return (
+            <div key={ink.name} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderTop:i===0?'none':`1px solid ${theme.line}`}}>
+              <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:11,background:theme.ink,color:'#fff',padding:'3px 9px',borderRadius:99,whiteSpace:'nowrap',flexShrink:0}}>{ink.name}</span>
+              <div style={{flex:1,height:5,borderRadius:99,background:theme.line,overflow:'hidden'}}><div style={{width:`${ink.pct}%`,height:'100%',background:pantone.hex,borderRadius:99}}/></div>
+              <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:theme.ink,letterSpacing:-0.4,whiteSpace:'nowrap'}}>{grams.toFixed(grams>=10?1:2)}g</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ProjectOverlay({open, onClose, codes, theme, qty, setQty, formulaSort, onFormulaSort}) {
+  const [tab, setTab] = React.useState('formule');
+  const [inkSort, setInkSort] = React.useState('grams'); // 'grams'|'count'|'name'
+  if (!open) return null;
+  const pantones = codes.map(c=>DESK_PANTONES.find(p=>p.code===c)).filter(Boolean);
+  const recipes = pantones.map(p=>({pantone:p,recipe:makeRecipe(p)}));
+  const inkAgg = React.useMemo(()=>aggregateInks(codes,qty),[codes.join(','),qty]);
+  const sortedInkAgg = React.useMemo(()=>{
+    const s=[...inkAgg];
+    if(inkSort==='count') return s.sort((a,b)=>b.count-a.count||b.grams-a.grams);
+    if(inkSort==='name') return s.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+    return s; // grams desc (default from aggregateInks)
+  },[inkAgg,inkSort]);
+  const sortOpts=[['pct_desc','↓g'],['pct_asc','↑g'],['name_asc','A–Z'],['name_desc','Z–A']];
+  const tabStyle = active => ({
+    padding:'7px 18px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:13,cursor:'pointer',border:'none',
+    background:active?theme.ink:'transparent',color:active?'#fff':theme.sub,transition:'background .18s,color .18s',
+  });
+  const maxGrams = sortedInkAgg[0]?.grams||1;
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:810,background:theme.bg,display:'flex',flexDirection:'column',fontFamily:'Nebulica'}}>
+      {/* Header */}
+      <div style={{height:72,flexShrink:0,display:'flex',alignItems:'center',padding:'0 28px',gap:16,borderBottom:`1px solid ${theme.line}`}}>
+        <button onClick={onClose} style={{width:40,height:40,borderRadius:99,border:`1.4px solid ${rgba(theme.ink,0.22)}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0}}>
+          <IcoClose size={16} color={theme.ink}/>
+        </button>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:20,color:theme.ink,letterSpacing:-0.4}}>Progetto</div>
+          <div style={{fontFamily:'Nebulica',fontSize:12,color:theme.sub,marginTop:1}}>{codes.length} Pantone selezionati</div>
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          <button onClick={()=>setTab('formule')} style={tabStyle(tab==='formule')}>Formule</button>
+          <button onClick={()=>setTab('inchiostri')} style={tabStyle(tab==='inchiostri')}>Lista inchiostri</button>
+        </div>
+        <div style={{display:'flex',gap:8,alignItems:'center',marginLeft:8}}>
+          <QuantityPicker value={qty} onChange={setQty} theme={theme}/>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,overflowY:'auto',padding:'24px 28px'}}>
+        {tab==='formule'&&(
+          <div>
+            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:20}}>
+              <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub}}>ORDINE FORMULA</span>
+              {sortOpts.map(([k,l])=>(
+                <button key={k} onClick={()=>onFormulaSort(k)} style={{padding:'3px 10px',borderRadius:99,fontFamily:'Nebulica',fontSize:11,fontWeight:700,cursor:'pointer',background:formulaSort===k?theme.ink:'transparent',color:formulaSort===k?'#fff':theme.faint,border:`1.3px solid ${formulaSort===k?theme.ink:rgba(theme.ink,0.2)}`,transition:'background .15s,color .15s,border-color .15s'}}>{l}</button>
+              ))}
+            </div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:16}}>
+              {recipes.map(({pantone,recipe})=>(
+                <ProjectFormulaCard key={pantone.code} pantone={pantone} recipe={recipe} qty={qty} sortInk={formulaSort} theme={theme}/>
+              ))}
+            </div>
+          </div>
+        )}
+        {tab==='inchiostri'&&(
+          <div style={{maxWidth:640}}>
+            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:20}}>
+              <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub}}>ORDINA PER</span>
+              {[['grams','Grammi ↓'],['count','Formule ↓'],['name','A–Z']].map(([k,l])=>(
+                <button key={k} onClick={()=>setInkSort(k)} style={{padding:'3px 10px',borderRadius:99,fontFamily:'Nebulica',fontSize:11,fontWeight:700,cursor:'pointer',background:inkSort===k?theme.ink:'transparent',color:inkSort===k?'#fff':theme.faint,border:`1.3px solid ${inkSort===k?theme.ink:rgba(theme.ink,0.2)}`,transition:'background .15s,color .15s,border-color .15s'}}>{l}</button>
+              ))}
+            </div>
+            <div style={{display:'flex',alignItems:'baseline',gap:8,marginBottom:16,padding:'8px 0',borderBottom:`1px solid ${theme.line}`}}>
+              <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:24,color:theme.ink}}>{sortedInkAgg.length}</span>
+              <span style={{fontFamily:'Nebulica',fontSize:13,color:theme.sub}}>barattoli unici da prendere</span>
+              <span style={{marginLeft:'auto',fontFamily:'"JetBrains Mono",monospace',fontSize:12,color:theme.faint}}>a {qty}g per Pantone</span>
+            </div>
+            {sortedInkAgg.map((ink,i)=>(
+              <div key={ink.name} style={{display:'flex',alignItems:'center',gap:14,padding:'11px 0',borderTop:i===0?'none':`1px solid ${theme.line}`}}>
+                <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,background:theme.ink,color:'#fff',padding:'6px 14px',borderRadius:99,whiteSpace:'nowrap',flexShrink:0,minWidth:80,textAlign:'center'}}>{ink.name}</span>
+                <div style={{flex:1,height:8,borderRadius:99,background:theme.line,overflow:'hidden'}}>
+                  <div style={{width:`${(ink.grams/maxGrams)*100}%`,height:'100%',background:theme.accent,borderRadius:99,transition:'width .4s'}}/>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0}}>
+                  <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:20,color:theme.ink,letterSpacing:-0.5}}>{ink.grams.toFixed(ink.grams>=100?1:2)}</span>
+                  <span style={{fontFamily:'Nebulica',fontSize:12,color:theme.faint,marginLeft:3}}>g tot</span>
+                  <div style={{fontFamily:'Nebulica',fontSize:11,color:theme.sub,marginTop:2}}>×{ink.count} {ink.count===1?'formula':'formule'}</div>
+                </div>
+              </div>
+            ))}
+            {sortedInkAgg.length===0&&<div style={{color:theme.faint,fontFamily:'Nebulica',fontSize:14,padding:'20px 0'}}>Nessun inchiostro trovato.</div>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='rise', onNuova, onEdit}) {
   const [family, setFamily] = React.useState('tutti');
   const [inkFilter, setInkFilter] = React.useState(0);
@@ -1266,6 +1410,11 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
   const [qty, setQty] = React.useState(100);
   const [soloPreferiti, setSoloPref] = React.useState(false);
   const [sortMode, setSortMode] = React.useState('default');
+  const [formulaSort, setFormulaSort] = React.useState(()=>localStorage.getItem('formulaSort')||'pct_desc');
+  const [projectSet, setProjectSet] = React.useState(new Set());
+  const [projectOpen, setProjectOpen] = React.useState(false);
+  const toggleProject = React.useCallback(code=>setProjectSet(prev=>{const s=new Set(prev);s.has(code)?s.delete(code):s.add(code);return s;}),[]);
+  const setFormulaS = React.useCallback(k=>{setFormulaSort(k);localStorage.setItem('formulaSort',k);},[]);
   ensureMasterKf();
   const listRef = React.useRef(null);
 
@@ -1352,9 +1501,12 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
               <div style={{position:'absolute',left:0,right:0,height:64,top:hiIdx*70,zIndex:0,opacity:hiIdx>=0?1:0,transition:`top .5s cubic-bezier(.2,.66,.24,1), opacity .25s`}}>
                 <div key={hiIdx} style={{position:'absolute',inset:0,borderRadius:99,background:rgba('#fff',theme.grey?0.5:0.58),backdropFilter:'blur(14px) saturate(150%)',WebkitBackdropFilter:'blur(14px) saturate(150%)',boxShadow:`0 8px 22px ${rgba('#000',0.08)}, inset 0 0 0 1px ${rgba('#fff',0.6)}`,animation:`mPulse .5s ${FLUID_SOFT} both`}}/>
               </div>
-              {filtered.map(p=>{const on=p.code===selected.code; const isNew=newlySaved.has(p.code); return (
-                <button key={p.code} onClick={()=>setSelCode(p.code)} style={{position:'relative',zIndex:1,width:'100%',height:64,marginBottom:6,display:'flex',alignItems:'center',gap:14,textAlign:'left',cursor:'pointer',padding:'0 22px 0 14px',borderRadius:99,border:'none',background:'transparent',animation:isNew?`newCard .6s ${SPRING_SOFT} both`:'none'}}>
-                  <Swatch hex={p.hex} size={44} radius={99}/>
+              {filtered.map(p=>{const on=p.code===selected.code; const isNew=newlySaved.has(p.code); const inProj=projectSet.has(p.code); return (
+                <button key={p.code} onClick={()=>setSelCode(p.code)} style={{position:'relative',zIndex:1,width:'100%',height:64,marginBottom:6,display:'flex',alignItems:'center',gap:10,textAlign:'left',cursor:'pointer',padding:'0 22px 0 10px',borderRadius:99,border:'none',background:'transparent',animation:isNew?`newCard .6s ${SPRING_SOFT} both`:'none'}}>
+                  <div onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();toggleProject(p.code);}} style={{width:20,height:20,borderRadius:99,flexShrink:0,border:`1.8px solid ${inProj?theme.ink:rgba(theme.ink,0.22)}`,background:inProj?theme.ink:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'background .15s,border-color .15s',zIndex:2}}>
+                    {inProj&&<IcoCheck size={11} color="#fff"/>}
+                  </div>
+                  <Swatch hex={p.hex} size={40} radius={99}/>
                   <div style={{flex:1,minWidth:0}}>
                     <span style={{fontFamily:theme.display,fontWeight:theme.isSerif?400:700,fontSize:19,letterSpacing:-0.5,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal'}}>
                       {p.code.replace(' U','')}{p.code.includes(' U')&&<span style={{opacity:0.5,fontWeight:400,fontStyle:'normal'}}> U</span>}</span>
@@ -1368,6 +1520,17 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
               );})}
             </div>
           </div>
+          {projectSet.size>0&&(
+            <div style={{padding:'10px 18px 14px 10px',borderTop:`1px solid ${theme.line}`,display:'flex',alignItems:'center',gap:8,background:rgba(theme.ink,0.04)}}>
+              <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:13,color:theme.ink,flex:1}}>{projectSet.size} Pantone</span>
+              <button onClick={()=>setProjectOpen(true)} style={{padding:'7px 16px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:12,cursor:'pointer',background:theme.ink,color:'#fff',border:'none',display:'flex',alignItems:'center',gap:6}}>
+                Vedi progetto →
+              </button>
+              <button onClick={()=>setProjectSet(new Set())} style={{width:30,height:30,borderRadius:99,border:`1.4px solid ${rgba(theme.ink,0.22)}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0}}>
+                <IcoClose size={13} color={theme.ink}/>
+              </button>
+            </div>
+          )}
         </div>
         {/* DETTAGLIO */}
         <div style={{flex:1,minWidth:0,display:'flex',padding:'10px 28px 26px 16px'}}>
@@ -1406,7 +1569,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                     <QuantityPicker value={qty} onChange={setQty} theme={theme}/>
                   </div>
                   <div style={{marginTop:14}}>
-                    <InkFormula key={'f-'+selected.code+anim} pantone={selected} recipe={recipe} qty={qty} theme={theme} big anim={stagger?'stagger':'none'} play/>
+                    <InkFormula key={'f-'+selected.code+anim} pantone={selected} recipe={recipe} qty={qty} theme={theme} big anim={stagger?'stagger':'none'} play sortInk={formulaSort} onSortChange={setFormulaS}/>
                   </div>
                   <NotesBlock note={recipe.note} theme={theme}/>
                   <div style={{marginTop:14,display:'flex',gap:12,alignItems:'center'}}>
@@ -1421,6 +1584,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
           <div style={{flex:1}}/>
         </div>
       </div>
+      <ProjectOverlay open={projectOpen} onClose={()=>setProjectOpen(false)} codes={[...projectSet]} theme={theme} qty={qty} setQty={setQty} formulaSort={formulaSort} onFormulaSort={setFormulaS}/>
     </div>
   );
 }
