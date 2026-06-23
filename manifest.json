@@ -1,0 +1,13 @@
+{
+  "name": "Ricettario Serigrafia",
+  "short_name": "Ricettario",
+  "description": "Formule inchiostri serigrafia SICO · Pantone",
+  "start_url": "/ricettario-serigrafia/",
+  "display": "standalone",
+  "background_color": "#F4EFE2",
+  "theme_color": "#F4EFE2",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
