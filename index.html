@@ -960,23 +960,12 @@ function InkSearchField({value, onChange, options, style, onConfirm}) {
 
 /* ═══════════════════ HEX PICKER SHEET ═══════════════════ */
 function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
-  const [icoResult, setIcoResult] = React.useState(null); // {hex, source} | null
-  const [loading, setLoading] = React.useState(false);
   const [manualHex, setManualHex] = React.useState('');
-
-  React.useEffect(() => {
-    if (!open || !pantoneId) return;
-    setIcoResult(null); setLoading(true);
-    fetch(`${SCRIPT_URL}?action=getHexAlternative&pantone_id=${encodeURIComponent(pantoneId)}`)
-      .then(r => r.json())
-      .then(d => { setIcoResult(d); setLoading(false); })
-      .catch(() => { setIcoResult({hex:null}); setLoading(false); });
-  }, [open, pantoneId]);
 
   React.useEffect(() => { if (!open) setManualHex(''); }, [open]);
 
   const dbHex = PANTONE_DB[pantoneId] ? '#' + PANTONE_DB[pantoneId] : null;
-  const icoHex = icoResult && icoResult.hex ? icoResult.hex : null;
+  const icoUrl = pantoneId ? 'https://icolorpalette.com/color/pantone-' + pantoneId.toLowerCase().replace(/\s+/g,'-') : null;
 
   function Swatch({hex, label, sub, onPick}) {
     const valid = hex && /^#?[0-9A-Fa-f]{6}$/.test(hex.replace('#',''));
@@ -1034,14 +1023,20 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
         <Swatch hex={dbHex} label="Database app" sub="Valore attualmente in uso"
           onPick={()=>{ onSelect(dbHex.replace('#','')); onClose(); }}/>
 
-        {loading
-          ? <div style={{padding:'14px 16px',fontFamily:'Nebulica',fontSize:13,color:theme.sub,
-              borderRadius:16,border:`1.5px solid ${theme.line}`,marginBottom:8}}>
-              Ricerca su icolorpalette.com…
-            </div>
-          : <Swatch hex={icoHex} label="icolorpalette.com" sub={icoHex?'Fonte alternativa verificata':'Colore non trovato nel sito'}
-              onPick={()=>{ onSelect(icoHex.replace('#','')); onClose(); }}/>
-        }
+        {icoUrl && <a href={icoUrl} target="_blank" rel="noopener noreferrer" style={{
+          display:'flex',alignItems:'center',gap:14,padding:'12px 14px',borderRadius:16,
+          border:`1.5px solid ${theme.line}`,marginBottom:8,textDecoration:'none',
+          background:theme.panel||'transparent',WebkitTapHighlightColor:'transparent'}}>
+          <div style={{width:52,height:52,borderRadius:12,flexShrink:0,background:theme.panelAlt||'#f0f0f0',
+            border:`1px solid rgba(0,0,0,0.08)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>
+            🌐
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.ink}}>icolorpalette.com</div>
+            <div style={{fontFamily:'Nebulica',fontSize:11,color:theme.sub,marginTop:1}}>Apri nel browser → copia il HEX → incolla qui sotto</div>
+          </div>
+          <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:theme.accent,flexShrink:0}}>APRI →</span>
+        </a>}
 
         <div style={{marginTop:10}}>
           <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.3,fontWeight:700,
