@@ -601,6 +601,13 @@ const IcoNote    = p=><Ico {...p} d="M5 4h11l3 3v13H5V4zM15 4v4h4M8 12h8M8 16h5"
 const IcoChevron = p=><Ico {...p} d="M6 9l6 6 6-6"/>;
 const IcoCheck   = p=><Ico {...p} d="M5 12.5l4.2 4.2L19 7"/>;
 const IcoBox     = p=><Ico {...p} d="M3 7l9-4 9 4v10l-9 4-9-4V7M3 7l9 4 9-4M12 11v10"/>;
+function IcoPalette({size=20,color='currentColor'}){
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.8504 22.8582" width={size} height={size} style={{display:'block',flexShrink:0}}>
+    <path d="M20.0679 7.81778L21.9832 11.1184C22.899 12.6988 22.5779 14.0365 20.9752 14.9603L9.37772 21.6623C9.28021 21.7185 9.18378 21.7698 9.08854 21.8159C9.30132 21.5148 9.44253 21.1454 9.51109 20.7127C9.8084 20.4712 10.077 20.1416 10.3139 19.7279L10.9711 18.589L14.7914 16.3815L13.5172 14.1766L14.5948 12.3091L16.407 15.4479L19.9613 13.3941C20.46 13.0955 20.6404 12.5346 20.3453 12.0217L18.4787 8.77929C18.1693 8.25214 17.5551 8.06991 17.0564 8.35878L16.7834 8.51636L17.5617 7.16757C17.7536 6.83679 17.8886 6.5177 17.964 6.21221C18.789 6.2869 19.5021 6.8324 20.0679 7.81778Z" fill={color}/>
+    <path d="M13.1892 1.43789L16.4898 3.34512C18.0943 4.26894 18.4803 5.58437 17.5617 7.16757L10.3139 19.7279C10.077 20.1416 9.8084 20.4712 9.51109 20.7127C9.54498 20.507 9.5617 20.2864 9.5617 20.0518L9.5617 15.2717L10.432 15.7745L12.8994 11.4961L9.5617 9.57044L9.5617 7.41185L13.8318 9.87947L15.883 6.32285C16.1799 5.80644 16.0234 5.23749 15.5283 4.94237L12.2859 3.07577C11.7588 2.77265 11.1383 2.90155 10.8494 3.40995L9.5617 5.64167L9.5617 2.77988C9.5617 2.5199 9.54118 2.27727 9.49818 2.05446C10.3967 0.781355 11.6781 0.566785 13.1892 1.43789Z" fill={color}/>
+    <path d="M2.91054 22.8396L6.72499 22.8396C8.56639 22.8396 9.5617 21.8621 9.5617 20.0518L9.5617 2.77988C9.5617 0.969528 8.56639 0 6.72499 0L2.91054 0C1.01933 0 0 0.969528 0 2.77988L0 20.0518C0 21.8621 1.01933 22.8396 2.91054 22.8396ZM2.95117 20.9668C2.3369 20.9668 1.87284 20.5348 1.87284 19.949L1.87284 2.88261C1.87284 2.29686 2.3369 1.87284 2.95117 1.87284L6.68437 1.87284C7.26659 1.87284 7.69062 2.29686 7.69062 2.88261L7.69062 19.949C7.69062 20.5348 7.26659 20.9668 6.68437 20.9668ZM0.835155 8.86503L8.72655 8.86503L8.72655 6.99219L0.835155 6.99219ZM0.835155 15.8474L8.72655 15.8474L8.72655 13.9746L0.835155 13.9746Z" fill={color}/>
+  </svg>;
+}
 function IcoSeal({size=20,color='currentColor'}){
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.6936 22.3425" width={size} height={size} style={{display:'block',flexShrink:0}}>
     <path d="M13.0254 0.954641L14.51 2.4312C14.6539 2.5689 14.7836 2.61597 14.9746 2.61597L17.0612 2.61597C18.8664 2.61597 19.7076 3.46968 19.7076 5.26069L19.7076 7.35523C19.7076 7.53999 19.7592 7.67417 19.8987 7.81187L21.3752 9.29644C22.6426 10.5656 22.6506 11.7591 21.3752 13.0265L19.8987 14.5111C19.7627 14.6568 19.7076 14.7847 19.7076 14.9757L19.7076 17.0623C19.7076 18.8675 18.8602 19.7087 17.0612 19.7087L14.9746 19.7087C14.7836 19.7087 14.6557 19.7621 14.51 19.8998L13.0254 21.3763C11.758 22.6455 10.5627 22.6535 9.29534 21.3763L7.81077 19.8998C7.67131 19.7621 7.53713 19.7087 7.35413 19.7087L5.25959 19.7087C3.46233 19.7087 2.61311 18.8613 2.61311 17.0623L2.61311 14.9757C2.61311 14.7847 2.56604 14.6568 2.4301 14.5111L0.953541 13.0265C-0.31384 11.7591-0.321848 10.5656 0.953541 9.29644L2.4301 7.81187C2.56604 7.67593 2.61311 7.53999 2.61311 7.35523L2.61311 5.26069C2.61311 3.45191 3.46057 2.61597 5.25959 2.61597L7.35413 2.61597C7.53713 2.61597 7.67307 2.5689 7.81077 2.4312L9.29534 0.956399C10.5627-0.314498 11.7545-0.322506 13.0254 0.954641ZM14.0811 7.31577L10.043 13.7812L8.16252 11.3914C7.90959 11.0691 7.67717 10.9574 7.37561 10.9574C6.8719 10.9574 6.47561 11.3609 6.47561 11.8664C6.47561 12.1058 6.56702 12.3392 6.73987 12.5626L9.13479 15.4738C9.40628 15.8279 9.70784 15.9794 10.0768 15.9794C10.4405 15.9794 10.7588 15.8003 10.9815 15.4667L15.552 8.34116C15.6867 8.12475 15.8049 7.88608 15.8049 7.65268C15.8049 7.14897 15.3571 6.80679 14.8774 6.80679C14.5698 6.80679 14.2948 6.97437 14.0811 7.31577Z" fill={color}/>
@@ -1215,7 +1222,7 @@ function NuovaSheet({open, onClose, theme}) {
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>{setHex(e.target.value);setHexAuto(false);}} placeholder="D44800" style={{...inp,flex:1}}/>
               {hex.replace('#','').length>=6&&<div style={{width:36,height:36,borderRadius:'50%',background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
-              <button onClick={()=>setPickerOpen(true)} title="Scegli HEX" style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,lineHeight:1}}>🎨</button>
+              <button onClick={()=>setPickerOpen(true)} title="Scegli HEX" style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}><IcoPalette size={17} color={theme.ink}/></button>
             </div>
           </div>
           <div>
@@ -1345,7 +1352,7 @@ function EditSheet({open, editCode, onClose, theme}) {
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
               {hex.replace('#','').length>=6&&<div style={{width:36,height:36,borderRadius:'50%',background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
-              <button onClick={()=>setPickerOpen(true)} title="Scegli HEX" style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,lineHeight:1}}>🎨</button>
+              <button onClick={()=>setPickerOpen(true)} title="Scegli HEX" style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}><IcoPalette size={17} color={theme.ink}/></button>
             </div>
           </div>
           <div><span style={lbl}>CATEGORIA</span>
