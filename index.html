@@ -1010,36 +1010,22 @@ function ensureHexPickerKf() {
 
 function HexPickerSheet({open, onClose, pantoneId, onSelect, currentHex, theme}) {
   const [manualHex, setManualHex] = React.useState('');
-  const [pizzaHex, setPizzaHex] = React.useState(null);
-  const [pizzaName, setPizzaName] = React.useState(null);
-  const [pizzaLoading, setPizzaLoading] = React.useState(false);
-  const [popStates, setPopStates] = React.useState([false, false, false]);
+  const [popStates, setPopStates] = React.useState([false, false]);
   const [pickedIdx, setPickedIdx] = React.useState(null);
   ensureHexPickerKf();
 
   React.useEffect(() => {
-    if (!open) { setPopStates([false, false, false]); setPickedIdx(null); return; }
+    if (!open) { setPopStates([false, false]); setPickedIdx(null); return; }
     if (!pantoneId) return;
     const saved = localStorage.getItem('icoHex_'+pantoneId);
     setManualHex(saved||'');
-    setPizzaHex(null); setPizzaName(null); setPizzaLoading(true);
-    fetch(`https://api.color.pizza/v1/?names=${encodeURIComponent('pantone ' + pantoneId.toLowerCase())}`)
-      .then(r => r.json())
-      .then(d => {
-        const c = d.colors && d.colors[0];
-        setPizzaHex(c ? c.hex : null);
-        setPizzaName(c ? c.name : null);
-        setPizzaLoading(false);
-      })
-      .catch(() => setPizzaLoading(false));
   }, [open, pantoneId]);
 
   React.useEffect(() => {
     if (!open) return;
-    const t0 = setTimeout(() => setPopStates(s => [true, s[1], s[2]]), 80);
-    const t1 = setTimeout(() => setPopStates(s => [s[0], true, s[2]]), 200);
-    const t2 = setTimeout(() => setPopStates(s => [s[0], s[1], true]), 320);
-    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); };
+    const t0 = setTimeout(() => setPopStates(s => [true, s[1]]), 80);
+    const t1 = setTimeout(() => setPopStates(s => [s[0], true]), 220);
+    return () => { clearTimeout(t0); clearTimeout(t1); };
   }, [open]);
 
   const dbHex = PANTONE_DB[pantoneId] ? '#' + PANTONE_DB[pantoneId] : null;
@@ -1047,9 +1033,8 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, currentHex, theme})
   const manV = manualHex.replace('#','');
   const manValid = /^[0-9A-Fa-f]{6}$/.test(manV);
   const curHexNorm = currentHex ? '#'+currentHex.replace('#','').toUpperCase() : null;
-  const isCurrentDb    = !!(curHexNorm && dbHex   && curHexNorm.toUpperCase() === dbHex.toUpperCase());
-  const isCurrentIco   = !!(curHexNorm && manValid && curHexNorm.toUpperCase() === ('#'+manV).toUpperCase());
-  const isCurrentPizza = !!(curHexNorm && pizzaHex && curHexNorm.toUpperCase() === pizzaHex.toUpperCase());
+  const isCurrentDb  = !!(curHexNorm && dbHex   && curHexNorm.toUpperCase() === dbHex.toUpperCase());
+  const isCurrentIco = !!(curHexNorm && manValid && curHexNorm.toUpperCase() === ('#'+manV).toUpperCase());
 
   function doPick(idx, cb) {
     setPickedIdx(idx);
@@ -1158,24 +1143,18 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, currentHex, theme})
           {pantoneId} — tocca una card per applicare il colore
         </div>
 
-        <div style={{display:'flex',justifyContent:'center',alignItems:'flex-end',gap:14,marginBottom:32,paddingBottom:6}}>
-          <Card hex={dbHex} label="Database app" rotate="-9deg" dy={12}
+        <div style={{display:'flex',justifyContent:'center',alignItems:'flex-end',gap:32,marginBottom:32,paddingBottom:6}}>
+          <Card hex={dbHex} label="Database app" rotate="-12deg" dy={14}
             popped={popStates[0]} idx={0} isCurrentHex={isCurrentDb}
             onPick={()=>{ onSelect(dbHex.replace('#','')); onClose(); }}/>
           <Card isLink={!manValid} url={icoUrl} hex={manValid?'#'+manV:null} label="icolorpalette.com"
-            rotate="1deg" dy={-10} popped={popStates[1]} idx={1} isCurrentHex={isCurrentIco}
+            rotate="12deg" dy={14} popped={popStates[1]} idx={1} isCurrentHex={isCurrentIco}
             onPick={()=>{ onSelect(manV); onClose(); }}/>
-          {pizzaLoading
-            ? <Card hex={null} label="color.pizza" rotate="10deg" dy={16} loading={true} popped={popStates[2]} idx={2} isCurrentHex={false}/>
-            : <Card hex={pizzaHex} label={pizzaName||'color.pizza'} rotate="10deg" dy={16}
-                popped={popStates[2]} idx={2} isCurrentHex={isCurrentPizza}
-                onPick={()=>{ if(pizzaHex){onSelect(pizzaHex.replace('#','')); onClose();}}}/>
-          }
         </div>
 
         <div>
           <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.3,fontWeight:700,
-            color:theme.sub,marginBottom:7}}>HEX PERSONALIZZATO → aggiorna card centrale</div>
+            color:theme.sub,marginBottom:7}}>HEX MANUALE → aggiorna card icolorpalette</div>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <input value={manualHex} onChange={e=>{const v=e.target.value;setManualHex(v);const mv=v.replace('#','');if(/^[0-9A-Fa-f]{6}$/.test(mv)&&pantoneId)localStorage.setItem('icoHex_'+pantoneId,mv);}}
               placeholder="Incolla HEX da icolorpalette (es. EA60A7)"
