@@ -21,35 +21,35 @@ function doGet(e) {
 }
 
 // ── HEX ALTERNATIVO da icolorpalette.com ─────────────────────────────────
+// Il sito redirige /color/pantone-225-u → /color/EA60A7
+// Leggiamo il hex direttamente dall'header Location del redirect (no HTML parsing)
 function getHexAlternative(pantoneId) {
   if (!pantoneId) return { hex: null, source: null };
-  // "166 U" → "pantone-166-u"
-  const slug = 'pantone-' + pantoneId.toLowerCase().replace(/\s+/g, '-');
+  const norm = pantoneId.toLowerCase().trim().replace(/\s+/g, '-');
   const urls = [
-    'https://icolorpalette.com/color/' + slug,
-    'https://icolorpalette.com/' + slug,
+    'https://icolorpalette.com/color/pantone-' + norm,
+    'https://icolorpalette.com/pantone-' + norm,
   ];
   for (const url of urls) {
     try {
       const resp = UrlFetchApp.fetch(url, {
         muteHttpExceptions: true,
-        followRedirects: true,
+        followRedirects: false,
         headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
       });
-      if (resp.getResponseCode() !== 200) continue;
-      const html = resp.getContentText();
-      // 1. og:image spesso contiene il colore: .../RRGGBB.png
-      const m1 = html.match(/og:image[^>]+content="[^"]*\/([0-9A-Fa-f]{6})\.(?:png|jpg|webp)/i);
-      if (m1) return { hex: '#' + m1[1].toUpperCase(), source: 'icolorpalette', url: url };
-      // 2. Titolo pagina "#RRGGBB Color" o "RRGGBB Color"
-      const m2 = html.match(/<title[^>]*>\s*#?([0-9A-Fa-f]{6})\s/i);
-      if (m2) return { hex: '#' + m2[1].toUpperCase(), source: 'icolorpalette', url: url };
-      // 3. h1 con il colore
-      const m3 = html.match(/<h1[^>]*>\s*#?([0-9A-Fa-f]{6})\s/i);
-      if (m3) return { hex: '#' + m3[1].toUpperCase(), source: 'icolorpalette', url: url };
-      // 4. Cerca il primo hex prominente nella pagina (in data-color o simili)
-      const m4 = html.match(/data-color=["']#?([0-9A-Fa-f]{6})["']/i);
-      if (m4) return { hex: '#' + m4[1].toUpperCase(), source: 'icolorpalette', url: url };
+      const code = resp.getResponseCode();
+      if (code >= 300 && code < 400) {
+        const loc = resp.getHeaders()['Location'] || resp.getHeaders()['location'] || '';
+        const m = loc.match(/\/([0-9A-Fa-f]{6})(?:[^0-9A-Fa-f]|$)/i);
+        if (m) return { hex: '#' + m[1].toUpperCase(), source: 'icolorpalette', url: loc };
+      }
+      if (code === 200) {
+        const html = resp.getContentText();
+        const m1 = html.match(/og:image[^>]+content="[^"]*\/([0-9A-Fa-f]{6})\.(?:png|jpg|webp)/i);
+        if (m1) return { hex: '#' + m1[1].toUpperCase(), source: 'icolorpalette', url: url };
+        const m2 = html.match(/<title[^>]*>\s*#?([0-9A-Fa-f]{6})\s/i);
+        if (m2) return { hex: '#' + m2[1].toUpperCase(), source: 'icolorpalette', url: url };
+      }
     } catch(e) { /* continua con prossimo URL */ }
   }
   return { hex: null, source: null };
