@@ -958,6 +958,114 @@ function InkSearchField({value, onChange, options, style, onConfirm}) {
   );
 }
 
+/* ═══════════════════ HEX PICKER SHEET ═══════════════════ */
+function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
+  const [icoResult, setIcoResult] = React.useState(null); // {hex, source} | null
+  const [loading, setLoading] = React.useState(false);
+  const [manualHex, setManualHex] = React.useState('');
+
+  React.useEffect(() => {
+    if (!open || !pantoneId) return;
+    setIcoResult(null); setLoading(true);
+    fetch(`${SCRIPT_URL}?action=getHexAlternative&pantone_id=${encodeURIComponent(pantoneId)}`)
+      .then(r => r.json())
+      .then(d => { setIcoResult(d); setLoading(false); })
+      .catch(() => { setIcoResult({hex:null}); setLoading(false); });
+  }, [open, pantoneId]);
+
+  React.useEffect(() => { if (!open) setManualHex(''); }, [open]);
+
+  const dbHex = PANTONE_DB[pantoneId] ? '#' + PANTONE_DB[pantoneId] : null;
+  const icoHex = icoResult && icoResult.hex ? icoResult.hex : null;
+
+  function Swatch({hex, label, sub, onPick}) {
+    const valid = hex && /^#?[0-9A-Fa-f]{6}$/.test(hex.replace('#',''));
+    const h = valid ? '#' + hex.replace('#','').toUpperCase() : null;
+    const fg = h ? textOnDesk(h.replace('#','')) : '#999';
+    return (
+      <div onClick={h ? onPick : null} style={{
+        display:'flex', alignItems:'center', gap:14,
+        padding:'12px 14px', borderRadius:16,
+        border:`1.5px solid ${h ? theme.line : theme.line}`,
+        cursor: h ? 'pointer' : 'default',
+        opacity: h ? 1 : 0.45, marginBottom:8,
+        background: theme.panel||'transparent',
+        WebkitTapHighlightColor:'transparent',
+        transition:'opacity .15s',
+      }}>
+        <div style={{width:52,height:52,borderRadius:12,flexShrink:0,
+          background:h||'#eee',border:`1px solid rgba(0,0,0,0.08)`,
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          {h && <span style={{fontFamily:'"JetBrains Mono",monospace',fontSize:8,color:fg,opacity:0.7,letterSpacing:0.5}}>{h}</span>}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.ink}}>{label}</div>
+          <div style={{fontFamily:'"JetBrains Mono",monospace',fontSize:12,color:theme.sub,marginTop:1}}>{h||'—'}</div>
+          {sub&&<div style={{fontFamily:'Nebulica',fontSize:11,color:theme.faint,marginTop:1}}>{sub}</div>}
+        </div>
+        {h&&<span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:theme.accent,flexShrink:0}}>USA</span>}
+      </div>
+    );
+  }
+
+  const manV = manualHex.replace('#','');
+  const manValid = /^[0-9A-Fa-f]{6}$/.test(manV);
+
+  return (
+    <>
+      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',
+        zIndex:1050,opacity:open?1:0,pointerEvents:open?'auto':'none',transition:'opacity .28s'}}/>
+      <div style={{
+        position:'fixed',bottom:0,left:'50%',
+        transform:`translateX(-50%) translateY(${open?0:100}%)`,
+        width:'100%',maxWidth:560,zIndex:1060,
+        borderRadius:'24px 24px 0 0',
+        background:theme.surface||'#fff',
+        padding:`20px 20px calc(env(safe-area-inset-bottom,16px)+28px)`,
+        boxShadow:'0 -20px 60px rgba(0,0,0,0.22)',
+        transition:'transform .38s cubic-bezier(.22,1.2,.36,1)',
+      }}>
+        <div style={{width:40,height:4,borderRadius:99,background:theme.line||'#ddd',margin:'0 auto 18px'}}/>
+        <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:17,color:theme.ink,marginBottom:3}}>Scegli HEX</div>
+        <div style={{fontFamily:'Nebulica',fontSize:13,color:theme.sub,marginBottom:16}}>
+          {pantoneId} — tocca uno swatch per applicarlo
+        </div>
+
+        <Swatch hex={dbHex} label="Database app" sub="Valore attualmente in uso"
+          onPick={()=>{ onSelect(dbHex.replace('#','')); onClose(); }}/>
+
+        {loading
+          ? <div style={{padding:'14px 16px',fontFamily:'Nebulica',fontSize:13,color:theme.sub,
+              borderRadius:16,border:`1.5px solid ${theme.line}`,marginBottom:8}}>
+              Ricerca su icolorpalette.com…
+            </div>
+          : <Swatch hex={icoHex} label="icolorpalette.com" sub={icoHex?'Fonte alternativa verificata':'Colore non trovato nel sito'}
+              onPick={()=>{ onSelect(icoHex.replace('#','')); onClose(); }}/>
+        }
+
+        <div style={{marginTop:10}}>
+          <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.3,fontWeight:700,
+            color:theme.sub,marginBottom:7}}>HEX PERSONALIZZATO</div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            {manValid&&<div style={{width:44,height:44,borderRadius:10,flexShrink:0,
+              background:'#'+manV,border:`1px solid rgba(0,0,0,0.1)`}}/>}
+            <input value={manualHex} onChange={e=>setManualHex(e.target.value)}
+              placeholder="Incolla HEX (es. D44800)"
+              style={{flex:1,height:44,borderRadius:12,border:`1.5px solid ${theme.line}`,
+                padding:'0 14px',fontFamily:'"JetBrains Mono",monospace',fontSize:13,
+                background:theme.field||theme.panel||'#f5f5f5',color:theme.ink,
+                outline:'none',WebkitAppearance:'none'}}/>
+            {manValid&&<button onClick={()=>{onSelect(manV);onClose();}} style={{
+              height:44,padding:'0 16px',borderRadius:12,border:'none',flexShrink:0,
+              background:theme.accent,color:theme.onAccent,
+              fontFamily:'Nebulica',fontWeight:700,fontSize:13,cursor:'pointer'}}>Usa</button>}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function NuovaSheet({open, onClose, theme}) {
   const [pid, setPid] = React.useState('');
   const [hex, setHex] = React.useState('');
@@ -971,10 +1079,11 @@ function NuovaSheet({open, onClose, theme}) {
   const [inks, setInks] = React.useState([{ink:'',dose:''},{ink:'',dose:''}]);
   const [saving, setSaving] = React.useState(false);
   const [msg, setMsg] = React.useState('');
+  const [pickerOpen, setPickerOpen] = React.useState(false);
   const doseRefs = React.useRef([]);
 
   React.useEffect(()=>{
-    if(!open){ setPid(''); setHex(''); setHexAuto(false); setCat(''); setCatAuto(false); setTemp(''); setCop(''); setNote(''); setPag(''); setInks([{ink:'',dose:''},{ink:'',dose:''}]); setMsg(''); setSaving(false); }
+    if(!open){ setPid(''); setHex(''); setHexAuto(false); setCat(''); setCatAuto(false); setTemp(''); setCop(''); setNote(''); setPag(''); setInks([{ink:'',dose:''},{ink:'',dose:''}]); setMsg(''); setSaving(false); setPickerOpen(false); }
   },[open]);
 
   const onPidChange = v => {
@@ -1054,6 +1163,7 @@ function NuovaSheet({open, onClose, theme}) {
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>{setHex(e.target.value);setHexAuto(false);}} placeholder="D44800" style={{...inp,flex:1}}/>
               {hex.replace('#','').length>=6&&<div style={{width:36,height:36,borderRadius:'50%',background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
+              <button onClick={()=>setPickerOpen(true)} title="Scegli HEX" style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,lineHeight:1}}>🎨</button>
             </div>
           </div>
           <div>
@@ -1091,6 +1201,7 @@ function NuovaSheet({open, onClose, theme}) {
           {saving?'Salvataggio…':'Salva ricetta'}
         </button>
       </div>
+      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={pid.trim()} onSelect={h=>{setHex(h);setHexAuto(false);}} theme={theme}/>
     </React.Fragment>
   );
 }
@@ -1108,6 +1219,7 @@ function EditSheet({open, editCode, onClose, theme}) {
   const inkId = React.useRef(1);
   const [saving, setSaving] = React.useState(false);
   const [msg, setMsg] = React.useState('');
+  const [pickerOpen, setPickerOpen] = React.useState(false);
   const pidTouched = React.useRef(false);
 
   React.useEffect(()=>{
@@ -1181,6 +1293,7 @@ function EditSheet({open, editCode, onClose, theme}) {
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
               {hex.replace('#','').length>=6&&<div style={{width:36,height:36,borderRadius:'50%',background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
+              <button onClick={()=>setPickerOpen(true)} title="Scegli HEX" style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,lineHeight:1}}>🎨</button>
             </div>
           </div>
           <div><span style={lbl}>CATEGORIA</span>
@@ -1253,6 +1366,7 @@ function EditSheet({open, editCode, onClose, theme}) {
           Elimina ricetta
         </button>
       </div>
+      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={pid.trim()} onSelect={h=>setHex(h)} theme={theme}/>
     </React.Fragment>
   );
 }
