@@ -983,34 +983,46 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
   const dbHex = PANTONE_DB[pantoneId] ? '#' + PANTONE_DB[pantoneId] : null;
   const icoUrl = pantoneId ? 'https://icolorpalette.com/color/pantone-' + pantoneId.toLowerCase().replace(/\s+/g,'-') : null;
 
-  function Swatch({hex, label, sub, onPick}) {
+  function Card({hex, label, rotate, dy, loading, isLink, url, onPick}) {
     const valid = hex && /^#?[0-9A-Fa-f]{6}$/.test(hex.replace('#',''));
     const h = valid ? '#' + hex.replace('#','').toUpperCase() : null;
-    const fg = h ? textOnDesk(h.replace('#','')) : '#999';
-    return (
-      <div onClick={h ? onPick : null} style={{
-        display:'flex', alignItems:'center', gap:14,
-        padding:'12px 14px', borderRadius:16,
-        border:`1.5px solid ${h ? theme.line : theme.line}`,
-        cursor: h ? 'pointer' : 'default',
-        opacity: h ? 1 : 0.45, marginBottom:8,
-        background: theme.panel||'transparent',
+    const fg = h ? textOnDesk(h.replace('#','')) : '#888';
+    const square = (
+      <div style={{
+        width:114, height:114, borderRadius:22,
+        background: isLink ? (theme.panelAlt||'#f0f0f0') : (h || (loading ? (theme.panelAlt||'#f0f0f0') : '#e8e8e8')),
+        border:`2px solid rgba(0,0,0,${h&&!isLink?0.14:0.08})`,
+        display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5,
+        opacity: (loading || (!h && !isLink)) ? 0.5 : 1,
+        boxShadow:'0 8px 28px rgba(0,0,0,0.20)',
         WebkitTapHighlightColor:'transparent',
-        transition:'opacity .15s',
       }}>
-        <div style={{width:52,height:52,borderRadius:12,flexShrink:0,
-          background:h||'#eee',border:`1px solid rgba(0,0,0,0.08)`,
-          display:'flex',alignItems:'center',justifyContent:'center'}}>
-          {h && <span style={{fontFamily:'"JetBrains Mono",monospace',fontSize:8,color:fg,opacity:0.7,letterSpacing:0.5}}>{h}</span>}
-        </div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.ink}}>{label}</div>
-          <div style={{fontFamily:'"JetBrains Mono",monospace',fontSize:12,color:theme.sub,marginTop:1}}>{h||'—'}</div>
-          {sub&&<div style={{fontFamily:'Nebulica',fontSize:11,color:theme.faint,marginTop:1}}>{sub}</div>}
-        </div>
-        {h&&<span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:theme.accent,flexShrink:0}}>USA</span>}
+        {isLink && <>
+          <span style={{fontSize:28}}>🌐</span>
+          <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:10,color:theme.sub,letterSpacing:0.8}}>APRI →</span>
+        </>}
+        {loading && <span style={{fontFamily:'Nebulica',fontSize:12,color:theme.sub}}>…</span>}
+        {!isLink && !loading && h && <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,
+          fontSize:11,color:fg,letterSpacing:0.3,textAlign:'center',padding:'0 6px'}}>{h}</span>}
+        {!isLink && !loading && !h && <span style={{fontFamily:'Nebulica',fontSize:13,color:'#bbb'}}>—</span>}
       </div>
     );
+    const labelEl = (
+      <div style={{fontFamily:'Nebulica',fontSize:10,fontWeight:700,color:theme.sub,
+        marginTop:10,textAlign:'center',maxWidth:120,lineHeight:1.35,
+        letterSpacing:0.4,wordBreak:'break-word'}}>
+        {label}
+      </div>
+    );
+    const wrapStyle = {
+      display:'flex', flexDirection:'column', alignItems:'center',
+      transform:`rotate(${rotate}) translateY(${dy||0}px)`,
+      cursor: isLink ? 'pointer' : (h ? 'pointer' : 'default'),
+      WebkitTapHighlightColor:'transparent',
+    };
+    return isLink
+      ? <a href={url} target="_blank" rel="noopener noreferrer" style={{...wrapStyle,textDecoration:'none'}}>{square}{labelEl}</a>
+      : <div onClick={h&&!loading?onPick:null} style={wrapStyle}>{square}{labelEl}</div>;
   }
 
   const manV = manualHex.replace('#','');
@@ -1018,52 +1030,43 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
 
   return (
     <>
-      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',
-        zIndex:1050,opacity:open?1:0,pointerEvents:open?'auto':'none',transition:'opacity .28s'}}/>
+      <div onClick={onClose} style={{
+        position:'fixed', inset:0,
+        background:'rgba(0,0,0,0.5)',
+        backdropFilter:open?'blur(10px)':'none',
+        WebkitBackdropFilter:open?'blur(10px)':'none',
+        zIndex:1050, opacity:open?1:0, pointerEvents:open?'auto':'none',
+        transition:'opacity .3s',
+      }}/>
       <div style={{
-        position:'fixed',bottom:0,left:'50%',
-        transform:`translateX(-50%) translateY(${open?0:100}%)`,
-        width:'100%',maxWidth:560,zIndex:1060,
-        borderRadius:'24px 24px 0 0',
+        position:'fixed', top:'50%', left:'50%',
+        transform:`translate(-50%,-50%) scale(${open?1:0.88})`,
+        opacity:open?1:0,
+        pointerEvents:open?'auto':'none',
+        width:'calc(100% - 40px)', maxWidth:460,
+        zIndex:1060, borderRadius:28,
         background:theme.surface||'#fff',
-        padding:`20px 20px calc(env(safe-area-inset-bottom,16px)+28px)`,
-        boxShadow:'0 -20px 60px rgba(0,0,0,0.22)',
-        transition:'transform .38s cubic-bezier(.22,1.2,.36,1)',
+        padding:'24px 20px 26px',
+        boxShadow:'0 32px 80px rgba(0,0,0,0.28)',
+        transition:'transform .32s cubic-bezier(.22,1.2,.36,1), opacity .25s',
       }}>
-        <div style={{width:40,height:4,borderRadius:99,background:theme.line||'#ddd',margin:'0 auto 18px'}}/>
         <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:17,color:theme.ink,marginBottom:3}}>Scegli HEX</div>
-        <div style={{fontFamily:'Nebulica',fontSize:13,color:theme.sub,marginBottom:16}}>
-          {pantoneId} — tocca uno swatch per applicarlo
+        <div style={{fontFamily:'Nebulica',fontSize:13,color:theme.sub,marginBottom:26}}>
+          {pantoneId} — tocca una card per applicare il colore
         </div>
 
-        <Swatch hex={dbHex} label="Database app" sub="Valore attualmente in uso"
-          onPick={()=>{ onSelect(dbHex.replace('#','')); onClose(); }}/>
+        <div style={{display:'flex',justifyContent:'center',alignItems:'flex-end',gap:14,marginBottom:30,paddingBottom:4}}>
+          <Card hex={dbHex} label="Database app" rotate="-8deg" dy={8}
+            onPick={()=>{ onSelect(dbHex.replace('#','')); onClose(); }}/>
+          {pizzaLoading
+            ? <Card hex={null} label="color.pizza" rotate="2deg" dy={-6} loading={true}/>
+            : <Card hex={pizzaHex} label={pizzaName||'color.pizza'} rotate="2deg" dy={-6}
+                onPick={()=>{ if(pizzaHex){onSelect(pizzaHex.replace('#','')); onClose();}}}/>
+          }
+          {icoUrl && <Card isLink url={icoUrl} label="icolorpalette.com" rotate="11deg" dy={14}/>}
+        </div>
 
-        {pizzaLoading
-          ? <div style={{padding:'14px 16px',fontFamily:'Nebulica',fontSize:13,color:theme.sub,
-              borderRadius:16,border:`1.5px solid ${theme.line}`,marginBottom:8,opacity:0.6}}>
-              Ricerca alternativa…
-            </div>
-          : pizzaHex && <Swatch hex={pizzaHex} label="color.pizza" sub={pizzaName||'Fonte alternativa'}
-              onPick={()=>{ onSelect(pizzaHex.replace('#','')); onClose(); }}/>
-        }
-
-        {icoUrl && <a href={icoUrl} target="_blank" rel="noopener noreferrer" style={{
-          display:'flex',alignItems:'center',gap:14,padding:'12px 14px',borderRadius:16,
-          border:`1.5px solid ${theme.line}`,marginBottom:8,textDecoration:'none',
-          background:theme.panel||'transparent',WebkitTapHighlightColor:'transparent'}}>
-          <div style={{width:52,height:52,borderRadius:12,flexShrink:0,background:theme.panelAlt||'#f0f0f0',
-            border:`1px solid rgba(0,0,0,0.08)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>
-            🌐
-          </div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.ink}}>icolorpalette.com</div>
-            <div style={{fontFamily:'Nebulica',fontSize:11,color:theme.sub,marginTop:1}}>Apri nel browser → copia il HEX → incolla qui sotto</div>
-          </div>
-          <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:theme.accent,flexShrink:0}}>APRI →</span>
-        </a>}
-
-        <div style={{marginTop:10}}>
+        <div>
           <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.3,fontWeight:700,
             color:theme.sub,marginBottom:7}}>HEX PERSONALIZZATO</div>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
