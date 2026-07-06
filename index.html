@@ -2362,7 +2362,7 @@ function NFIdentityFields({state,theme}){
         <NFLabel theme={theme}>COLORE HEX{state.hexAuto&&<span style={{color:theme.accent,marginLeft:6,fontSize:10,letterSpacing:1}}> · AUTO</span>}</NFLabel>
         <div style={{display:'flex',gap:12}}>
           <div style={{flex:1}}><NFInput value={state.hex} onChange={state.setHexManual} placeholder="automatico dal Pantone ID" theme={theme} mono pill/></div>
-          <div style={{width:46,height:46,borderRadius:99,flexShrink:0,background:eff||'transparent',backgroundImage:eff?'none':`repeating-linear-gradient(45deg,${theme.line} 0 6px,transparent 6px 12px)`,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`}}/>
+          <div onClick={state.openPicker} title="Confronta HEX" style={{width:46,height:46,borderRadius:99,flexShrink:0,cursor:'pointer',transition:'background .2s',background:eff||theme.panelAlt,backgroundImage:eff?'none':`repeating-linear-gradient(45deg,${theme.line} 0 6px,transparent 6px 12px)`,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`}}/>
         </div>
       </div>
     </React.Fragment>
@@ -2410,11 +2410,12 @@ function NuovaDesktop({open,onClose,theme}){
   const inkId=React.useRef(3);
   const [saving,setSaving]=React.useState(false);
   const [msg,setMsg]=React.useState('');
+  const [pickerOpen,setPickerOpen]=React.useState(false);
 
   const reset=React.useCallback(()=>{
     setTab('ricetta');setPantoneIdRaw('');setHex('');setHexAuto(false);setTemp(null);setCover(null);setCat(null);setCatAuto(false);
     setNote('');setPage('');setProjects([]);setProjInput('');setInks([{id:1,name:'',g:''},{id:2,name:'',g:''}]);inkId.current=3;
-    setSaving(false);setMsg('');
+    setSaving(false);setMsg('');setPickerOpen(false);
   },[]);
   React.useEffect(()=>{if(!open)reset();},[open,reset]);
 
@@ -2429,7 +2430,7 @@ function NuovaDesktop({open,onClose,theme}){
   const setInk=(id,patch)=>setInks(a=>a.map(r=>r.id===id?{...r,...patch}:r));
   const delInk=id=>setInks(a=>a.length>1?a.filter(r=>r.id!==id):a);
 
-  const state={tab,setTab,pantoneId,setPantoneId,hex,setHexManual,hexAuto,temp,setTemp,cover,setCover,cat,setCat,catAuto,note,setNote,page,setPage,projects,setProjects,projInput,setProjInput,inks,addInk,setInk,delInk};
+  const state={tab,setTab,pantoneId,setPantoneId,hex,setHexManual,hexAuto,temp,setTemp,cover,setCover,cat,setCat,catAuto,note,setNote,page,setPage,projects,setProjects,projInput,setProjInput,inks,addInk,setInk,delInk,openPicker:()=>setPickerOpen(true)};
 
   const submit=async()=>{
     const eff=nfEffHex(state);
@@ -2499,6 +2500,7 @@ function NuovaDesktop({open,onClose,theme}){
           </div>
         </Squircle>
       </div>
+      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={pantoneId.trim()} onSelect={v=>{setHex(v);setHexAuto(false);}} currentHex={hex} theme={theme}/>
     </React.Fragment>
   );
 }
