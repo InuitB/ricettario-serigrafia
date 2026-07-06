@@ -12,6 +12,7 @@ function doGet(e) {
   try {
     const action = (e.parameter || {}).action;
     if (action === 'getFavoriti')        return getFavoriti();
+    if (action === 'getApprovati')       return getApprovati();
     if (action === 'getInventario')      return jsonResp(getInventario());
     if (action === 'getHexAlternative')  return jsonResp(getHexAlternative(e.parameter.pantone_id || ''));
     return jsonResp({ error: 'Azione sconosciuta' });
@@ -66,6 +67,7 @@ function doPost(e) {
       case 'addSperimentazione':      result = addSperimentazione(data);      break;
       case 'promuoviSperimentazione': result = promuoviSperimentazione(data); break;
       case 'togglePreferito':         result = togglePreferito(data);         break;
+      case 'toggleApprovato':         result = toggleApprovato(data);         break;
       case 'aggiungiCarico':          result = aggiungiCarico(data);          break;
       case 'registraMescola':         result = registraMescola(data);         break;
       case 'aggiornaStock':           result = aggiornaStock(data);           break;
@@ -131,6 +133,55 @@ function togglePreferito(data) {
       const isFav = cur === 1 || cur === true || String(cur) === 'TRUE' || String(cur) === '1';
       ricette.getRange(i + 1, prefCol + 1).setValue(isFav ? 0 : 1);
       return { ok: true, favorito: !isFav };
+    }
+  }
+  return { error: 'Ricetta non trovata: ' + data.Pantone_ID };
+}
+
+// ── APPROVATI ─────────────────────────────────────────────────────────────
+function getApprovati() {
+  const ss      = SpreadsheetApp.openById(SHEET_ID);
+  const ricette = ss.getSheetByName('Ricette');
+  const headers = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  const appCol  = headers.indexOf('Approvato');
+  if (appCol === -1) {
+    return ContentService.createTextOutput(JSON.stringify({ approvati: [] }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  const idCol  = headers.indexOf('Pantone_ID');
+  const data   = ricette.getDataRange().getValues();
+  const approvati = [];
+  for (let i = 1; i < data.length; i++) {
+    const val = data[i][appCol];
+    if (val === 1 || val === true || String(val) === 'TRUE' || String(val) === '1') {
+      approvati.push(String(data[i][idCol]));
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ approvati }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function toggleApprovato(data) {
+  const ss      = SpreadsheetApp.openById(SHEET_ID);
+  const ricette = ss.getSheetByName('Ricette');
+  let headers   = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  let appCol    = headers.indexOf('Approvato');
+
+  if (appCol === -1) {
+    const newCol = ricette.getLastColumn() + 1;
+    ricette.getRange(1, newCol).setValue('Approvato');
+    appCol = newCol - 1;
+    headers = [...headers, 'Approvato'];
+  }
+
+  const idCol  = headers.indexOf('Pantone_ID');
+  const rData  = ricette.getDataRange().getValues();
+  for (let i = 1; i < rData.length; i++) {
+    if (String(rData[i][idCol]) === String(data.Pantone_ID)) {
+      const cur    = rData[i][appCol];
+      const isApp  = cur === 1 || cur === true || String(cur) === 'TRUE' || String(cur) === '1';
+      ricette.getRange(i + 1, appCol + 1).setValue(isApp ? 0 : 1);
+      return { ok: true, approvato: !isApp };
     }
   }
   return { error: 'Ricetta non trovata: ' + data.Pantone_ID };

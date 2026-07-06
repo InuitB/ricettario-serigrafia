@@ -48,6 +48,7 @@ let allInchiostri = [];
 let allInventario = []; // [{inchiostro, grammi, soglia, note}]
 let DESK_PANTONES = [];
 let favoritiSet = new Set();
+let approvedSet = new Set();
 
 async function fetchSheet(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&headers=1`;
@@ -271,6 +272,28 @@ async function loadFavoriti() {
       window._bumpData?.();
     }
   } catch(e) {}
+}
+
+async function loadApprovati() {
+  try {
+    const res  = await fetch(SCRIPT_URL + '?action=getApprovati');
+    const json = await res.json();
+    if (Array.isArray(json.approvati)) {
+      approvedSet = new Set(json.approvati);
+      window._bumpData?.();
+    }
+  } catch(e) {}
+}
+
+function toggleApprovato(code) {
+  if (approvedSet.has(code)) approvedSet.delete(code);
+  else approvedSet.add(code);
+  window._bumpData?.();
+  fetch(SCRIPT_URL, {
+    method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'text/plain'},
+    body: JSON.stringify({action:'toggleApprovato', Pantone_ID: code})
+  }).catch(()=>{});
 }
 
 function toggleFavorito(code) {
@@ -970,16 +993,32 @@ function InkSearchField({value, onChange, options, style, onConfirm}) {
   );
 }
 
+function IcoLink({size=20,color='currentColor'}){
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" style={{display:'block',flexShrink:0}}>
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+  </svg>;
+}
+
 /* ═══════════════════ HEX PICKER SHEET ═══════════════════ */
-function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
+function ensureHexPickerKf() {
+  if (document.getElementById('hexpicker-kf')) return;
+  const s = document.createElement('style'); s.id = 'hexpicker-kf';
+  s.textContent = `@keyframes fattoIn{from{opacity:0;transform:scale(.3);}to{opacity:1;transform:scale(1);}}`;
+  document.head.appendChild(s);
+}
+
+function HexPickerSheet({open, onClose, pantoneId, onSelect, currentHex, theme}) {
   const [manualHex, setManualHex] = React.useState('');
   const [pizzaHex, setPizzaHex] = React.useState(null);
   const [pizzaName, setPizzaName] = React.useState(null);
   const [pizzaLoading, setPizzaLoading] = React.useState(false);
   const [popStates, setPopStates] = React.useState([false, false, false]);
+  const [pickedIdx, setPickedIdx] = React.useState(null);
+  ensureHexPickerKf();
 
   React.useEffect(() => {
-    if (!open) { setPopStates([false, false, false]); return; }
+    if (!open) { setPopStates([false, false, false]); setPickedIdx(null); return; }
     if (!pantoneId) return;
     const saved = localStorage.getItem('icoHex_'+pantoneId);
     setManualHex(saved||'');
@@ -1005,45 +1044,68 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
 
   const dbHex = PANTONE_DB[pantoneId] ? '#' + PANTONE_DB[pantoneId] : null;
   const icoUrl = pantoneId ? 'https://icolorpalette.com/color/pantone-' + pantoneId.toLowerCase().replace(/\s+/g,'-') : null;
+  const manV = manualHex.replace('#','');
+  const manValid = /^[0-9A-Fa-f]{6}$/.test(manV);
+  const curHexNorm = currentHex ? '#'+currentHex.replace('#','').toUpperCase() : null;
+  const isCurrentDb    = !!(curHexNorm && dbHex   && curHexNorm.toUpperCase() === dbHex.toUpperCase());
+  const isCurrentIco   = !!(curHexNorm && manValid && curHexNorm.toUpperCase() === ('#'+manV).toUpperCase());
+  const isCurrentPizza = !!(curHexNorm && pizzaHex && curHexNorm.toUpperCase() === pizzaHex.toUpperCase());
 
-  function Card({hex, label, rotate, dy, loading, isLink, url, onPick, popped}) {
+  function doPick(idx, cb) {
+    setPickedIdx(idx);
+    setTimeout(() => { cb(); }, 650);
+  }
+
+  function Card({hex, label, rotate, dy, loading, isLink, url, onPick, popped, idx, isCurrentHex}) {
     const valid = hex && /^#?[0-9A-Fa-f]{6}$/.test(hex.replace('#',''));
     const h = valid ? '#' + hex.replace('#','').toUpperCase() : null;
     const fg = h ? textOnDesk(h.replace('#','')) : '#888';
     const SIZE = 136;
     const showColor = h;
+    const isPicked = pickedIdx === idx;
+    const isFaded  = pickedIdx !== null && pickedIdx !== idx;
+
+    const fattoBadge = isPicked ? (
+      <div style={{position:'absolute',inset:0,borderRadius:24,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(34,197,94,0.18)',animation:'fattoIn 0.38s cubic-bezier(.34,1.56,.64,1) both',pointerEvents:'none'}}>
+        <IcoSeal size={52} color="#22C55E"/>
+      </div>
+    ) : null;
+
     const square = (
-      <div style={{
-        width:SIZE, height:SIZE, borderRadius:24,
-        background: showColor ? h : (loading ? (theme.panelAlt||'#f0f0f0') : (isLink ? (theme.panelAlt||'#f0f0f0') : '#e8e8e8')),
-        border:`2px solid rgba(0,0,0,${showColor?0.14:0.08})`,
-        display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5,
-        opacity: (loading || (!showColor && !isLink)) ? 0.48 : 1,
-        boxShadow:'0 10px 32px rgba(0,0,0,0.22)',
-        WebkitTapHighlightColor:'transparent',
-      }}>
-        {isLink && !showColor && <>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={30} height={30} fill="none" stroke={theme.sub} strokeWidth={1.5}>
-            <circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 1 0 20M12 2a14.5 14.5 0 0 0 0 20M2 12h20"/>
-          </svg>
-          <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:10,color:theme.sub,letterSpacing:0.8}}>APRI →</span>
-        </>}
-        {isLink && showColor && <>
-          <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,
-            fontSize:12,color:fg,letterSpacing:0.3,textAlign:'center',padding:'0 8px'}}>{h}</span>
-          <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:9,color:fg,opacity:0.65,letterSpacing:0.8}}>APRI →</span>
-        </>}
-        {loading && <span style={{fontFamily:'Nebulica',fontSize:13,color:theme.sub}}>…</span>}
-        {!isLink && !loading && showColor && <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,
-          fontSize:12,color:fg,letterSpacing:0.3,textAlign:'center',padding:'0 8px'}}>{h}</span>}
-        {!isLink && !loading && !showColor && <span style={{fontFamily:'Nebulica',fontSize:14,color:'#bbb'}}>—</span>}
+      <div style={{position:'relative',width:SIZE,height:SIZE}}>
+        <div style={{
+          width:SIZE, height:SIZE, borderRadius:24,
+          background: showColor ? h : (loading ? (theme.panelAlt||'#f0f0f0') : (isLink ? (theme.panelAlt||'#f0f0f0') : '#e8e8e8')),
+          border:`2px solid rgba(0,0,0,${showColor?0.14:0.08})`,
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5,
+          opacity: (loading || (!showColor && !isLink)) ? 0.48 : 1,
+          boxShadow:'0 10px 32px rgba(0,0,0,0.22)',
+          WebkitTapHighlightColor:'transparent',
+        }}>
+          {isLink && !showColor && <>
+            <IcoLink size={28} color={theme.sub}/>
+            <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:10,color:theme.sub,letterSpacing:0.8}}>APRI →</span>
+          </>}
+          {isLink && showColor && <>
+            <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,fontSize:12,color:fg,letterSpacing:0.3,textAlign:'center',padding:'0 8px'}}>{h}</span>
+            <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:9,color:fg,opacity:0.65,letterSpacing:0.8}}>APRI →</span>
+          </>}
+          {loading && <span style={{fontFamily:'Nebulica',fontSize:13,color:theme.sub}}>…</span>}
+          {!isLink && !loading && showColor && <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,fontSize:12,color:fg,letterSpacing:0.3,textAlign:'center',padding:'0 8px'}}>{h}</span>}
+          {!isLink && !loading && !showColor && <span style={{fontFamily:'Nebulica',fontSize:14,color:'#bbb'}}>—</span>}
+        </div>
+        {fattoBadge}
       </div>
     );
+    const currentDot = (pickedIdx === null && isCurrentHex && showColor)
+      ? <div style={{width:8,height:8,borderRadius:99,background:'#22C55E',margin:'6px auto 0',flexShrink:0}}/>
+      : null;
     const labelEl = (
       <div style={{fontFamily:'Nebulica',fontSize:10,fontWeight:700,color:theme.sub,
         marginTop:10,textAlign:'center',maxWidth:SIZE,lineHeight:1.35,
-        letterSpacing:0.4,wordBreak:'break-word'}}>
+        letterSpacing:0.4,wordBreak:'break-word',display:'flex',flexDirection:'column',alignItems:'center'}}>
         {label}
+        {currentDot}
       </div>
     );
     const outerStyle = {
@@ -1051,25 +1113,27 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
       transform:`rotate(${rotate}) translateY(${dy||0}px)`,
       cursor: isLink ? 'pointer' : (showColor ? 'pointer' : 'default'),
       WebkitTapHighlightColor:'transparent',
+      pointerEvents: pickedIdx !== null ? 'none' : undefined,
     };
     const innerStyle = {
       display:'flex', flexDirection:'column', alignItems:'center',
-      transform: popped ? 'scale(1)' : 'scale(0)',
-      opacity: popped ? 1 : 0,
-      transition:'transform 0.5s cubic-bezier(.34,1.56,.64,1), opacity 0.22s',
+      transform: popped
+        ? (isFaded ? 'scale(0.72) translateY(16px)' : isPicked ? 'scale(1.07)' : 'scale(1)')
+        : 'scale(0)',
+      opacity: popped ? (isFaded ? 0 : 1) : 0,
+      transition: pickedIdx !== null
+        ? 'transform 0.38s cubic-bezier(.22,1,.36,1), opacity 0.38s'
+        : 'transform 0.5s cubic-bezier(.34,1.56,.64,1), opacity 0.22s',
     };
     const inner = <div style={innerStyle}>{square}{labelEl}</div>;
     return isLink
       ? <a href={url} target="_blank" rel="noopener noreferrer" style={{...outerStyle,textDecoration:'none'}}>{inner}</a>
-      : <div onClick={showColor&&!loading?onPick:null} style={outerStyle}>{inner}</div>;
+      : <div onClick={showColor&&!loading?()=>doPick(idx,onPick):null} style={outerStyle}>{inner}</div>;
   }
-
-  const manV = manualHex.replace('#','');
-  const manValid = /^[0-9A-Fa-f]{6}$/.test(manV);
 
   return (
     <>
-      <div onClick={onClose} style={{
+      <div onClick={pickedIdx===null?onClose:null} style={{
         position:'fixed', inset:0,
         background:'rgba(0,0,0,0.5)',
         backdropFilter:open?'blur(10px)':'none',
@@ -1096,15 +1160,15 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
 
         <div style={{display:'flex',justifyContent:'center',alignItems:'flex-end',gap:14,marginBottom:32,paddingBottom:6}}>
           <Card hex={dbHex} label="Database app" rotate="-9deg" dy={12}
-            popped={popStates[0]}
+            popped={popStates[0]} idx={0} isCurrentHex={isCurrentDb}
             onPick={()=>{ onSelect(dbHex.replace('#','')); onClose(); }}/>
           <Card isLink={!manValid} url={icoUrl} hex={manValid?'#'+manV:null} label="icolorpalette.com"
-            rotate="1deg" dy={-10} popped={popStates[1]}
+            rotate="1deg" dy={-10} popped={popStates[1]} idx={1} isCurrentHex={isCurrentIco}
             onPick={()=>{ onSelect(manV); onClose(); }}/>
           {pizzaLoading
-            ? <Card hex={null} label="color.pizza" rotate="10deg" dy={16} loading={true} popped={popStates[2]}/>
+            ? <Card hex={null} label="color.pizza" rotate="10deg" dy={16} loading={true} popped={popStates[2]} idx={2} isCurrentHex={false}/>
             : <Card hex={pizzaHex} label={pizzaName||'color.pizza'} rotate="10deg" dy={16}
-                popped={popStates[2]}
+                popped={popStates[2]} idx={2} isCurrentHex={isCurrentPizza}
                 onPick={()=>{ if(pizzaHex){onSelect(pizzaHex.replace('#','')); onClose();}}}/>
           }
         </div>
@@ -1226,8 +1290,7 @@ function NuovaSheet({open, onClose, theme}) {
             <span style={lbl}>HEX{hexAuto&&<span style={autoTag}>· AUTO</span>}</span>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>{setHex(e.target.value);setHexAuto(false);}} placeholder="D44800" style={{...inp,flex:1}}/>
-              {hex.replace('#','').length>=6&&<div style={{width:36,height:36,borderRadius:'50%',background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
-              <button onClick={()=>setPickerOpen(true)} title="Scegli HEX" style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}><IcoPalette size={17} color={theme.ink}/></button>
+              <div onClick={()=>setPickerOpen(true)} title="Confronta HEX" style={{width:36,height:36,borderRadius:'50%',flexShrink:0,cursor:'pointer',transition:'background .2s',background:hex.replace('#','').length>=6?'#'+hex.replace('#',''):theme.panelAlt,border:`1.5px solid ${hex.replace('#','').length>=6?'rgba(0,0,0,0.1)':theme.line}`}}/>
             </div>
           </div>
           <div>
@@ -1265,7 +1328,7 @@ function NuovaSheet({open, onClose, theme}) {
           {saving?'Salvataggio…':'Salva ricetta'}
         </button>
       </div>
-      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={pid.trim()} onSelect={h=>{setHex(h);setHexAuto(false);}} theme={theme}/>
+      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={pid.trim()} onSelect={h=>{setHex(h);setHexAuto(false);}} currentHex={hex} theme={theme}/>
     </React.Fragment>
   );
 }
@@ -1356,8 +1419,7 @@ function EditSheet({open, editCode, onClose, theme}) {
           <div><span style={lbl}>HEX</span>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
-              {hex.replace('#','').length>=6&&<div style={{width:36,height:36,borderRadius:'50%',background:'#'+hex.replace('#',''),flexShrink:0,border:`1px solid ${theme.line}`}}/>}
-              <button onClick={()=>setPickerOpen(true)} title="Scegli HEX" style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${theme.line}`,background:theme.panelAlt,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}><IcoPalette size={17} color={theme.ink}/></button>
+              <div onClick={()=>setPickerOpen(true)} title="Confronta HEX" style={{width:36,height:36,borderRadius:'50%',flexShrink:0,cursor:'pointer',transition:'background .2s',background:hex.replace('#','').length>=6?'#'+hex.replace('#',''):theme.panelAlt,border:`1.5px solid ${hex.replace('#','').length>=6?'rgba(0,0,0,0.1)':theme.line}`}}/>
             </div>
           </div>
           <div><span style={lbl}>CATEGORIA</span>
@@ -1430,7 +1492,7 @@ function EditSheet({open, editCode, onClose, theme}) {
           Elimina ricetta
         </button>
       </div>
-      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={pid.trim()} onSelect={h=>setHex(h)} theme={theme}/>
+      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={pid.trim()} onSelect={h=>setHex(h)} currentHex={hex} theme={theme}/>
     </React.Fragment>
   );
 }
@@ -1834,12 +1896,6 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
   const setFormulaS = React.useCallback(k=>{setFormulaSort(k);localStorage.setItem('formulaSort',k);},[]);
   const exitSelectionMode = React.useCallback(()=>{setSelectionMode(false);setProjectSet(new Set());setProjectOpen(false);},[]);
   const [navDir, setNavDir] = React.useState(null);
-  const [approvedSet, setApprovedSet] = React.useState(()=>{
-    try{return new Set(JSON.parse(localStorage.getItem('hexApproved')||'[]'));}catch{return new Set();}
-  });
-  const toggleApproved = React.useCallback(code=>{
-    setApprovedSet(prev=>{const s=new Set(prev);s.has(code)?s.delete(code):s.add(code);localStorage.setItem('hexApproved',JSON.stringify([...s]));return s;});
-  },[]);
   ensureMasterKf();
   const listRef = React.useRef(null);
   const navStateRef = React.useRef({});
@@ -2007,7 +2063,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                     const isApproved = approvedSet.has(selected.code);
                     const btnStyle = {width:40,height:40,borderRadius:99,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:rgba(fg==='#fff'?'#fff':'#000',0.12),border:`1.4px solid ${rgba(fg==='#fff'?'#fff':'#000',0.3)}`};
                     return [
-                      <button key="approve" onClick={()=>toggleApproved(selected.code)} title={isApproved?'Rimovi approvazione':'Approva HEX'} style={{...btnStyle,background:isApproved?'rgba(34,197,94,0.22)':btnStyle.background,border:isApproved?'1.4px solid rgba(34,197,94,0.6)':btnStyle.border}}>
+                      <button key="approve" onClick={()=>toggleApprovato(selected.code)} title={isApproved?'Rimuovi approvazione':'Approva HEX'} style={{...btnStyle,background:isApproved?'rgba(34,197,94,0.22)':btnStyle.background,border:isApproved?'1.4px solid rgba(34,197,94,0.6)':btnStyle.border}}>
                         <IcoSeal size={18} color={isApproved?'#22C55E':rgba(fg,0.55)}/>
                       </button>,
                       <button key="fav" onClick={()=>toggleFavorito(selected.code)} style={btnStyle}>
@@ -3709,6 +3765,7 @@ function App() {
       setDataVer(v=>v+1);
       setStatus('ready');
       loadFavoriti();
+      loadApprovati();
       loadInventario();
     }).catch(err=>{
       console.error('Errore caricamento:', err);
