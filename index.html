@@ -961,8 +961,24 @@ function InkSearchField({value, onChange, options, style, onConfirm}) {
 /* ═══════════════════ HEX PICKER SHEET ═══════════════════ */
 function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
   const [manualHex, setManualHex] = React.useState('');
+  const [pizzaHex, setPizzaHex] = React.useState(null);
+  const [pizzaName, setPizzaName] = React.useState(null);
+  const [pizzaLoading, setPizzaLoading] = React.useState(false);
 
-  React.useEffect(() => { if (!open) setManualHex(''); }, [open]);
+  React.useEffect(() => {
+    if (!open) { setManualHex(''); return; }
+    if (!pantoneId) return;
+    setPizzaHex(null); setPizzaName(null); setPizzaLoading(true);
+    fetch(`https://api.color.pizza/v1/?names=${encodeURIComponent('pantone ' + pantoneId.toLowerCase())}`)
+      .then(r => r.json())
+      .then(d => {
+        const c = d.colors && d.colors[0];
+        setPizzaHex(c ? c.hex : null);
+        setPizzaName(c ? c.name : null);
+        setPizzaLoading(false);
+      })
+      .catch(() => setPizzaLoading(false));
+  }, [open, pantoneId]);
 
   const dbHex = PANTONE_DB[pantoneId] ? '#' + PANTONE_DB[pantoneId] : null;
   const icoUrl = pantoneId ? 'https://icolorpalette.com/color/pantone-' + pantoneId.toLowerCase().replace(/\s+/g,'-') : null;
@@ -1022,6 +1038,15 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, theme}) {
 
         <Swatch hex={dbHex} label="Database app" sub="Valore attualmente in uso"
           onPick={()=>{ onSelect(dbHex.replace('#','')); onClose(); }}/>
+
+        {pizzaLoading
+          ? <div style={{padding:'14px 16px',fontFamily:'Nebulica',fontSize:13,color:theme.sub,
+              borderRadius:16,border:`1.5px solid ${theme.line}`,marginBottom:8,opacity:0.6}}>
+              Ricerca alternativa…
+            </div>
+          : pizzaHex && <Swatch hex={pizzaHex} label="color.pizza" sub={pizzaName||'Fonte alternativa'}
+              onPick={()=>{ onSelect(pizzaHex.replace('#','')); onClose(); }}/>
+        }
 
         {icoUrl && <a href={icoUrl} target="_blank" rel="noopener noreferrer" style={{
           display:'flex',alignItems:'center',gap:14,padding:'12px 14px',borderRadius:16,
