@@ -1286,6 +1286,8 @@ function NuovaSheet({open, onClose, theme}) {
   const submit = async ()=>{
     if(!pid.trim()||!hex.trim()||!cat){ setMsg('Compila Pantone ID, HEX e Categoria.'); return; }
     if(allRicette.some(r=>r.Pantone_ID===pid.trim())){ setMsg(`⚠ "${pid.trim()}" esiste già — modifica la ricetta esistente o usa un codice diverso.`); return; }
+    const normHexNs=hex.replace('#','').trim().toUpperCase();
+    if(/^[0-9A-Fa-f]{6}$/.test(normHexNs)){const exH=allRicette.find(r=>(r.HEX||'').replace('#','').trim().toUpperCase()===normHexNs);if(exH){setMsg(`⚠ L'HEX #${normHexNs} è già usato da "${exH.Pantone_ID}". Verifica il colore.`);return;}}
     const validInks = inks.filter(r=>r.ink.trim()&&r.dose.trim());
     if(validInks.length===0){ setMsg('Aggiungi almeno un inchiostro con la dose.'); return; }
     const totale = validInks.reduce((s,r)=>s+parseFloat(String(r.dose).replace(',','.'))||0, 0);
@@ -1430,9 +1432,12 @@ function EditSheet({open, editCode, onClose, theme}) {
 
   const submit = async ()=>{
     if(!pid.trim()||!cat){ setMsg('Compila Pantone ID e Categoria.'); return; }
+    const newId = pid.trim();
+    if(newId!==editCode && allRicette.some(r=>r.Pantone_ID===newId)){ setMsg(`⚠ "${newId}" esiste già — usa un codice diverso.`); return; }
+    const normHexEs=hex.replace('#','').trim().toUpperCase();
+    if(/^[0-9A-Fa-f]{6}$/.test(normHexEs)){const exH=allRicette.find(r=>r.Pantone_ID!==editCode&&(r.HEX||'').replace('#','').trim().toUpperCase()===normHexEs);if(exH){setMsg(`⚠ L'HEX #${normHexEs} è già usato da "${exH.Pantone_ID}". Verifica il colore.`);return;}}
     setSaving(true); setMsg('');
     try{
-      const newId = pid.trim();
       const hexVal = '#'+hex.replace('#','').trim();
       const validInks = inks.filter(r=>r.name.trim()&&(parseFloat(r.g)||0)>0);
       const payload = {action:'editRicetta',Pantone_ID:editCode,HEX:hexVal,Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Vecchio_Nome:vecchioNome,Pagina:pag,Progetti:proj,componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))};
@@ -2510,6 +2515,8 @@ function NuovaDesktop({open,onClose,theme}){
     const eff=nfEffHex(state);
     if(!pantoneId.trim()||!eff||!cat){setMsg('Compila Pantone ID, Colore e Categoria.');return;}
     if(allRicette.some(r=>r.Pantone_ID===pantoneId.trim())){setMsg(`⚠ "${pantoneId.trim()}" esiste già — modifica la ricetta esistente o usa un codice diverso.`);return;}
+    const normHexNd=eff.replace('#','').trim().toUpperCase();
+    if(/^[0-9A-Fa-f]{6}$/.test(normHexNd)){const exH=allRicette.find(r=>(r.HEX||'').replace('#','').trim().toUpperCase()===normHexNd);if(exH){setMsg(`⚠ L'HEX #${normHexNd} è già usato da "${exH.Pantone_ID}". Verifica il colore.`);return;}}
     const validInks=inks.filter(r=>r.name&&(parseFloat(r.g)||0)>0);
     if(validInks.length===0){setMsg('Aggiungi almeno un inchiostro con la dose.');return;}
     setSaving(true);setMsg('');
@@ -4096,6 +4103,7 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
 function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,updateTxState}){
   const{newCode,oldCode,uncertain}=txParseName(formula.name);
   const autoCategoria=formula.source==='CUSTOM'?'Custom':'Serigrafica';
+  const corrected=formula.flags.includes('corrected_to_40g');
   const[form,setForm]=React.useState({
     pantoneId:newCode,
     hex:'',
@@ -4103,7 +4111,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
     copertura:'',
     pagina:formula.page_note||'',
     vecchioNome:oldCode?'ex '+oldCode:'',
-    note:'',
+    note:corrected?`⚠ dose conv. da ${formula.total.toFixed(2)}g — verificare prima di stampare`:'',
     progetti:'',
   });
   const[saving,setSaving]=React.useState(false);
