@@ -1289,8 +1289,9 @@ function NuovaSheet({open, onClose, theme}) {
   const setField = (i,field,val)=>setInks(inks.map((r,j)=>j===i?{...r,[field]:val}:r));
 
   const submit = async ()=>{
-    if(!pid.trim()||!hex.trim()||!cat){ setMsg('Compila Pantone ID, HEX e Categoria.'); return; }
-    if(allRicette.some(r=>r.Pantone_ID===pid.trim())){ setMsg(`⚠ "${pid.trim()}" esiste già — modifica la ricetta esistente o usa un codice diverso.`); return; }
+    const finalPid=normalizePantoneCode(pid);
+    if(!finalPid.trim()||!hex.trim()||!cat){ setMsg('Compila Pantone ID, HEX e Categoria.'); return; }
+    if(allRicette.some(r=>r.Pantone_ID===finalPid)){ setMsg(`⚠ "${finalPid}" esiste già — modifica la ricetta esistente o usa un codice diverso.`); return; }
     const normHexNs=hex.replace('#','').trim().toUpperCase();
     if(/^[0-9A-Fa-f]{6}$/.test(normHexNs)){const exH=allRicette.find(r=>(r.HEX||'').replace('#','').trim().toUpperCase()===normHexNs);if(exH){setMsg(`⚠ L'HEX #${normHexNs} è già usato da "${exH.Pantone_ID}". Verifica il colore.`);return;}}
     const validInks = inks.filter(r=>r.ink.trim()&&r.dose.trim());
@@ -1299,10 +1300,10 @@ function NuovaSheet({open, onClose, theme}) {
     if(Math.abs(totale-40)>0.15){ setMsg(`⚠ Totale ${totale.toFixed(1)} g (atteso 40 g) — salva lo stesso?`); if(!msg.includes('salva lo stesso')) return; }
     setSaving(true); setMsg('');
     try{
-      await postGAS({action:'addRicetta',Pantone_ID:pid.trim(),HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Vecchio_Nome:vecchioNome,Pagina:pag,
+      await postGAS({action:'addRicetta',Pantone_ID:finalPid,HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Vecchio_Nome:vecchioNome,Pagina:pag,
           componenti:validInks.map(r=>({Inchiostro:r.ink,'Dose_40g (g)':r.dose}))});
       setMsg('Ricetta salvata!');
-      const newId=pid.trim();
+      const newId=finalPid;
       allRicette.push({Pantone_ID:newId,HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Vecchio_Nome:vecchioNome,Pagina:pag,Progetti:''});
       validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.ink,'Dose_40g (g)':r.dose}));
       transformData();
@@ -1335,7 +1336,7 @@ function NuovaSheet({open, onClose, theme}) {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
           <div>
             <span style={lbl}>PANTONE ID</span>
-            <input value={pid} onChange={e=>onPidChange(e.target.value)} placeholder="es. 166 U" style={inp}/>
+            <input value={pid} onChange={e=>onPidChange(e.target.value)} onBlur={e=>{const n=normalizePantoneCode(e.target.value);if(n!==e.target.value)onPidChange(n);}} placeholder="es. 166 U" style={inp}/>
           </div>
           <div>
             <span style={lbl}>HEX{hexAuto&&<span style={autoTag}>· AUTO</span>}</span>
@@ -1474,7 +1475,7 @@ function EditSheet({open, editCode, onClose, theme}) {
         </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-          <div style={{gridColumn:'span 2'}}><span style={lbl}>PANTONE ID</span><input value={pid} onChange={e=>{pidTouched.current=true;setPid(e.target.value);}} placeholder="es. 166 U" style={inp}/></div>
+          <div style={{gridColumn:'span 2'}}><span style={lbl}>PANTONE ID</span><input value={pid} onChange={e=>{pidTouched.current=true;setPid(e.target.value);}} onBlur={e=>{const n=normalizePantoneCode(e.target.value);if(n!==e.target.value){pidTouched.current=true;setPid(n);}}} placeholder="es. 166 U" style={inp}/></div>
           <div><span style={lbl}>HEX</span>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <input value={hex} onChange={e=>setHex(e.target.value)} placeholder="D44800" style={{...inp,flex:1}}/>
@@ -2287,8 +2288,8 @@ function NFLabel({children,optional,theme,style}){
 function nfFieldBox(theme,{tall,radius}={}){
   return {width:'100%',height:tall?'auto':46,borderRadius:radius!=null?radius:18,padding:tall?'12px 18px':'0 18px',background:theme.panel,color:theme.ink,outline:'none',border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`,fontFamily:'Nebulica',fontSize:16,boxSizing:'border-box'};
 }
-function NFInput({value,onChange,placeholder,theme,mono,pill}){
-  return <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{...nfFieldBox(theme,{radius:pill?99:undefined}),padding:pill?'0 22px':'0 18px',fontFamily:mono?'"JetBrains Mono",monospace':'Nebulica',fontSize:mono?15:16,letterSpacing:mono?0.4:0}}/>;
+function NFInput({value,onChange,onBlur,placeholder,theme,mono,pill}){
+  return <input value={value} onChange={e=>onChange(e.target.value)} onBlur={onBlur} placeholder={placeholder} style={{...nfFieldBox(theme,{radius:pill?99:undefined}),padding:pill?'0 22px':'0 18px',fontFamily:mono?'"JetBrains Mono",monospace':'Nebulica',fontSize:mono?15:16,letterSpacing:mono?0.4:0}}/>;
 }
 function NFTempDot({hex}){
   return <span style={{width:14,height:14,borderRadius:99,flexShrink:0,background:hex,boxShadow:`inset 0 0 0 1px ${rgba('#000',0.1)}`}}/>;
@@ -2433,7 +2434,7 @@ function NFIdentityFields({state,theme}){
   return (
     <React.Fragment>
       <div style={{display:'flex',gap:12}}>
-        <div style={{flex:1,minWidth:0}}><NFLabel theme={theme}>PANTONE ID</NFLabel><NFInput value={state.pantoneId} onChange={state.setPantoneId} placeholder="es. 072 U" theme={theme} mono pill/></div>
+        <div style={{flex:1,minWidth:0}}><NFLabel theme={theme}>PANTONE ID</NFLabel><NFInput value={state.pantoneId} onChange={state.setPantoneId} onBlur={()=>state.setPantoneId(normalizePantoneCode(state.pantoneId))} placeholder="es. 072 U" theme={theme} mono pill/></div>
         <div style={{flex:1,minWidth:0}}><NFLabel theme={theme} optional>PAG. MAZZETTA</NFLabel><NFInput value={state.page} onChange={state.setPage} placeholder="es. 142" theme={theme} mono pill/></div>
       </div>
       <div>
@@ -2518,17 +2519,18 @@ function NuovaDesktop({open,onClose,theme}){
 
   const submit=async()=>{
     const eff=nfEffHex(state);
-    if(!pantoneId.trim()||!eff||!cat){setMsg('Compila Pantone ID, Colore e Categoria.');return;}
-    if(allRicette.some(r=>r.Pantone_ID===pantoneId.trim())){setMsg(`⚠ "${pantoneId.trim()}" esiste già — modifica la ricetta esistente o usa un codice diverso.`);return;}
+    const finalPid2=normalizePantoneCode(pantoneId);
+    if(!finalPid2.trim()||!eff||!cat){setMsg('Compila Pantone ID, Colore e Categoria.');return;}
+    if(allRicette.some(r=>r.Pantone_ID===finalPid2)){setMsg(`⚠ "${finalPid2}" esiste già — modifica la ricetta esistente o usa un codice diverso.`);return;}
     const normHexNd=eff.replace('#','').trim().toUpperCase();
     if(/^[0-9A-Fa-f]{6}$/.test(normHexNd)){const exH=allRicette.find(r=>(r.HEX||'').replace('#','').trim().toUpperCase()===normHexNd);if(exH){setMsg(`⚠ L'HEX #${normHexNd} è già usato da "${exH.Pantone_ID}". Verifica il colore.`);return;}}
     const validInks=inks.filter(r=>r.name&&(parseFloat(r.g)||0)>0);
     if(validInks.length===0){setMsg('Aggiungi almeno un inchiostro con la dose.');return;}
     setSaving(true);setMsg('');
     try{
-      await postGAS({action:'addRicetta',Pantone_ID:pantoneId.trim(),HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Vecchio_Nome:vecchioNome,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))});
+      await postGAS({action:'addRicetta',Pantone_ID:finalPid2,HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Vecchio_Nome:vecchioNome,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))});
       setMsg('Ricetta salvata!');
-      const newId=pantoneId.trim();
+      const newId=finalPid2;
       allRicette.push({Pantone_ID:newId,HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Vecchio_Nome:vecchioNome,Pagina:page,Progetti:projects.join(', ')});
       validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.name,'Dose_40g (g)':r.g}));
       transformData();
@@ -3887,6 +3889,15 @@ function txParseName(name){
   return{newCode:name.replace(/\?$/,'').trim(),oldCode:null,uncertain:name.includes('?')};
 }
 
+// Normalize Pantone code: "115" → "115 U", "115U" → "115 U", "577B" → "577B" (custom)
+function normalizePantoneCode(s){
+  if(!s)return s;
+  const t=s.trim();
+  if(/\s*[Uu]$/.test(t))return t.replace(/\s*[Uu]$/,' U');
+  if(/^\d+$/.test(t))return t+' U';
+  return t;
+}
+
 // Find best matching recipe in allRicette for given Monday inks
 function txFindMatch(mfInks){
   if(!mfInks||!mfInks.length)return null;
@@ -4135,9 +4146,10 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
 
   async function handleImport(){
-    if(!form.pantoneId.trim()){setSaveErr(S.errPantone);return;}
+    const finalPantoneId=normalizePantoneCode(form.pantoneId);
+    if(!finalPantoneId.trim()){setSaveErr(S.errPantone);return;}
     if(!form.hex.trim()){setSaveErr(S.errHex);return;}
-    const normId=form.pantoneId.trim().toUpperCase().replace(/\s+/g,' ');
+    const normId=finalPantoneId.trim().toUpperCase().replace(/\s+/g,' ');
     const existCode=allRicette.find(r=>(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ')===normId);
     if(existCode){setSaveErr(`Il codice "${form.pantoneId.trim()}" esiste già nell'app. Modifica il codice oppure usa "Segna fatto" se è già importato.`);return;}
     const normHex=form.hex.replace('#','').trim().toUpperCase();
@@ -4163,9 +4175,9 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
     try{
       const hexVal='#'+normHex;
       const componenti=formula.inks.map(ink=>({Inchiostro:ink.code,'Dose_40g (g)':ink.dose}));
-      await postGAS({action:'addRicetta',Pantone_ID:form.pantoneId.trim(),HEX:hexVal,Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti,componenti});
-      allRicette.push({Pantone_ID:form.pantoneId.trim(),HEX:hexVal,Categoria:form.categoria,Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti});
-      componenti.forEach(c=>allComponenti.push({Pantone_ID:form.pantoneId.trim(),...c}));
+      await postGAS({action:'addRicetta',Pantone_ID:finalPantoneId,HEX:hexVal,Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti,componenti});
+      allRicette.push({Pantone_ID:finalPantoneId,HEX:hexVal,Categoria:form.categoria,Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti});
+      componenti.forEach(c=>allComponenti.push({Pantone_ID:finalPantoneId,...c}));
       window._bumpData?.();
       setSaved(true);onImported();
     }catch(e){setSaveErr(String(e));}
@@ -4335,7 +4347,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
           <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:0.3,marginBottom:16,color:'#0B0B0B'}}>{S.importTitle}</div>
           <div style={{marginBottom:12}}>
             <div style={labelStyle}>{S.labelPantone}</div>
-            <input value={form.pantoneId} onChange={e=>setF('pantoneId',e.target.value)} style={inputStyle} placeholder={S.phPantone}/>
+            <input value={form.pantoneId} onChange={e=>setF('pantoneId',e.target.value)} onBlur={e=>setF('pantoneId',normalizePantoneCode(e.target.value))} style={inputStyle} placeholder={S.phPantone}/>
             {uncertain&&<div style={{fontFamily:'Nebulica',fontSize:10,color:'#D97706',marginTop:4}}>{S.uncertainWarn}</div>}
           </div>
           <div style={{marginBottom:12,display:'flex',gap:8,alignItems:'flex-end'}}>
