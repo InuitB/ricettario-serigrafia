@@ -4243,24 +4243,24 @@ function TransferDetail({formula,match,onImported,S,txState,updateTxState}){
 
 function TransferPanel(){
   const[selected,setSelected]=React.useState(null);
-  const[lang,setLang]=React.useState(()=>{try{return sessionStorage.getItem('tx_lang')||'it';}catch(e){return 'it';}});
+  const[lang,setLang]=React.useState(()=>{try{return localStorage.getItem('tx_lang')||'it';}catch(e){return 'it';}});
   const S=TX[lang]||TX.it;
-  const toggleLang=()=>setLang(l=>{const n=l==='it'?'fr':'it';try{sessionStorage.setItem('tx_lang',n);}catch(e){}return n;});
+  const toggleLang=()=>setLang(l=>{const n=l==='it'?'fr':'it';try{localStorage.setItem('tx_lang',n);}catch(e){}return n;});
   const[done,setDone]=React.useState(()=>{
-    try{return new Set(JSON.parse(sessionStorage.getItem('tx_done')||'[]'));}
+    try{return new Set(JSON.parse(localStorage.getItem('tx_done')||'[]'));}
     catch(e){return new Set();}
   });
   const[txState,setTxState]=React.useState(()=>{
-    try{return JSON.parse(sessionStorage.getItem('tx_state')||'{}');}
+    try{return JSON.parse(localStorage.getItem('tx_state')||'{}');}
     catch(e){return{};}
   });
   const updateTxState=(id,key,val)=>setTxState(prev=>{
     const n={...prev,[id]:{...(prev[id]||{}),[key]:val}};
-    try{sessionStorage.setItem('tx_state',JSON.stringify(n));}catch(e){}
+    try{localStorage.setItem('tx_state',JSON.stringify(n));}catch(e){}
     return n;
   });
   const[activeFilter,setActiveFilter]=React.useState('all');
-  const markDone=(id)=>setDone(prev=>{const n=new Set(prev);n.add(id);try{sessionStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
+  const markDone=(id)=>setDone(prev=>{const n=new Set(prev);n.add(id);try{localStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
 
   const matchMap=React.useMemo(()=>{
     const m={};
