@@ -4073,8 +4073,9 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
           const isSel=selected===mf.id;
           const{newCode:mfCode}=txParseName(mf.name);
           const _vnNorm1=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
-          const codeInApp=!!(mfCode&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm1(r.Vecchio_Nome||'');const mc=_vnNorm1(mfCode);return!!(vn&&mc&&vn===mc);}));
-          const inApp=done.has(mf.id)||codeInApp;
+          const matchedAppRecipe=mfCode?allRicette.find(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm1(r.Vecchio_Nome||'');const mc=_vnNorm1(mfCode);return!!(vn&&mc&&vn===mc);}):null;
+          const matchedAppCode=matchedAppRecipe?matchedAppRecipe.Pantone_ID:null;
+          const inApp=done.has(mf.id)||!!matchedAppCode;
           const st0=txState[mf.id]||{};
           const allVerified=!!(inApp&&st0.barattolo&&st0.codice&&st0.copertura&&st0.hex);
           return(
@@ -4105,11 +4106,20 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
                   </div>
                 );
               })()}
-              {/* Riga 2: nome grande + pill app */}
-              <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
-                <div style={{fontFamily:'Nebulica',fontSize:28,fontWeight:700,color:'#0B0B0B',lineHeight:1.15,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:1}}>{mf.name}</div>
-                {inApp&&<span style={{fontFamily:'Nebulica',fontSize:16,fontWeight:700,padding:'4px 14px',borderRadius:99,background:'rgba(34,197,94,0.15)',color:'#16A34A',whiteSpace:'nowrap',flexShrink:0}}>✓ fatto</span>}
-              </div>
+              {/* Riga 2: codice app (o Monday se non rinominato) + icona fatto */}
+              {(()=>{
+                const displayCode=matchedAppCode||mfCode||mf.name;
+                const mondayDiffers=matchedAppCode&&matchedAppCode.trim().toUpperCase()!==(mfCode||'').trim().toUpperCase();
+                return(
+                  <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
+                    <div style={{minWidth:0,flexShrink:1}}>
+                      <div style={{fontFamily:'Nebulica',fontSize:28,fontWeight:700,color:'#0B0B0B',lineHeight:1.15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayCode}</div>
+                      {mondayDiffers&&<div style={{fontFamily:'Nebulica',fontSize:12,color:'rgba(0,0,0,0.35)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>ex {mfCode}</div>}
+                    </div>
+                    {inApp&&<IcoCheckSeal size={28} color="#16A34A"/>}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
