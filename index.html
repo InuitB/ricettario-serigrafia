@@ -4115,7 +4115,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
     categoria:autoCategoria,
     copertura:'',
     pagina:formula.page_note||'',
-    vecchioNome:oldCode?'ex '+oldCode:'',
+    vecchioNome:(oldCode||newCode)?'ex '+(oldCode||newCode):'',
     note:corrected?`⚠ dose conv. da ${formula.total.toFixed(2)}g — verificare prima di stampare`:'',
     progetti:'',
   });
@@ -4320,9 +4320,9 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
           <div style={{marginBottom:12,display:'flex',gap:8,alignItems:'flex-end'}}>
             <div style={{flex:1}}>
               <div style={labelStyle}>{S.labelHex}</div>
-              <input value={form.hex} onChange={e=>setF('hex',e.target.value)} style={inputStyle} placeholder="#FFCC00"/>
+              <input value={form.hex} onChange={e=>{let v=e.target.value;if(/^[0-9A-Fa-f]{6}$/.test(v))v='#'+v;setF('hex',v);}} style={inputStyle} placeholder="#FFCC00"/>
             </div>
-            <button onClick={()=>setPickerOpen(true)} title="Scegli colore" style={{width:38,height:38,borderRadius:8,border:'1.5px solid rgba(0,0,0,0.18)',cursor:'pointer',flexShrink:0,background:form.hex&&/^#[0-9A-Fa-f]{6}$/.test(form.hex)?form.hex:'rgba(0,0,0,0.1)',boxSizing:'border-box',padding:0}}/>
+            <button onClick={()=>setPickerOpen(true)} title="Scegli colore" style={{width:38,height:38,borderRadius:8,border:'1.5px solid rgba(0,0,0,0.18)',cursor:'pointer',flexShrink:0,background:(()=>{const h=form.hex?'#'+form.hex.replace('#',''):null;return h&&/^#[0-9A-Fa-f]{6}$/i.test(h)?h:'rgba(0,0,0,0.1)'})(),boxSizing:'border-box',padding:0}}/>
           </div>
           <div style={{marginBottom:12}}>
             <div style={labelStyle}>VECCHIO NOME</div>
@@ -4352,7 +4352,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
             {saving?S.saving:S.importBtn}
           </button>
         </div>
-      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={form.pantoneId.trim()} onSelect={h=>{setF('hex',h);setPickerOpen(false);}} currentHex={form.hex} theme={{panelAlt:'#F0EDE8'}}/>
+      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={form.pantoneId.trim()} onSelect={h=>{setF('hex','#'+h.replace('#',''));setPickerOpen(false);}} currentHex={form.hex} theme={{panelAlt:'#F0EDE8'}}/>
       </>
     )}
     </div>
