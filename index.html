@@ -4052,7 +4052,7 @@ function TransferPanel(){
   const[selected,setSelected]=React.useState(null);
   const[done,setDone]=React.useState(()=>{
     try{return new Set(JSON.parse(sessionStorage.getItem('tx_done')||'[]'));}
-    catch{return new Set();}
+    catch(e){return new Set();}
   });
   const markDone=(id)=>setDone(prev=>{const n=new Set(prev);n.add(id);sessionStorage.setItem('tx_done',JSON.stringify([...n]));return n;});
 
