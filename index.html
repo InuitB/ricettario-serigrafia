@@ -4255,7 +4255,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
         </div>
       ):(
         <>
-        {match&&match.score>=95&&!showImportForm&&(
+        {match&&match.score>=95&&(
           <div style={{background:'rgba(34,197,94,0.07)',borderRadius:14,padding:'16px 18px',border:'1px solid rgba(34,197,94,0.18)',display:'flex',alignItems:'center',gap:14,marginBottom:12}}>
             <div style={{flex:1}}>
               <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:'#16A34A'}}>{S.alreadyTitle(match.r.Pantone_ID)}</div>
@@ -4264,7 +4264,6 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
             <button onClick={()=>{setMarkedDone(true);onImported();}} style={{padding:'10px 18px',borderRadius:99,background:'#22C55E',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>{S.markDone}</button>
           </div>
         )}
-        {(!(match&&match.score>=95)||showImportForm)&&(
         <div style={{background:'#fff',borderRadius:16,padding:'22px',border:'1px solid rgba(0,0,0,0.1)'}}>
           <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:0.3,marginBottom:16,color:'#0B0B0B'}}>{S.importTitle}</div>
           <div style={{marginBottom:12}}>
@@ -4303,12 +4302,6 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
             {saving?S.saving:S.importBtn}
           </button>
         </div>
-      )}
-      {match&&match.score>=95&&!showImportForm&&(
-        <div style={{marginTop:8,textAlign:'center'}}>
-          <button onClick={()=>setShowImportForm(true)} style={{background:'none',border:'none',fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.38)',cursor:'pointer',textDecoration:'underline',padding:'6px 0'}}>Non è la stessa formula — Importa comunque</button>
-        </div>
-      )}
       <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={form.pantoneId.trim()} onSelect={h=>{setF('hex',h);setPickerOpen(false);}} currentHex={form.hex} theme={{panelAlt:'#F0EDE8'}}/>
       </>
     )}
