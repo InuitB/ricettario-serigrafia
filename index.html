@@ -4063,10 +4063,11 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
 
 function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,updateTxState}){
   const{newCode,oldCode,uncertain}=txParseName(formula.name);
+  const autoCategoria=formula.source==='CUSTOM'?'Custom':'Serigrafica';
   const[form,setForm]=React.useState({
     pantoneId:newCode,
     hex:'',
-    categoria:'Serigrafica',
+    categoria:autoCategoria,
     copertura:'',
     pagina:formula.page_note||'',
     note:oldCode?'ex '+oldCode:'',
@@ -4076,16 +4077,27 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
   const[saved,setSaved]=React.useState(false);
   const[markedDone,setMarkedDone]=React.useState(false);
   const[saveErr,setSaveErr]=React.useState('');
+  const[pickerOpen,setPickerOpen]=React.useState(false);
+  const[showImportForm,setShowImportForm]=React.useState(false);
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
 
   async function handleImport(){
     if(!form.pantoneId.trim()){setSaveErr(S.errPantone);return;}
     if(!form.hex.trim()){setSaveErr(S.errHex);return;}
+    const normId=form.pantoneId.trim().toUpperCase().replace(/\s+/g,' ');
+    const existCode=allRicette.find(r=>(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ')===normId);
+    if(existCode){setSaveErr(`Il codice "${form.pantoneId.trim()}" esiste già nell'app. Modifica il codice oppure usa "Segna fatto" se è già importato.`);return;}
+    const normHex=form.hex.replace('#','').trim().toUpperCase();
+    if(/^[0-9A-Fa-f]{6}$/.test(normHex)){
+      const existHex=allRicette.find(r=>(r.HEX||'').replace('#','').trim().toUpperCase()===normHex);
+      if(existHex){setSaveErr(`L'HEX #${normHex} è già usato da "${existHex.Pantone_ID}". Se è lo stesso colore usa "Segna fatto", altrimenti verifica l'HEX.`);return;}
+    }
     setSaving(true);setSaveErr('');
     try{
+      const hexVal='#'+normHex;
       const componenti=formula.inks.map(ink=>({Inchiostro:ink.code,'Dose_40g (g)':ink.dose}));
-      await postGAS({action:'addRicetta',Pantone_ID:form.pantoneId.trim(),HEX:form.hex.replace('#',''),Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Pagina:form.pagina,Progetti:form.progetti,componenti});
-      allRicette.push({Pantone_ID:form.pantoneId.trim(),HEX:form.hex.replace('#',''),Categoria:form.categoria,Copertura:form.copertura,Note:form.note,Pagina:form.pagina,Progetti:form.progetti});
+      await postGAS({action:'addRicetta',Pantone_ID:form.pantoneId.trim(),HEX:hexVal,Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Pagina:form.pagina,Progetti:form.progetti,componenti});
+      allRicette.push({Pantone_ID:form.pantoneId.trim(),HEX:hexVal,Categoria:form.categoria,Copertura:form.copertura,Note:form.note,Pagina:form.pagina,Progetti:form.progetti});
       componenti.forEach(c=>allComponenti.push({Pantone_ID:form.pantoneId.trim(),...c}));
       window._bumpData?.();
       setSaved(true);onImported();
@@ -4196,8 +4208,8 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
         })}
       </div>
 
-      {/* Match analysis */}
-      {match&&(
+      {/* Match analysis — solo se score >= 90% */}
+      {match&&match.score>=90&&(
         <div style={{marginBottom:22,borderRadius:14,padding:'16px 18px',background:match.score>=95?'rgba(34,197,94,0.07)':match.score>=60?'rgba(245,158,11,0.07)':'rgba(0,0,0,0.04)',border:`1px solid ${match.score>=95?'rgba(34,197,94,0.22)':match.score>=60?'rgba(245,158,11,0.22)':'rgba(0,0,0,0.09)'}`}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
             <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:match.score>=95?'#16A34A':match.score>=60?'#D97706':'rgba(0,0,0,0.5)'}}>
@@ -4235,21 +4247,24 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
         </div>
       )}
 
-      {/* Action: if already matched at ≥95%, show confirm button; else show import form */}
+      {/* Action */}
       {saved||markedDone||isDone?(
         <div style={{background:'rgba(34,197,94,0.09)',borderRadius:14,padding:'18px 20px',border:'1px solid rgba(34,197,94,0.22)',textAlign:'center'}}>
           <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#16A34A'}}>{saved?S.importedTitle:'✓ '+S.markDone}</div>
           {saved&&<div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:5}}>{S.importedSub(form.pantoneId)}</div>}
         </div>
-      ):match&&match.score>=95?(
-        <div style={{background:'rgba(34,197,94,0.07)',borderRadius:14,padding:'16px 18px',border:'1px solid rgba(34,197,94,0.18)',display:'flex',alignItems:'center',gap:14}}>
-          <div style={{flex:1}}>
-            <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:'#16A34A'}}>{S.alreadyTitle(match.r.Pantone_ID)}</div>
-            <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:4}}>{S.alreadySub}</div>
-          </div>
-          <button onClick={()=>{setMarkedDone(true);onImported();}} style={{padding:'10px 18px',borderRadius:99,background:'#22C55E',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>{S.markDone}</button>
-        </div>
       ):(
+        <>
+        {match&&match.score>=95&&!showImportForm&&(
+          <div style={{background:'rgba(34,197,94,0.07)',borderRadius:14,padding:'16px 18px',border:'1px solid rgba(34,197,94,0.18)',display:'flex',alignItems:'center',gap:14,marginBottom:12}}>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:'#16A34A'}}>{S.alreadyTitle(match.r.Pantone_ID)}</div>
+              <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:4}}>{S.alreadySub}</div>
+            </div>
+            <button onClick={()=>{setMarkedDone(true);onImported();}} style={{padding:'10px 18px',borderRadius:99,background:'#22C55E',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>{S.markDone}</button>
+          </div>
+        )}
+        {(!(match&&match.score>=95)||showImportForm)&&(
         <div style={{background:'#fff',borderRadius:16,padding:'22px',border:'1px solid rgba(0,0,0,0.1)'}}>
           <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:0.3,marginBottom:16,color:'#0B0B0B'}}>{S.importTitle}</div>
           <div style={{marginBottom:12}}>
@@ -4262,23 +4277,16 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
               <div style={labelStyle}>{S.labelHex}</div>
               <input value={form.hex} onChange={e=>setF('hex',e.target.value)} style={inputStyle} placeholder="#FFCC00"/>
             </div>
-            <input type="color" value={form.hex&&form.hex.startsWith('#')&&form.hex.length>=4?form.hex:'#888888'} onChange={e=>setF('hex',e.target.value)} style={{width:38,height:38,borderRadius:8,border:'1.5px solid rgba(0,0,0,0.18)',padding:2,cursor:'pointer',flexShrink:0}}/>
-            <div style={{width:38,height:38,borderRadius:8,background:form.hex||'rgba(0,0,0,0.1)',flexShrink:0,border:'1px solid rgba(0,0,0,0.1)'}}/>
+            <button onClick={()=>setPickerOpen(true)} title="Scegli colore" style={{width:38,height:38,borderRadius:8,border:'1.5px solid rgba(0,0,0,0.18)',cursor:'pointer',flexShrink:0,background:form.hex&&/^#[0-9A-Fa-f]{6}$/.test(form.hex)?form.hex:'rgba(0,0,0,0.1)',boxSizing:'border-box',padding:0}}/>
           </div>
-          <div style={{marginBottom:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <div>
-              <div style={labelStyle}>{S.labelCategoria}</div>
-              <select value={form.categoria} onChange={e=>setF('categoria',e.target.value)} style={{...inputStyle,cursor:'pointer'}}>
-                {['Serigrafica','Custom','Speciale','Pantone'].map(c=><option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={labelStyle}>{S.labelCopertura}</div>
-              <select value={form.copertura} onChange={e=>setF('copertura',e.target.value)} style={{...inputStyle,cursor:'pointer'}}>
-                <option value="">—</option>
-                {['Alta','Media','Bassa'].map(c=><option key={c}>{c}</option>)}
-              </select>
-            </div>
+          <div style={{marginBottom:12}}>
+            <div style={labelStyle}>{S.labelCopertura}</div>
+            <select value={form.copertura} onChange={e=>setF('copertura',e.target.value)} style={{...inputStyle,cursor:'pointer'}}>
+              <option value="">—</option>
+              <option value="coprente">Coprente</option>
+              <option value="semi">Semi</option>
+              <option value="trasp">Trasp.</option>
+            </select>
           </div>
           <div style={{marginBottom:12,display:'grid',gridTemplateColumns:'80px 1fr',gap:10}}>
             <div>
@@ -4296,6 +4304,14 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
           </button>
         </div>
       )}
+      {match&&match.score>=95&&!showImportForm&&(
+        <div style={{marginTop:8,textAlign:'center'}}>
+          <button onClick={()=>setShowImportForm(true)} style={{background:'none',border:'none',fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.38)',cursor:'pointer',textDecoration:'underline',padding:'6px 0'}}>Non è la stessa formula — Importa comunque</button>
+        </div>
+      )}
+      <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={form.pantoneId.trim()} onSelect={h=>{setF('hex',h);setPickerOpen(false);}} currentHex={form.hex} theme={{panelAlt:'#F0EDE8'}}/>
+      </>
+    )}
     </div>
   );
 }
