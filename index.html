@@ -684,6 +684,17 @@ function IcoQuestionMark({size=16,color='currentColor'}){
   </svg>;
 }
 
+function IcoCheckCircle({size=16,color='currentColor'}){
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20.5381 20.1848" width={size} height={size} style={{display:'block',flexShrink:0}}>
+    <path d="M20.1767 10.0875C20.1767 15.6478 15.6576 20.175 10.0875 20.175C4.52715 20.175 0 15.6478 0 10.0875C0 4.51914 4.52715 0 10.0875 0C15.6576 0 20.1767 4.51914 20.1767 10.0875ZM13.0051 6.23867L8.96699 12.7041L7.08476 10.3143C6.83358 9.99199 6.59941 9.88828 6.28984 9.88828C5.79414 9.88828 5.39961 10.2918 5.39961 10.7893C5.39961 11.0367 5.48925 11.2621 5.66386 11.4855L8.05703 14.3967C8.33027 14.7508 8.63183 14.9103 8.99902 14.9103C9.36445 14.9103 9.68105 14.7312 9.90546 14.3896L14.4742 7.27206C14.6107 7.04765 14.7289 6.80898 14.7289 6.58359C14.7289 6.07187 14.281 5.72968 13.7934 5.72968C13.4937 5.72968 13.217 5.90527 13.0051 6.23867Z" fill={color}/>
+  </svg>;
+}
+function IcoCheckSeal({size=16,color='currentColor'}){
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.6936 22.3425" width={size} height={size} style={{display:'block',flexShrink:0}}>
+    <path d="M13.0254 0.954641L14.51 2.4312C14.6539 2.5689 14.7836 2.61597 14.9746 2.61597L17.0612 2.61597C18.8664 2.61597 19.7076 3.46968 19.7076 5.26069L19.7076 7.35523C19.7076 7.53999 19.7592 7.67417 19.8987 7.81187L21.3752 9.29644C22.6426 10.5656 22.6506 11.7591 21.3752 13.0265L19.8987 14.5111C19.7627 14.6568 19.7076 14.7847 19.7076 14.9757L19.7076 17.0623C19.7076 18.8675 18.8602 19.7087 17.0612 19.7087L14.9746 19.7087C14.7836 19.7087 14.6557 19.7621 14.51 19.8998L13.0254 21.3763C11.758 22.6455 10.5627 22.6535 9.29534 21.3763L7.81077 19.8998C7.67131 19.7621 7.53713 19.7087 7.35413 19.7087L5.25959 19.7087C3.46233 19.7087 2.61311 18.8613 2.61311 17.0623L2.61311 14.9757C2.61311 14.7847 2.56604 14.6568 2.4301 14.5111L0.953541 13.0265C-0.31384 11.7591-0.321848 10.5656 0.953541 9.29644L2.4301 7.81187C2.56604 7.67593 2.61311 7.53999 2.61311 7.35523L2.61311 5.26069C2.61311 3.45191 3.46057 2.61597 5.25959 2.61597L7.35413 2.61597C7.53713 2.61597 7.67307 2.5689 7.81077 2.4312L9.29534 0.956399C10.5627-0.314498 11.7545-0.322506 13.0254 0.954641ZM14.0811 7.31577L10.043 13.7812L8.16252 11.3914C7.90959 11.0691 7.67717 10.9574 7.37561 10.9574C6.8719 10.9574 6.47561 11.3609 6.47561 11.8664C6.47561 12.1058 6.56702 12.3392 6.73987 12.5626L9.13479 15.4738C9.40628 15.8279 9.70784 15.9794 10.0768 15.9794C10.4405 15.9794 10.7588 15.8003 10.9815 15.4667L15.552 8.34116C15.6867 8.12475 15.8049 7.88608 15.8049 7.65268C15.8049 7.14897 15.3571 6.80679 14.8774 6.80679C14.5698 6.80679 14.2948 6.97437 14.0811 7.31577Z" fill={color}/>
+  </svg>;
+}
+
 /* ═══════════════════ DESKTOP RECIPE COMPONENTS ═══════════════════ */
 function QuantityPicker({value, onChange, theme}) {
   return (
@@ -3903,6 +3914,7 @@ const TX={
     tagCopertura:'COPERTURA ✓',
     tagHex:'HEX ✓',
     btnBarattolo:'Barattolo fisico',
+    btnCodice:'Codice Pantone',
     btnCopertura:'Copertura verificata',
     btnHex:'HEX verificato',
     filterAll:'Tutti',
@@ -3912,6 +3924,7 @@ const TX={
     filterNoCopertura:'Copertura —',
     filterNoHex:'HEX —',
     verifySection:'Verifiche',
+    allVerifiedLabel:'Tutto verificato',
   },
   fr:{
     noMatch:'aucune correspondance',
@@ -3967,6 +3980,7 @@ const TX={
     tagCopertura:'COUVERTURE ✓',
     tagHex:'HEX ✓',
     btnBarattolo:'Pot de couleur',
+    btnCodice:'Code Pantone',
     btnCopertura:'Couverture vérifiée',
     btnHex:'HEX vérifié',
     filterAll:'Tous',
@@ -3976,10 +3990,11 @@ const TX={
     filterNoCopertura:'Couverture —',
     filterNoHex:'HEX —',
     verifySection:'Vérifications',
+    allVerifiedLabel:'Tout vérifié',
   },
 };
 
-function TransferGroup({label,color,items,selected,onSelect,matchMap,S,txState}){
+function TransferGroup({label,color,items,selected,onSelect,matchMap,done,S,txState}){
   const[open,setOpen]=React.useState(true);
   if(!items.length)return null;
   return(
@@ -3992,12 +4007,14 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,S,txState})
         {items.map(mf=>{
           const isSel=selected===mf.id;
           const m=matchMap[mf.id];
-          const inApp=m&&m.score>=95;
+          const inApp=(m&&m.score>=95)||done.has(mf.id);
+          const st0=txState[mf.id]||{};
+          const allVerified=!!(inApp&&st0.barattolo&&st0.codice&&st0.copertura&&st0.hex);
           return(
             <div key={mf.id} onClick={()=>onSelect(isSel?null:mf.id)}
               style={{marginBottom:8,borderRadius:16,padding:'14px 15px 12px',cursor:'pointer',
                 background:isSel?'rgba(0,0,0,0.07)':'rgba(255,255,255,0.95)',
-                border:`1.5px solid ${isSel?'rgba(0,0,0,0.18)':'rgba(0,0,0,0.07)'}`,
+                border:`1.5px solid ${allVerified?'rgba(22,163,74,0.3)':isSel?'rgba(0,0,0,0.18)':'rgba(0,0,0,0.07)'}`,
                 boxShadow:isSel?'none':'0 1px 5px rgba(0,0,0,0.06)',
                 transition:'all .12s'}}>
               {/* Riga 1: tag + icone alert */}
@@ -4015,6 +4032,7 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,S,txState})
                       {mf.flags.includes('as90_code_fixed')&&<span title={S.ttAS90}><IcoWrench size={15} color="rgba(0,0,0,0.38)"/></span>}
                       {mf.flags.includes('not_40g')&&<span title={S.ttNot40g}><IcoQuestionMark size={16} color="#EF4444"/></span>}
                       {mf.name.includes('?')&&<span title={S.ttUncertain}><IcoQuestionMark size={16} color="#D97706"/></span>}
+                      {allVerified&&<IcoCheckSeal size={17} color="#16A34A"/>}
                     </div>
                   </div>
                 );
@@ -4104,18 +4122,28 @@ function TransferDetail({formula,match,onImported,isDone,S,txState,updateTxState
                 background:on?activeBg:'rgba(0,0,0,0.03)',fontFamily:'Nebulica',fontSize:11,fontWeight:700,
                 color:on?activeColor:'rgba(0,0,0,0.45)',cursor:'pointer',transition:'all .15s',
                 display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
-              <span style={{fontSize:13,opacity:on?1:0.4}}>{on?'✓':'○'}</span>{label}
+              <IcoCheckCircle size={13} color={on?activeColor:'rgba(0,0,0,0.22)'}/>{label}
             </button>
           );
         };
+        const inApp=isDone||(match&&match.score>=95);
+        const allVerified=!!(inApp&&st.barattolo&&st.codice&&st.copertura&&st.hex);
         return(
           <div style={{marginBottom:22}}>
-            <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'rgba(0,0,0,0.38)',marginBottom:8}}>{S.verifySection.toUpperCase()}</div>
-            <div style={{display:'flex',gap:8}}>
+            <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'rgba(0,0,0,0.38)',marginBottom:8,display:'flex',alignItems:'center',gap:6}}>
+              {S.verifySection.toUpperCase()}
+              {allVerified&&<IcoCheckSeal size={13} color="#16A34A"/>}
+            </div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
               {toggleBtn('barattolo',S.btnBarattolo,'#A16207','rgba(161,98,7,0.1)')}
+              {toggleBtn('codice',S.btnCodice,'#9D174D','rgba(157,23,77,0.1)')}
               {toggleBtn('copertura',S.btnCopertura,'#6D28D9','rgba(124,58,237,0.1)')}
               {toggleBtn('hex',S.btnHex,'#0E7490','rgba(8,145,178,0.1)')}
             </div>
+            {allVerified&&<div style={{marginTop:10,display:'flex',alignItems:'center',gap:8,padding:'10px 14px',borderRadius:99,background:'rgba(22,163,74,0.08)',border:'1px solid rgba(22,163,74,0.2)'}}>
+              <IcoCheckSeal size={16} color="#16A34A"/>
+              <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#16A34A',letterSpacing:0.5}}>{S.allVerifiedLabel||'Tutto verificato'}</span>
+            </div>}
           </div>
         );
       })()}
@@ -4361,9 +4389,9 @@ function TransferPanel(){
           </div>
           {/* Groups */}
           <div style={{flex:1,overflowY:'auto'}}>
-            <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S} txState={txState}/>
-            <TransferGroup label={'🔶 '+S.groupTodo} color="#D97706" items={todo.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S} txState={txState}/>
-            <TransferGroup label={'⚠️ '+S.groupProblems} color="#EF4444" items={problems.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S} txState={txState}/>
+            <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} S={S} txState={txState}/>
+            <TransferGroup label={'🔶 '+S.groupTodo} color="#D97706" items={todo.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} S={S} txState={txState}/>
+            <TransferGroup label={'⚠️ '+S.groupProblems} color="#EF4444" items={problems.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} S={S} txState={txState}/>
           </div>
         </div>
         {/* Detail */}
