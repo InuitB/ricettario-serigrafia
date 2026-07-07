@@ -4060,8 +4060,7 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
       {open&&<div style={{padding:'6px 10px 10px'}}>
         {items.map(mf=>{
           const isSel=selected===mf.id;
-          const m=matchMap[mf.id];
-          const inApp=(m&&m.score>=95)||done.has(mf.id);
+          const inApp=done.has(mf.id);
           const st0=txState[mf.id]||{};
           const allVerified=!!(inApp&&st0.barattolo&&st0.codice&&st0.copertura&&st0.hex);
           return(
@@ -4125,6 +4124,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
   const[saveErr,setSaveErr]=React.useState('');
   const[pickerOpen,setPickerOpen]=React.useState(false);
   const[showImportForm,setShowImportForm]=React.useState(false);
+  const[formulaWarnOk,setFormulaWarnOk]=React.useState(false);
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
 
   async function handleImport(){
@@ -4138,6 +4138,20 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
       const existHex=allRicette.find(r=>(r.HEX||'').replace('#','').trim().toUpperCase()===normHex);
       if(existHex){setSaveErr(`L'HEX #${normHex} è già usato da "${existHex.Pantone_ID}". Se è lo stesso colore usa "Segna fatto", altrimenti verifica l'HEX.`);return;}
     }
+    if(!formulaWarnOk){
+      const mfNorm=txNormInks(formula.inks);
+      for(const r of allRicette){
+        const comps=allComponenti.filter(c=>String(c.Pantone_ID)===String(r.Pantone_ID));
+        if(!comps.length)continue;
+        const rNorm=txNormInks(comps);
+        const codes=new Set([...Object.keys(mfNorm),...Object.keys(rNorm)]);
+        if(Object.keys(mfNorm).length!==Object.keys(rNorm).length)continue;
+        let similar=true;
+        for(const c of codes){if(Math.abs((mfNorm[c]||0)-(rNorm[c]||0))>1){similar=false;break;}}
+        if(similar){setSaveErr(`⚠ Formula molto simile a "${r.Pantone_ID}" (differenza ≤1g per ingrediente). Premi di nuovo Importa se sei sicuro che siano colori diversi.`);setFormulaWarnOk(true);return;}
+      }
+    }
+    setFormulaWarnOk(false);
     setSaving(true);setSaveErr('');
     try{
       const hexVal='#'+normHex;
@@ -4215,7 +4229,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
             </button>
           );
         };
-        const inApp=isDone||(match&&match.score>=95);
+        const inApp=isDone;
         const allVerified=!!(inApp&&st.barattolo&&st.codice&&st.copertura&&st.hex);
         return(
           <div style={{marginBottom:22}}>
@@ -4438,8 +4452,6 @@ function TransferPanel(){
     for(const mf of MONDAY_FORMULAS){
       if(done.has(mf.id)){confirmed.push(mf);continue;}
       if(mf.flags.includes('not_40g')||mf.duplicate_of){problems.push(mf);continue;}
-      const m=matchMap[mf.id];
-      if(m&&m.score>=95){confirmed.push(mf);continue;}
       todo.push(mf);
     }
     return{confirmed,todo,problems};
@@ -4452,7 +4464,7 @@ function TransferPanel(){
     }
     if(activeFilter==='all')return true;
     const st=txState[mf.id]||{};
-    const inApp=matchMap[mf.id]?.score>=95||done.has(mf.id);
+    const inApp=done.has(mf.id);
     if(activeFilter==='inapp')return inApp;
     if(activeFilter==='noapp')return !inApp;
     if(activeFilter==='barattolo')return!!st.barattolo;
