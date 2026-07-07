@@ -357,6 +357,7 @@ function makeRecipe(p) {
   if (comps.length === 0) return makeRecipeFallback(pantone);
   const r = allRicette.find(x => x.Pantone_ID === code);
   const note = (r && r.Note) ? r.Note : (NOTES[code]||null);
+  const vecchioNome = (r && r.Vecchio_Nome) ? r.Vecchio_Nome : null;
   const project = (r && r.Progetti) ? r.Progetti : PROJECTS[hashStr(code) % PROJECTS.length];
   const totalBase = comps.reduce((s,c) => s+(parseFloat(c['Dose_40g (g)'])||0), 0);
   const inks = comps.map(c => {
@@ -364,7 +365,7 @@ function makeRecipe(p) {
     const pct = totalBase > 0 ? Math.round((dose/totalBase)*10000)/100 : 0;
     return {name:c.Inchiostro, label:c.Inchiostro, pct};
   }).sort((a,b)=>b.pct-a.pct);
-  return {inks, project, note};
+  return {inks, project, note, vecchioNome};
 }
 
 const QUANTITIES = [{label:'100 g',grams:100},{label:'300 g',grams:300},{label:'500 g',grams:500},{label:'1 kg',grams:1000}];
@@ -746,16 +747,21 @@ function InkFormula({pantone, recipe, qty, theme, big=false, anim='none', play=t
   );
 }
 
-function NotesBlock({note, theme}) {
-  if (!note) return null;
+function NotesBlock({note, vecchioNome, theme}) {
   return (
-    <div style={{marginTop:14,padding:'13px 16px',borderRadius:20,...glass(theme,{strong:true})}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-        <span style={{display:'inline-flex',alignItems:'center',gap:7,fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub}}><IcoNote size={15} color={theme.accent}/> NOTE</span>
-        <IcoEdit size={15} color={theme.accent}/>
-      </div>
-      <p style={{margin:0,fontFamily:'Nebulica',fontSize:13,lineHeight:1.42,color:theme.ink,opacity:0.82}}>{note}</p>
-    </div>
+    <>
+      {vecchioNome&&<div style={{marginTop:14,padding:'8px 14px',borderRadius:99,background:rgba(theme.ink,0.06),display:'inline-flex',alignItems:'center',gap:7}}>
+        <span style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.3,fontWeight:700,color:theme.sub}}>EX</span>
+        <span style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,color:theme.ink,opacity:0.7}}>{vecchioNome}</span>
+      </div>}
+      {note&&<div style={{marginTop:14,padding:'13px 16px',borderRadius:20,...glass(theme,{strong:true})}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+          <span style={{display:'inline-flex',alignItems:'center',gap:7,fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub}}><IcoNote size={15} color={theme.accent}/> NOTE</span>
+          <IcoEdit size={15} color={theme.accent}/>
+        </div>
+        <p style={{margin:0,fontFamily:'Nebulica',fontSize:13,lineHeight:1.42,color:theme.ink,opacity:0.82}}>{note}</p>
+      </div>}
+    </>
   );
 }
 
@@ -1240,6 +1246,7 @@ function NuovaSheet({open, onClose, theme}) {
   const [temp, setTemp] = React.useState('');
   const [cop, setCop] = React.useState('');
   const [note, setNote] = React.useState('');
+  const [vecchioNome, setVecchioNome] = React.useState('');
   const [pag, setPag] = React.useState('');
   const [inks, setInks] = React.useState([{ink:'',dose:''},{ink:'',dose:''}]);
   const [saving, setSaving] = React.useState(false);
@@ -1248,7 +1255,7 @@ function NuovaSheet({open, onClose, theme}) {
   const doseRefs = React.useRef([]);
 
   React.useEffect(()=>{
-    if(!open){ setPid(''); setHex(''); setHexAuto(false); setCat(''); setCatAuto(false); setTemp(''); setCop(''); setNote(''); setPag(''); setInks([{ink:'',dose:''},{ink:'',dose:''}]); setMsg(''); setSaving(false); setPickerOpen(false); }
+    if(!open){ setPid(''); setHex(''); setHexAuto(false); setCat(''); setCatAuto(false); setTemp(''); setCop(''); setNote(''); setVecchioNome(''); setPag(''); setInks([{ink:'',dose:''},{ink:'',dose:''}]); setMsg(''); setSaving(false); setPickerOpen(false); }
   },[open]);
 
   const onPidChange = v => {
@@ -1285,11 +1292,11 @@ function NuovaSheet({open, onClose, theme}) {
     if(Math.abs(totale-40)>0.15){ setMsg(`⚠ Totale ${totale.toFixed(1)} g (atteso 40 g) — salva lo stesso?`); if(!msg.includes('salva lo stesso')) return; }
     setSaving(true); setMsg('');
     try{
-      await postGAS({action:'addRicetta',Pantone_ID:pid.trim(),HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,
+      await postGAS({action:'addRicetta',Pantone_ID:pid.trim(),HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Vecchio_Nome:vecchioNome,Pagina:pag,
           componenti:validInks.map(r=>({Inchiostro:r.ink,'Dose_40g (g)':r.dose}))});
       setMsg('Ricetta salvata!');
       const newId=pid.trim();
-      allRicette.push({Pantone_ID:newId,HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:''});
+      allRicette.push({Pantone_ID:newId,HEX:'#'+hex.replace('#','').trim(),Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Vecchio_Nome:vecchioNome,Pagina:pag,Progetti:''});
       validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.ink,'Dose_40g (g)':r.dose}));
       transformData();
       newlySaved.add(newId);
@@ -1344,6 +1351,9 @@ function NuovaSheet({open, onClose, theme}) {
           <div><span style={lbl}>TEMPERATURA</span><input value={temp} onChange={e=>setTemp(e.target.value)} placeholder="es. alta" style={inp}/></div>
           <div><span style={lbl}>COPERTURA</span><input value={cop} onChange={e=>setCop(e.target.value)} placeholder="es. media" style={inp}/></div>
         </div>
+        <div style={{marginTop:14}}><span style={lbl}>VECCHIO NOME</span>
+          <input value={vecchioNome} onChange={e=>setVecchioNome(e.target.value)} placeholder="es. ex 116 U, ex 7699 C" style={inp}/>
+        </div>
         <div style={{marginTop:14}}><span style={lbl}>NOTE</span>
           <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="note opzionali…" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.45}}/>
         </div>
@@ -1377,6 +1387,7 @@ function EditSheet({open, editCode, onClose, theme}) {
   const [temp, setTemp] = React.useState('');
   const [cop, setCop] = React.useState('');
   const [note, setNote] = React.useState('');
+  const [vecchioNome, setVecchioNome] = React.useState('');
   const [pag, setPag] = React.useState('');
   const [proj, setProj] = React.useState('');
   const [inks, setInks] = React.useState([]);
@@ -1397,6 +1408,7 @@ function EditSheet({open, editCode, onClose, theme}) {
       const copRaw = (r?.Copertura||'').toLowerCase().trim();
       setCop(copRaw.startsWith('copr')?'coprente':copRaw.startsWith('semi')?'semi':copRaw.startsWith('tras')?'trasp':'');
       setNote(r?.Note||'');
+      setVecchioNome(r?.Vecchio_Nome||'');
       setPag(r?.Pagina||'');
       setProj(r?.Progetti||'');
       const comps = allComponenti.filter(c=>c.Pantone_ID===editCode);
@@ -1423,12 +1435,12 @@ function EditSheet({open, editCode, onClose, theme}) {
       const newId = pid.trim();
       const hexVal = '#'+hex.replace('#','').trim();
       const validInks = inks.filter(r=>r.name.trim()&&(parseFloat(r.g)||0)>0);
-      const payload = {action:'editRicetta',Pantone_ID:editCode,HEX:hexVal,Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:proj,componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))};
+      const payload = {action:'editRicetta',Pantone_ID:editCode,HEX:hexVal,Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Vecchio_Nome:vecchioNome,Pagina:pag,Progetti:proj,componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))};
       if(newId!==editCode) payload.Pantone_ID_nuovo=newId;
       await postGAS(payload);
       // Ottimistico
       const rIdx = allRicette.findIndex(x=>x.Pantone_ID===editCode);
-      if(rIdx>=0) allRicette[rIdx]={...allRicette[rIdx],Pantone_ID:newId,HEX:hexVal,Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Pagina:pag,Progetti:proj};
+      if(rIdx>=0) allRicette[rIdx]={...allRicette[rIdx],Pantone_ID:newId,HEX:hexVal,Categoria:cat,Temperatura:temp,Copertura:cop,Note:note,Vecchio_Nome:vecchioNome,Pagina:pag,Progetti:proj};
       allComponenti = allComponenti.filter(c=>c.Pantone_ID!==editCode);
       validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.name,'Dose_40g (g)':r.g}));
       transformData(); window._bumpData?.();
@@ -1505,6 +1517,9 @@ function EditSheet({open, editCode, onClose, theme}) {
         </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginTop:14}}>
+          <div style={{gridColumn:'span 2'}}><span style={lbl}>VECCHIO NOME</span>
+            <input value={vecchioNome} onChange={e=>setVecchioNome(e.target.value)} placeholder="es. ex 116 U, ex 7699 C" style={inp}/>
+          </div>
           <div style={{gridColumn:'span 2'}}><span style={lbl}>NOTE</span>
             <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="note…" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.45}}/>
           </div>
@@ -1560,7 +1575,7 @@ function WalletUnified({pantone, open, qty, setQty, theme, headerH=176, codeSize
         <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.5,fontWeight:700,color:theme.sub,marginBottom:9}}>QUANTITÀ</div>
         <QuantityPicker value={qty} onChange={setQty} theme={theme}/>
         <div style={{marginTop:20}}><InkFormula pantone={pantone} recipe={recipe} qty={qty} theme={theme} play={open} anim="stagger"/></div>
-        <NotesBlock note={recipe.note} theme={theme}/>
+        <NotesBlock note={recipe.note} vecchioNome={recipe.vecchioNome} theme={theme}/>
         <div style={{marginTop:20}}><PrintButton theme={theme} onClick={()=>stampaPDF(pantone, recipe, qty)}/></div>
         <div style={{marginTop:14,display:'flex',justifyContent:'space-between',fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.sub}}>
           <span>PROGETTO</span><span style={{color:theme.accent}}>→ {recipe.project}</span></div>
@@ -1780,7 +1795,7 @@ function GalleryMode({theme, mode, setMode, query, setQuery, onSettings, formula
             <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.5,fontWeight:700,color:theme.sub,marginBottom:9}}>QUANTITÀ</div>
             <QuantityPicker value={qty} onChange={setQty} theme={theme}/>
             <div style={{marginTop:24}}><InkFormula key={'gf-'+sel.code+formulaAnim} pantone={sel} recipe={recipe} qty={qty} theme={theme} big play anim={formulaAnim==='stagger'?'stagger':'none'}/></div>
-            <NotesBlock note={recipe.note} theme={theme}/>
+            <NotesBlock note={recipe.note} vecchioNome={recipe.vecchioNome} theme={theme}/>
             <div style={{marginTop:22}}><PrintButton theme={theme} onClick={sel&&recipe?()=>stampaPDF(sel,recipe,qty):undefined}/></div>
             <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${theme.line}`,display:'flex',justifyContent:'space-between',fontFamily:'Nebulica',fontSize:11.5,letterSpacing:1.3,fontWeight:700,color:theme.sub}}>
               <span>PROGETTO</span><span style={{color:theme.accent}}><IcoFolder size={15} color={theme.accent}/> {recipe.project}</span>
@@ -2158,7 +2173,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   <div style={{marginTop:14}}>
                     <InkFormula key={'f-'+selected.code+anim} pantone={selected} recipe={recipe} qty={qty} theme={theme} big anim={stagger?'stagger':'none'} play sortInk={formulaSort} onSortChange={setFormulaS}/>
                   </div>
-                  <NotesBlock note={recipe.note} theme={theme}/>
+                  <NotesBlock note={recipe.note} vecchioNome={recipe.vecchioNome} theme={theme}/>
                   <div style={{marginTop:14,display:'flex',gap:12,alignItems:'center'}}>
                     <div style={{flex:1}}><PrintButton theme={theme} onClick={recipe?()=>stampaPDF(selected,recipe,qty):undefined}/></div>
                     <button onClick={()=>setMescolaOpen(true)} style={{display:'inline-flex',alignItems:'center',gap:7,padding:'0 18px',height:52,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:14,color:theme.ink,...glass(theme,{strong:true})}}>
@@ -2431,8 +2446,13 @@ function NFAttributeFields({state,theme}){
   );
 }
 function NFMetaFields({state,theme}){
+  const inp2={width:'100%',boxSizing:'border-box',fontFamily:'Nebulica',fontSize:15,color:theme.ink,background:theme.panel,border:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1.5px solid ${theme.line2}`,borderRadius:14,padding:'12px 18px',outline:'none'};
   return (
     <React.Fragment>
+      <div>
+        <NFLabel theme={theme} optional>VECCHIO NOME</NFLabel>
+        <input value={state.vecchioNome||''} onChange={e=>state.setVecchioNome(e.target.value)} placeholder="es. ex 116 U, ex 7699 C" style={inp2}/>
+      </div>
       <div>
         <NFLabel theme={theme} optional>NOTE</NFLabel>
         <Squircle radius={18} border={theme.borders?theme.ink:theme.line2} borderWidth={theme.borders?theme.borderWidth:1.5} shadow={`0 4px 12px ${rgba('#000',0.04)}`} outerStyle={{width:'100%'}} style={{width:'100%',background:theme.panel}}>
@@ -2456,6 +2476,7 @@ function NuovaDesktop({open,onClose,theme}){
   const [cat,setCat]=React.useState(null);
   const [catAuto,setCatAuto]=React.useState(false);
   const [note,setNote]=React.useState('');
+  const [vecchioNome,setVecchioNome]=React.useState('');
   const [page,setPage]=React.useState('');
   const [projects,setProjects]=React.useState([]);
   const [projInput,setProjInput]=React.useState('');
@@ -2467,7 +2488,7 @@ function NuovaDesktop({open,onClose,theme}){
 
   const reset=React.useCallback(()=>{
     setTab('ricetta');setPantoneIdRaw('');setHex('');setHexAuto(false);setTemp(null);setCover(null);setCat(null);setCatAuto(false);
-    setNote('');setPage('');setProjects([]);setProjInput('');setInks([{id:1,name:'',g:''},{id:2,name:'',g:''}]);inkId.current=3;
+    setNote('');setVecchioNome('');setPage('');setProjects([]);setProjInput('');setInks([{id:1,name:'',g:''},{id:2,name:'',g:''}]);inkId.current=3;
     setSaving(false);setMsg('');setPickerOpen(false);
   },[]);
   React.useEffect(()=>{if(!open)reset();},[open,reset]);
@@ -2483,7 +2504,7 @@ function NuovaDesktop({open,onClose,theme}){
   const setInk=(id,patch)=>setInks(a=>a.map(r=>r.id===id?{...r,...patch}:r));
   const delInk=id=>setInks(a=>a.length>1?a.filter(r=>r.id!==id):a);
 
-  const state={tab,setTab,pantoneId,setPantoneId,hex,setHexManual,hexAuto,temp,setTemp,cover,setCover,cat,setCat,catAuto,note,setNote,page,setPage,projects,setProjects,projInput,setProjInput,inks,addInk,setInk,delInk,openPicker:()=>setPickerOpen(true)};
+  const state={tab,setTab,pantoneId,setPantoneId,hex,setHexManual,hexAuto,temp,setTemp,cover,setCover,cat,setCat,catAuto,note,setNote,vecchioNome,setVecchioNome,page,setPage,projects,setProjects,projInput,setProjInput,inks,addInk,setInk,delInk,openPicker:()=>setPickerOpen(true)};
 
   const submit=async()=>{
     const eff=nfEffHex(state);
@@ -2493,10 +2514,10 @@ function NuovaDesktop({open,onClose,theme}){
     if(validInks.length===0){setMsg('Aggiungi almeno un inchiostro con la dose.');return;}
     setSaving(true);setMsg('');
     try{
-      await postGAS({action:'addRicetta',Pantone_ID:pantoneId.trim(),HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))});
+      await postGAS({action:'addRicetta',Pantone_ID:pantoneId.trim(),HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Vecchio_Nome:vecchioNome,Pagina:page,Progetti:projects.join(', '),componenti:validInks.map(r=>({Inchiostro:r.name,'Dose_40g (g)':r.g}))});
       setMsg('Ricetta salvata!');
       const newId=pantoneId.trim();
-      allRicette.push({Pantone_ID:newId,HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Pagina:page,Progetti:projects.join(', ')});
+      allRicette.push({Pantone_ID:newId,HEX:'#'+eff.replace('#','').trim(),Categoria:cat,Temperatura:temp||'',Copertura:cover||'',Note:note,Vecchio_Nome:vecchioNome,Pagina:page,Progetti:projects.join(', ')});
       validInks.forEach(r=>allComponenti.push({Pantone_ID:newId,Inchiostro:r.name,'Dose_40g (g)':r.g}));
       transformData();
       newlySaved.add(newId);
@@ -4081,7 +4102,8 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
     categoria:autoCategoria,
     copertura:'',
     pagina:formula.page_note||'',
-    note:oldCode?'ex '+oldCode:'',
+    vecchioNome:oldCode?'ex '+oldCode:'',
+    note:'',
     progetti:'',
   });
   const[saving,setSaving]=React.useState(false);
@@ -4107,8 +4129,8 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
     try{
       const hexVal='#'+normHex;
       const componenti=formula.inks.map(ink=>({Inchiostro:ink.code,'Dose_40g (g)':ink.dose}));
-      await postGAS({action:'addRicetta',Pantone_ID:form.pantoneId.trim(),HEX:hexVal,Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Pagina:form.pagina,Progetti:form.progetti,componenti});
-      allRicette.push({Pantone_ID:form.pantoneId.trim(),HEX:hexVal,Categoria:form.categoria,Copertura:form.copertura,Note:form.note,Pagina:form.pagina,Progetti:form.progetti});
+      await postGAS({action:'addRicetta',Pantone_ID:form.pantoneId.trim(),HEX:hexVal,Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti,componenti});
+      allRicette.push({Pantone_ID:form.pantoneId.trim(),HEX:hexVal,Categoria:form.categoria,Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti});
       componenti.forEach(c=>allComponenti.push({Pantone_ID:form.pantoneId.trim(),...c}));
       window._bumpData?.();
       setSaved(true);onImported();
@@ -4288,6 +4310,10 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
               <input value={form.hex} onChange={e=>setF('hex',e.target.value)} style={inputStyle} placeholder="#FFCC00"/>
             </div>
             <button onClick={()=>setPickerOpen(true)} title="Scegli colore" style={{width:38,height:38,borderRadius:8,border:'1.5px solid rgba(0,0,0,0.18)',cursor:'pointer',flexShrink:0,background:form.hex&&/^#[0-9A-Fa-f]{6}$/.test(form.hex)?form.hex:'rgba(0,0,0,0.1)',boxSizing:'border-box',padding:0}}/>
+          </div>
+          <div style={{marginBottom:12}}>
+            <div style={labelStyle}>VECCHIO NOME</div>
+            <input value={form.vecchioNome} onChange={e=>setF('vecchioNome',e.target.value)} style={inputStyle} placeholder="es. ex 116 U, ex 7699 C"/>
           </div>
           <div style={{marginBottom:12}}>
             <div style={labelStyle}>{S.labelCopertura}</div>

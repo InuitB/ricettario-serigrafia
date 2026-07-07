@@ -246,14 +246,15 @@ function addRicetta(data) {
   // Write by column header order to survive any sheet column rearrangement
   const rHeaders = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
   const fieldMap = {
-    'Pantone_ID': data.Pantone_ID || '',
-    'HEX':        data.HEX        || '',
-    'Categoria':  data.Categoria  || '',
-    'Temperatura':data.Temperatura|| '',
-    'Copertura':  data.Copertura  || '',
-    'Note':       data.Note       || '',
-    'Pagina':     data.Pagina     || '',
-    'Progetti':   data.Progetti   || ''
+    'Pantone_ID':   data.Pantone_ID   || '',
+    'HEX':          data.HEX          || '',
+    'Categoria':    data.Categoria    || '',
+    'Temperatura':  data.Temperatura  || '',
+    'Copertura':    data.Copertura    || '',
+    'Note':         data.Note         || '',
+    'Vecchio_Nome': data.Vecchio_Nome || '',
+    'Pagina':       data.Pagina       || '',
+    'Progetti':     data.Progetti     || ''
   };
   ricette.appendRow(rHeaders.map(h => fieldMap.hasOwnProperty(h) ? fieldMap[h] : ''));
 
@@ -331,13 +332,14 @@ function editRicetta(data) {
   }
 
   // Aggiorna tutti i campi modificabili
-  aggiorna('HEX',         data.HEX);
-  aggiorna('Categoria',   data.Categoria);
-  aggiorna('Temperatura', data.Temperatura);
-  aggiorna('Copertura',   data.Copertura);
-  aggiorna('Pagina',      data.Pagina);
-  aggiorna('Note',        data.Note);
-  aggiorna('Progetti',    data.Progetti);
+  aggiorna('HEX',          data.HEX);
+  aggiorna('Categoria',    data.Categoria);
+  aggiorna('Temperatura',  data.Temperatura);
+  aggiorna('Copertura',    data.Copertura);
+  aggiorna('Pagina',       data.Pagina);
+  aggiorna('Note',         data.Note);
+  aggiorna('Vecchio_Nome', data.Vecchio_Nome);
+  aggiorna('Progetti',     data.Progetti);
 
   // Aggiorna Componenti se forniti
   if (data.componenti && Array.isArray(data.componenti)) {
