@@ -15,6 +15,7 @@ function doGet(e) {
     if (action === 'getApprovati')       return getApprovati();
     if (action === 'getVerificati')      return getVerificati();
     if (action === 'getInventario')      return jsonResp(getInventario());
+    if (action === 'getVerifiche')       return jsonResp(getVerifiche());
     if (action === 'getHexAlternative')  return jsonResp(getHexAlternative(e.parameter.pantone_id || ''));
     return jsonResp({ error: 'Azione sconosciuta' });
   } catch(err) {
@@ -73,6 +74,7 @@ function doPost(e) {
       case 'aggiungiCarico':          result = aggiungiCarico(data);          break;
       case 'registraMescola':         result = registraMescola(data);         break;
       case 'aggiornaStock':           result = aggiornaStock(data);           break;
+      case 'salvaVerifica':           result = salvaVerifica(data);           break;
       default: result = { error: 'Azione sconosciuta: ' + data.action };
     }
     return ContentService
@@ -603,5 +605,53 @@ function aggiornaStock(data) {
     sh.appendRow([data.inchiostro, data.grammi, data.soglia != null ? data.soglia : '', '']);
   }
 
+  return { ok: true };
+}
+
+// ── VERIFICHE TRASFERIMENTO ───────────────────────────────────────────────
+function getVerifiche() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sh = ss.getSheetByName('VerificheTX');
+  if (!sh) return { ok: true, verifiche: {} };
+  const data = sh.getDataRange().getValues();
+  const headers = data[0];
+  const result = {};
+  for (let i = 1; i < data.length; i++) {
+    const row = {};
+    headers.forEach((h, j) => { row[h] = data[i][j]; });
+    const id = row['Formula_ID'];
+    if (id !== '' && id !== undefined && id !== null) {
+      result[String(id)] = {
+        barattolo: !!(row['Barattolo'] === 1 || row['Barattolo'] === true || String(row['Barattolo']) === '1'),
+        codice:    !!(row['Codice']    === 1 || row['Codice']    === true || String(row['Codice'])    === '1'),
+        copertura: !!(row['Copertura'] === 1 || row['Copertura'] === true || String(row['Copertura']) === '1'),
+        hex:       !!(row['HEX']       === 1 || row['HEX']       === true || String(row['HEX'])       === '1'),
+      };
+    }
+  }
+  return { ok: true, verifiche: result };
+}
+
+function salvaVerifica(data) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sh = ss.getSheetByName('VerificheTX');
+  if (!sh) {
+    sh = ss.insertSheet('VerificheTX');
+    sh.appendRow(['Formula_ID', 'Barattolo', 'Codice', 'Copertura', 'HEX', 'Aggiornato']);
+    sh.setFrozenRows(1);
+  }
+  const rows = sh.getDataRange().getValues();
+  const headers = rows[0];
+  const idCol = headers.indexOf('Formula_ID');
+  const id = String(data.formula_id);
+  const ts = new Date().toISOString();
+  const vals = [id, data.barattolo ? 1 : 0, data.codice ? 1 : 0, data.copertura ? 1 : 0, data.hex ? 1 : 0, ts];
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idCol]) === id) {
+      sh.getRange(i + 1, 1, 1, 6).setValues([vals]);
+      return { ok: true };
+    }
+  }
+  sh.appendRow(vals);
   return { ok: true };
 }

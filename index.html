@@ -4433,11 +4433,32 @@ function TransferPanel(){
     try{return JSON.parse(localStorage.getItem('tx_state')||'{}');}
     catch(e){return{};}
   });
+  const TX_VERIFICA_KEYS=new Set(['barattolo','codice','copertura','hex']);
   const updateTxState=(id,key,val)=>setTxState(prev=>{
     const n={...prev,[id]:{...(prev[id]||{}),[key]:val}};
     try{localStorage.setItem('tx_state',JSON.stringify(n));}catch(e){}
+    if(TX_VERIFICA_KEYS.has(key)){
+      const st=n[id]||{};
+      fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'salvaVerifica',formula_id:id,barattolo:!!st.barattolo,codice:!!st.codice,copertura:!!st.copertura,hex:!!st.hex})}).catch(()=>{});
+    }
     return n;
   });
+  React.useEffect(()=>{
+    fetch(SCRIPT_URL+'?action=getVerifiche')
+      .then(r=>r.json())
+      .then(d=>{
+        if(d&&d.verifiche&&Object.keys(d.verifiche).length>0){
+          setTxState(prev=>{
+            const merged={...prev};
+            for(const[id,v]of Object.entries(d.verifiche)){
+              merged[id]={...(merged[id]||{}),...v};
+            }
+            try{localStorage.setItem('tx_state',JSON.stringify(merged));}catch(e){}
+            return merged;
+          });
+        }
+      }).catch(()=>{});
+  },[]);
   const[activeFilter,setActiveFilter]=React.useState('all');
   const[searchQuery,setSearchQuery]=React.useState('');
   const markDone=(id)=>setDone(prev=>{const n=new Set(prev);n.add(id);try{localStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
@@ -4496,14 +4517,29 @@ function TransferPanel(){
 
   const{confirmed,todo,problems}=React.useMemo(()=>{
     const confirmed=[],todo=[],problems=[];
+    const _vnNorm2=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
     for(const mf of MONDAY_FORMULAS){
       const{newCode:c}=txParseName(mf.name);
-      const _vnNorm2=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
       const codeMatch=!!(c&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=c.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);}));
       if(done.has(mf.id)||codeMatch){confirmed.push(mf);continue;}
       if(mf.flags.includes('not_40g')||mf.duplicate_of){problems.push(mf);continue;}
       todo.push(mf);
     }
+    // Ordina "confirmed" per ordine wallet (allRicette)
+    confirmed.sort((a,b)=>{
+      const getIdx=mf=>{
+        const{newCode:c}=txParseName(mf.name);
+        if(!c)return 9999;
+        return allRicette.findIndex(r=>{
+          const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');
+          const cn=c.trim().toUpperCase().replace(/\s+/g,' ');
+          if(pid===cn)return true;
+          return _vnNorm2(r.Vecchio_Nome||'')===_vnNorm2(c);
+        });
+      };
+      const ia=getIdx(a),ib=getIdx(b);
+      return(ia<0?9999:ia)-(ib<0?9999:ib);
+    });
     return{confirmed,todo,problems};
   },[done,allRicette.length]);
 
