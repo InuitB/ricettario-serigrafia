@@ -4100,7 +4100,7 @@ function TransferDetail({formula,match,onImported,isDone,S,txState,updateTxState
           const on=!!st[key];
           return(
             <button onClick={()=>updateTxState(formula.id,key,!on)}
-              style={{flex:1,height:44,borderRadius:12,border:on?`1.5px solid ${activeColor}`:'1.5px solid rgba(0,0,0,0.13)',
+              style={{flex:1,height:44,borderRadius:99,border:on?`1.5px solid ${activeColor}`:'1.5px solid rgba(0,0,0,0.13)',
                 background:on?activeBg:'rgba(0,0,0,0.03)',fontFamily:'Nebulica',fontSize:11,fontWeight:700,
                 color:on?activeColor:'rgba(0,0,0,0.45)',cursor:'pointer',transition:'all .15s',
                 display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
