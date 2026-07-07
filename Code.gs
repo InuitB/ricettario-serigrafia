@@ -13,6 +13,7 @@ function doGet(e) {
     const action = (e.parameter || {}).action;
     if (action === 'getFavoriti')        return getFavoriti();
     if (action === 'getApprovati')       return getApprovati();
+    if (action === 'getVerificati')      return getVerificati();
     if (action === 'getInventario')      return jsonResp(getInventario());
     if (action === 'getHexAlternative')  return jsonResp(getHexAlternative(e.parameter.pantone_id || ''));
     return jsonResp({ error: 'Azione sconosciuta' });
@@ -68,6 +69,7 @@ function doPost(e) {
       case 'promuoviSperimentazione': result = promuoviSperimentazione(data); break;
       case 'togglePreferito':         result = togglePreferito(data);         break;
       case 'toggleApprovato':         result = toggleApprovato(data);         break;
+      case 'toggleVerificato':        result = toggleVerificato(data);        break;
       case 'aggiungiCarico':          result = aggiungiCarico(data);          break;
       case 'registraMescola':         result = registraMescola(data);         break;
       case 'aggiornaStock':           result = aggiornaStock(data);           break;
@@ -182,6 +184,54 @@ function toggleApprovato(data) {
       const isApp  = cur === 1 || cur === true || String(cur) === 'TRUE' || String(cur) === '1';
       ricette.getRange(i + 1, appCol + 1).setValue(isApp ? 0 : 1);
       return { ok: true, approvato: !isApp };
+    }
+  }
+  return { error: 'Ricetta non trovata: ' + data.Pantone_ID };
+}
+
+function getVerificati() {
+  const ss      = SpreadsheetApp.openById(SHEET_ID);
+  const ricette = ss.getSheetByName('Ricette');
+  const headers = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  const verCol  = headers.indexOf('Verificato');
+  if (verCol === -1) {
+    return ContentService.createTextOutput(JSON.stringify({ verificati: [] }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  const idCol = headers.indexOf('Pantone_ID');
+  const data  = ricette.getDataRange().getValues();
+  const verificati = [];
+  for (let i = 1; i < data.length; i++) {
+    const val = data[i][verCol];
+    if (val === 1 || val === true || String(val) === 'TRUE' || String(val) === '1') {
+      verificati.push(String(data[i][idCol]));
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ verificati }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function toggleVerificato(data) {
+  const ss      = SpreadsheetApp.openById(SHEET_ID);
+  const ricette = ss.getSheetByName('Ricette');
+  let headers   = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  let verCol    = headers.indexOf('Verificato');
+
+  if (verCol === -1) {
+    const newCol = ricette.getLastColumn() + 1;
+    ricette.getRange(1, newCol).setValue('Verificato');
+    verCol = newCol - 1;
+    headers = [...headers, 'Verificato'];
+  }
+
+  const idCol = headers.indexOf('Pantone_ID');
+  const rData = ricette.getDataRange().getValues();
+  for (let i = 1; i < rData.length; i++) {
+    if (String(rData[i][idCol]) === String(data.Pantone_ID)) {
+      const cur   = rData[i][verCol];
+      const isVer = cur === 1 || cur === true || String(cur) === 'TRUE' || String(cur) === '1';
+      ricette.getRange(i + 1, verCol + 1).setValue(isVer ? 0 : 1);
+      return { ok: true, verificato: !isVer };
     }
   }
   return { error: 'Ricetta non trovata: ' + data.Pantone_ID };

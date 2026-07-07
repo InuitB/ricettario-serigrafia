@@ -47,8 +47,9 @@ let allComponenti = [];
 let allInchiostri = [];
 let allInventario = []; // [{inchiostro, grammi, soglia, note}]
 let DESK_PANTONES = [];
-let favoritiSet = new Set();
-let approvedSet = new Set();
+let favoritiSet  = new Set();
+let approvedSet  = new Set();
+let verificatoSet = new Set();
 
 async function fetchSheet(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&headers=1`;
@@ -293,6 +294,28 @@ function toggleApprovato(code) {
     method:'POST', mode:'no-cors',
     headers:{'Content-Type':'text/plain'},
     body: JSON.stringify({action:'toggleApprovato', Pantone_ID: code})
+  }).catch(()=>{});
+}
+
+async function loadVerificati() {
+  try {
+    const res  = await fetch(SCRIPT_URL + '?action=getVerificati');
+    const json = await res.json();
+    if (Array.isArray(json.verificati)) {
+      verificatoSet = new Set(json.verificati);
+      window._bumpData?.();
+    }
+  } catch(e) {}
+}
+
+function toggleVerificato(code) {
+  if (verificatoSet.has(code)) verificatoSet.delete(code);
+  else verificatoSet.add(code);
+  window._bumpData?.();
+  fetch(SCRIPT_URL, {
+    method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'text/plain'},
+    body: JSON.stringify({action:'toggleVerificato', Pantone_ID: code})
   }).catch(()=>{});
 }
 
@@ -634,6 +657,12 @@ function IcoPalette({size=20,color='currentColor'}){
 function IcoSeal({size=20,color='currentColor'}){
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.6936 22.3425" width={size} height={size} style={{display:'block',flexShrink:0}}>
     <path d="M13.0254 0.954641L14.51 2.4312C14.6539 2.5689 14.7836 2.61597 14.9746 2.61597L17.0612 2.61597C18.8664 2.61597 19.7076 3.46968 19.7076 5.26069L19.7076 7.35523C19.7076 7.53999 19.7592 7.67417 19.8987 7.81187L21.3752 9.29644C22.6426 10.5656 22.6506 11.7591 21.3752 13.0265L19.8987 14.5111C19.7627 14.6568 19.7076 14.7847 19.7076 14.9757L19.7076 17.0623C19.7076 18.8675 18.8602 19.7087 17.0612 19.7087L14.9746 19.7087C14.7836 19.7087 14.6557 19.7621 14.51 19.8998L13.0254 21.3763C11.758 22.6455 10.5627 22.6535 9.29534 21.3763L7.81077 19.8998C7.67131 19.7621 7.53713 19.7087 7.35413 19.7087L5.25959 19.7087C3.46233 19.7087 2.61311 18.8613 2.61311 17.0623L2.61311 14.9757C2.61311 14.7847 2.56604 14.6568 2.4301 14.5111L0.953541 13.0265C-0.31384 11.7591-0.321848 10.5656 0.953541 9.29644L2.4301 7.81187C2.56604 7.67593 2.61311 7.53999 2.61311 7.35523L2.61311 5.26069C2.61311 3.45191 3.46057 2.61597 5.25959 2.61597L7.35413 2.61597C7.53713 2.61597 7.67307 2.5689 7.81077 2.4312L9.29534 0.956399C10.5627-0.314498 11.7545-0.322506 13.0254 0.954641ZM14.0811 7.31577L10.043 13.7812L8.16252 11.3914C7.90959 11.0691 7.67717 10.9574 7.37561 10.9574C6.8719 10.9574 6.47561 11.3609 6.47561 11.8664C6.47561 12.1058 6.56702 12.3392 6.73987 12.5626L9.13479 15.4738C9.40628 15.8279 9.70784 15.9794 10.0768 15.9794C10.4405 15.9794 10.7588 15.8003 10.9815 15.4667L15.552 8.34116C15.6867 8.12475 15.8049 7.88608 15.8049 7.65268C15.8049 7.14897 15.3571 6.80679 14.8774 6.80679C14.5698 6.80679 14.2948 6.97437 14.0811 7.31577Z" fill={color}/>
+  </svg>;
+}
+
+function IcoThumbsUp({size=20,color='currentColor'}){
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20.3142 21.1367" width={size} height={size} style={{display:'block',flexShrink:0}}>
+    <path d="M0 14.1744C0 17.2074 1.88222 19.7031 4.39726 19.7031L6.09667 19.7031C4.32656 18.357 3.54765 16.3549 3.55644 14.0732C3.56797 11.6178 4.45195 9.83455 5.37265 8.61816L4.02714 8.61816C1.75097 8.61816 0 11.0498 0 14.1744ZM4.98144 14.0928C4.97265 17.8189 7.90878 20.6484 12.5816 20.6537L13.9431 20.6554C15.217 20.6572 16.1967 20.5676 16.7574 20.4193C17.607 20.2144 18.3517 19.6789 18.3517 18.7222C18.3517 18.3449 18.2576 18.0644 18.1439 17.8523C18.0728 17.7342 18.0924 17.6488 18.1955 17.6035C18.8361 17.3074 19.3218 16.7146 19.3218 15.9308C19.3218 15.4861 19.1984 15.0849 18.9836 14.8002C18.8902 14.6695 18.9017 14.5469 19.0609 14.4615C19.5082 14.1795 19.8242 13.6045 19.8242 12.9451C19.8242 12.4633 19.6759 11.9742 19.4203 11.7187C19.2851 11.5961 19.3109 11.5072 19.4478 11.3801C19.7611 11.1068 19.9529 10.6357 19.9529 10.0703C19.9529 9.05897 19.1625 8.23827 18.1324 8.23827L14.607 8.23827C13.7537 8.23827 13.2004 7.80487 13.2004 7.11386C13.2004 5.80272 14.8769 3.3371 14.8769 1.55156C14.8769 0.587107 14.247 0 13.4133 0C12.6803 0 12.2998 0.478516 11.8865 1.28652C10.398 4.17031 8.42401 6.51347 6.90897 8.51933C5.59745 10.2603 4.98847 11.7539 4.98144 14.0928Z" fill={color}/>
   </svg>;
 }
 
@@ -2009,6 +2038,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   <div style={{height:44,display:'flex',alignItems:'center',gap:6}}>
                     {coverLvl(p.copertura)>0&&<div style={{display:'flex',gap:4}}>{[0,1,2].map(i=>{const lvl=coverLvl(p.copertura),fill=i<lvl;return <span key={i} style={{width:11,height:11,borderRadius:99,flexShrink:0,background:fill?rgba(theme.ink,on?0.85:0.42):'transparent',boxShadow:fill?'none':`inset 0 0 0 1.5px ${rgba(theme.ink,0.24)}`}}/>;})}</div>}
                     {approvedSet.has(p.code)&&<IcoSeal size={13} color="#22C55E"/>}
+                    {verificatoSet.has(p.code)&&<IcoThumbsUp size={13} color="#D97706"/>}
                   </div>
                   {isNew&&<span style={{position:'absolute',inset:0,borderRadius:99,boxShadow:`0 0 0 2.5px ${theme.accent}`,pointerEvents:'none',animation:`newRing 3.5s ${QUICK} forwards`}}/>}
                 </button>
@@ -2040,8 +2070,12 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   {(()=>{
                     const isFav = favoritiSet.has(selected.code);
                     const isApproved = approvedSet.has(selected.code);
+                    const isVerif = verificatoSet.has(selected.code);
                     const btnStyle = {width:40,height:40,borderRadius:99,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:rgba(fg==='#fff'?'#fff':'#000',0.12),border:`1.4px solid ${rgba(fg==='#fff'?'#fff':'#000',0.3)}`};
                     return [
+                      <button key="verif" onClick={()=>toggleVerificato(selected.code)} title={isVerif?'Rimuovi verifica':'Segna come verificato'} style={{...btnStyle,background:isVerif?'rgba(217,119,6,0.22)':btnStyle.background,border:isVerif?'1.4px solid rgba(217,119,6,0.7)':btnStyle.border}}>
+                        <IcoThumbsUp size={17} color={isVerif?'#D97706':rgba(fg,0.55)}/>
+                      </button>,
                       <button key="approve" onClick={()=>toggleApprovato(selected.code)} title={isApproved?'Rimuovi approvazione':'Approva HEX'} style={{...btnStyle,background:isApproved?'rgba(34,197,94,0.22)':btnStyle.background,border:isApproved?'1.4px solid rgba(34,197,94,0.6)':btnStyle.border}}>
                         <IcoSeal size={18} color={isApproved?'#22C55E':rgba(fg,0.55)}/>
                       </button>,
@@ -3070,10 +3104,15 @@ function UnifiedRecipeBody({pantone, qty, onChange, onPrint}) {
           );
         })}
       </div>
-      <div style={{marginTop:14}}>
-        <button onClick={onPrint} style={{height:44,borderRadius:99,background:'#0B0B0B',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:'Nebulica',fontSize:14,fontWeight:700,color:'#fff',width:'100%',border:'none',cursor:'pointer',opacity:onPrint?1:0.5}}>
+      <div style={{marginTop:14,display:'flex',gap:8}}>
+        <button onClick={onPrint} style={{height:44,borderRadius:99,background:'#0B0B0B',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:'Nebulica',fontSize:14,fontWeight:700,color:'#fff',flex:1,border:'none',cursor:'pointer',opacity:onPrint?1:0.5}}>
           <IconPrinter color="#fff"/> Stampa etichetta
         </button>
+        {(()=>{const isV=verificatoSet.has(pantone.code);return(
+          <button onClick={()=>toggleVerificato(pantone.code)} title={isV?'Rimuovi verifica':'Segna come verificato'} style={{height:44,width:44,flexShrink:0,borderRadius:99,border:isV?'1.4px solid rgba(217,119,6,0.7)':'1.5px solid #0B0B0B',background:isV?'rgba(217,119,6,0.14)':'transparent',display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+            <IcoThumbsUp size={18} color={isV?'#D97706':'#0B0B0B'}/>
+          </button>
+        );})()}
       </div>
       {recipe.project&&<div style={{marginTop:10,display:'flex',justifyContent:'space-between',fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.5)'}}>
         <span>PROGETTO</span><span style={{color:'#0B0B0B'}}>→ {recipe.project}</span>
@@ -3747,6 +3786,7 @@ function App() {
       setStatus('ready');
       loadFavoriti();
       loadApprovati();
+      loadVerificati();
       loadInventario();
     }).catch(err=>{
       console.error('Errore caricamento:', err);
