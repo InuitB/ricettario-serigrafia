@@ -3899,6 +3899,19 @@ const TX={
     badgeNot40g:g=>`⚠ TOTALE ${g}g ≠ 40g`,
     tagMonday:'MONDAY',
     tagBarattolo:'BARATTOLO',
+    tagBarattoloOk:'BARATTOLO ✓',
+    tagCopertura:'COPERTURA ✓',
+    tagHex:'HEX ✓',
+    btnBarattolo:'Barattolo fisico',
+    btnCopertura:'Copertura verificata',
+    btnHex:'HEX verificato',
+    filterAll:'Tutti',
+    filterInApp:'In app',
+    filterBarattolo:'Con barattolo',
+    filterNoBarattolo:'Senza barattolo',
+    filterNoCopertura:'Copertura —',
+    filterNoHex:'HEX —',
+    verifySection:'Verifiche',
   },
   fr:{
     noMatch:'aucune correspondance',
@@ -3950,10 +3963,23 @@ const TX={
     badgeNot40g:g=>`⚠ TOTAL ${g}g ≠ 40g`,
     tagMonday:'MONDAY',
     tagBarattolo:'POT',
+    tagBarattoloOk:'POT ✓',
+    tagCopertura:'COUVERTURE ✓',
+    tagHex:'HEX ✓',
+    btnBarattolo:'Pot de couleur',
+    btnCopertura:'Couverture vérifiée',
+    btnHex:'HEX vérifié',
+    filterAll:'Tous',
+    filterInApp:"Dans l'app",
+    filterBarattolo:'Avec pot',
+    filterNoBarattolo:'Sans pot',
+    filterNoCopertura:'Couverture —',
+    filterNoHex:'HEX —',
+    verifySection:'Vérifications',
   },
 };
 
-function TransferGroup({label,color,items,selected,onSelect,matchMap,S}){
+function TransferGroup({label,color,items,selected,onSelect,matchMap,S,txState}){
   const[open,setOpen]=React.useState(true);
   if(!items.length)return null;
   return(
@@ -3986,10 +4012,18 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,S}){
                 </div>
               </div>
               {/* Riga 2: tag fonte */}
-              <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-                <span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.1,fontWeight:700,padding:'3px 8px',borderRadius:99,background:'rgba(59,130,246,0.12)',color:'#2563EB'}}>{S.tagMonday}</span>
-                <span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.1,fontWeight:700,padding:'3px 8px',borderRadius:99,background:'rgba(0,0,0,0.04)',color:'rgba(0,0,0,0.25)'}}>{S.tagBarattolo} —</span>
-              </div>
+              {(()=>{
+                const st=txState[mf.id]||{};
+                const pill=(label,bg,col)=><span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.1,fontWeight:700,padding:'3px 8px',borderRadius:99,background:bg,color:col}}>{label}</span>;
+                return(
+                  <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                    {pill(S.tagMonday,'rgba(59,130,246,0.12)','#2563EB')}
+                    {st.barattolo?pill(S.tagBarattoloOk,'rgba(234,88,12,0.12)','#C2410C'):pill(S.tagBarattolo+' —','rgba(0,0,0,0.04)','rgba(0,0,0,0.25)')}
+                    {st.copertura&&pill(S.tagCopertura,'rgba(124,58,237,0.12)','#6D28D9')}
+                    {st.hex&&pill(S.tagHex,'rgba(8,145,178,0.12)','#0E7490')}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -3998,7 +4032,7 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,S}){
   );
 }
 
-function TransferDetail({formula,match,onImported,S}){
+function TransferDetail({formula,match,onImported,S,txState,updateTxState}){
   const{newCode,oldCode,uncertain}=txParseName(formula.name);
   const[form,setForm]=React.useState({
     pantoneId:newCode,
@@ -4059,6 +4093,32 @@ function TransferDetail({formula,match,onImported,S}){
         </div>
       </div>
 
+      {/* Verifiche */}
+      {(()=>{
+        const st=txState[formula.id]||{};
+        const toggleBtn=(key,label,activeColor,activeBg)=>{
+          const on=!!st[key];
+          return(
+            <button onClick={()=>updateTxState(formula.id,key,!on)}
+              style={{flex:1,height:44,borderRadius:12,border:on?`1.5px solid ${activeColor}`:'1.5px solid rgba(0,0,0,0.13)',
+                background:on?activeBg:'rgba(0,0,0,0.03)',fontFamily:'Nebulica',fontSize:11,fontWeight:700,
+                color:on?activeColor:'rgba(0,0,0,0.45)',cursor:'pointer',transition:'all .15s',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+              <span style={{fontSize:13,opacity:on?1:0.4}}>{on?'✓':'○'}</span>{label}
+            </button>
+          );
+        };
+        return(
+          <div style={{marginBottom:22}}>
+            <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'rgba(0,0,0,0.38)',marginBottom:8}}>{S.verifySection.toUpperCase()}</div>
+            <div style={{display:'flex',gap:8}}>
+              {toggleBtn('barattolo',S.btnBarattolo,'#C2410C','rgba(234,88,12,0.1)')}
+              {toggleBtn('copertura',S.btnCopertura,'#6D28D9','rgba(124,58,237,0.1)')}
+              {toggleBtn('hex',S.btnHex,'#0E7490','rgba(8,145,178,0.1)')}
+            </div>
+          </div>
+        );
+      })()}
       {/* Formula Monday */}
       <div style={{marginBottom:22,background:'rgba(0,0,0,0.03)',borderRadius:14,padding:'16px 18px'}}>
         <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'rgba(0,0,0,0.38)',marginBottom:10}}>FORMULA MONDAY · {formula.inks.length} {S.headerInks} · Σ {formula.total.toFixed(3)}g</div>
@@ -4190,7 +4250,17 @@ function TransferPanel(){
     try{return new Set(JSON.parse(sessionStorage.getItem('tx_done')||'[]'));}
     catch(e){return new Set();}
   });
-  const markDone=(id)=>setDone(prev=>{const n=new Set(prev);n.add(id);sessionStorage.setItem('tx_done',JSON.stringify([...n]));return n;});
+  const[txState,setTxState]=React.useState(()=>{
+    try{return JSON.parse(sessionStorage.getItem('tx_state')||'{}');}
+    catch(e){return{};}
+  });
+  const updateTxState=(id,key,val)=>setTxState(prev=>{
+    const n={...prev,[id]:{...(prev[id]||{}),[key]:val}};
+    try{sessionStorage.setItem('tx_state',JSON.stringify(n));}catch(e){}
+    return n;
+  });
+  const[activeFilter,setActiveFilter]=React.useState('all');
+  const markDone=(id)=>setDone(prev=>{const n=new Set(prev);n.add(id);try{sessionStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
 
   const matchMap=React.useMemo(()=>{
     const m={};
@@ -4210,7 +4280,57 @@ function TransferPanel(){
     return{confirmed,todo,problems};
   },[matchMap,done]);
 
+  const filterFn=React.useCallback(mf=>{
+    if(activeFilter==='all')return true;
+    const st=txState[mf.id]||{};
+    const inApp=matchMap[mf.id]?.score>=95||done.has(mf.id);
+    if(activeFilter==='inapp')return inApp;
+    if(activeFilter==='noapp')return !inApp;
+    if(activeFilter==='barattolo')return!!st.barattolo;
+    if(activeFilter==='nobarattolo')return!st.barattolo;
+    if(activeFilter==='nocopertura')return!st.copertura;
+    if(activeFilter==='nohex')return!st.hex;
+    return true;
+  },[activeFilter,txState,matchMap,done]);
+
+  const flatItems=React.useMemo(()=>
+    [...confirmed,...todo,...problems].filter(filterFn),
+  [confirmed,todo,problems,filterFn]);
+
+  // Keyboard navigation
+  React.useEffect(()=>{
+    const fn=e=>{
+      if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;
+      e.preventDefault();
+      const idx=selected?flatItems.findIndex(f=>f.id===selected):-1;
+      const ni=e.key==='ArrowDown'?Math.min(idx+1,flatItems.length-1):Math.max(idx-1,0);
+      if(flatItems[ni])setSelected(flatItems[ni].id);
+    };
+    window.addEventListener('keydown',fn);
+    return()=>window.removeEventListener('keydown',fn);
+  },[flatItems,selected]);
+
   const sel=selected?MONDAY_FORMULAS.find(f=>f.id===selected):null;
+
+  const FILTERS=[
+    {id:'all',label:S.filterAll},
+    {id:'inapp',label:S.filterInApp},
+    {id:'noapp',label:S.filterNoBarattolo.replace('Senza barattolo','Solo Monday').replace('Sans pot','Monday seulement')},
+    {id:'barattolo',label:S.filterBarattolo},
+    {id:'nobarattolo',label:S.filterNoBarattolo},
+    {id:'nocopertura',label:S.filterNoCopertura},
+    {id:'nohex',label:S.filterNoHex},
+  ];
+  // Fix "noapp" label properly
+  FILTERS[2]={id:'noapp',label:lang==='fr'?'Monday seulement':'Solo Monday'};
+
+  const chipStyle=(active)=>({
+    fontFamily:'Nebulica',fontSize:10,letterSpacing:0.8,fontWeight:700,
+    padding:'5px 10px',borderRadius:99,border:'none',cursor:'pointer',
+    whiteSpace:'nowrap',transition:'all .12s',
+    background:active?'#0B0B0B':'rgba(0,0,0,0.06)',
+    color:active?'#fff':'rgba(0,0,0,0.5)',
+  });
 
   return(
     <div style={{position:'fixed',inset:0,background:'#F4EFE2',display:'flex',flexDirection:'column',fontFamily:'Nebulica,Arial,sans-serif',zIndex:9999}}>
@@ -4231,14 +4351,25 @@ function TransferPanel(){
         </div>
       </div>
       <div style={{flex:1,display:'flex',overflow:'hidden'}}>
-        <div style={{width:340,borderRight:'1.5px solid rgba(0,0,0,0.09)',overflowY:'auto',flexShrink:0,background:'rgba(255,255,255,0.35)'}}>
-          <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S}/>
-          <TransferGroup label={'🔶 '+S.groupTodo} color="#D97706" items={todo} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S}/>
-          <TransferGroup label={'⚠️ '+S.groupProblems} color="#EF4444" items={problems} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S}/>
+        {/* Sidebar */}
+        <div style={{width:480,borderRight:'1.5px solid rgba(0,0,0,0.09)',display:'flex',flexDirection:'column',flexShrink:0,background:'rgba(255,255,255,0.35)'}}>
+          {/* Filter bar */}
+          <div style={{padding:'8px 10px',display:'flex',gap:6,overflowX:'auto',flexShrink:0,borderBottom:'1px solid rgba(0,0,0,0.07)',WebkitOverflowScrolling:'touch'}}>
+            {FILTERS.map(f=>(
+              <button key={f.id} onClick={()=>setActiveFilter(f.id)} style={chipStyle(activeFilter===f.id)}>{f.label}</button>
+            ))}
+          </div>
+          {/* Groups */}
+          <div style={{flex:1,overflowY:'auto'}}>
+            <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S} txState={txState}/>
+            <TransferGroup label={'🔶 '+S.groupTodo} color="#D97706" items={todo.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S} txState={txState}/>
+            <TransferGroup label={'⚠️ '+S.groupProblems} color="#EF4444" items={problems.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S} txState={txState}/>
+          </div>
         </div>
-        <div style={{flex:1,overflowY:'auto',padding:'32px 40px'}}>
+        {/* Detail */}
+        <div style={{flex:1,overflowY:'auto',padding:'32px 48px'}}>
           {sel
-            ?<TransferDetail key={sel.id} formula={sel} match={matchMap[sel.id]} onImported={()=>markDone(sel.id)} S={S}/>
+            ?<TransferDetail key={sel.id} formula={sel} match={matchMap[sel.id]} onImported={()=>markDone(sel.id)} S={S} txState={txState} updateTxState={updateTxState}/>
             :<div style={{color:'rgba(0,0,0,0.28)',fontFamily:'Nebulica',fontSize:13,paddingTop:100,textAlign:'center',letterSpacing:0.5}}>{S.emptyState}</div>
           }
         </div>
