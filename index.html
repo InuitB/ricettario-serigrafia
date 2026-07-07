@@ -4000,30 +4000,30 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,S,txState})
                 border:`1.5px solid ${isSel?'rgba(0,0,0,0.18)':'rgba(0,0,0,0.07)'}`,
                 boxShadow:isSel?'none':'0 1px 5px rgba(0,0,0,0.06)',
                 transition:'all .12s'}}>
-              {/* Riga 1: nome + pill APP + icone alert */}
-              <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:9,minWidth:0}}>
-                <div style={{fontFamily:'Nebulica',fontSize:18,fontWeight:700,color:'#0B0B0B',lineHeight:1.2,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:1}}>{mf.name}</div>
-                {inApp&&<span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:99,background:'rgba(34,197,94,0.15)',color:'#16A34A',whiteSpace:'nowrap',flexShrink:0}}>✓ {m.r.Pantone_ID}</span>}
-                <div style={{display:'flex',gap:5,flexShrink:0,alignItems:'center',marginLeft:'auto'}}>
-                  {mf.flags.includes('corrected_to_40g')&&<span title={S.ttCorrected}><IcoBolt size={15} color="#D97706"/></span>}
-                  {mf.flags.includes('as90_code_fixed')&&<span title={S.ttAS90}><IcoWrench size={15} color="rgba(0,0,0,0.38)"/></span>}
-                  {mf.flags.includes('not_40g')&&<span title={S.ttNot40g}><IcoQuestionMark size={16} color="#EF4444"/></span>}
-                  {mf.name.includes('?')&&<span title={S.ttUncertain}><IcoQuestionMark size={16} color="#D97706"/></span>}
-                </div>
-              </div>
-              {/* Riga 2: tag fonte */}
+              {/* Riga 1: tag + icone alert */}
               {(()=>{
                 const st=txState[mf.id]||{};
                 const pill=(label,bg,col)=><span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.1,fontWeight:700,padding:'3px 8px',borderRadius:99,background:bg,color:col}}>{label}</span>;
                 return(
-                  <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap',marginBottom:10}}>
                     {pill(S.tagMonday,'rgba(59,130,246,0.12)','#2563EB')}
-                    {st.barattolo?pill(S.tagBarattoloOk,'rgba(234,88,12,0.12)','#C2410C'):pill(S.tagBarattolo+' —','rgba(0,0,0,0.04)','rgba(0,0,0,0.25)')}
+                    {st.barattolo?pill(S.tagBarattoloOk,'rgba(161,98,7,0.12)','#A16207'):pill(S.tagBarattolo+' —','rgba(0,0,0,0.04)','rgba(0,0,0,0.25)')}
                     {st.copertura&&pill(S.tagCopertura,'rgba(124,58,237,0.12)','#6D28D9')}
                     {st.hex&&pill(S.tagHex,'rgba(8,145,178,0.12)','#0E7490')}
+                    <div style={{display:'flex',gap:5,flexShrink:0,alignItems:'center',marginLeft:'auto'}}>
+                      {mf.flags.includes('corrected_to_40g')&&<span title={S.ttCorrected}><IcoBolt size={15} color="#D97706"/></span>}
+                      {mf.flags.includes('as90_code_fixed')&&<span title={S.ttAS90}><IcoWrench size={15} color="rgba(0,0,0,0.38)"/></span>}
+                      {mf.flags.includes('not_40g')&&<span title={S.ttNot40g}><IcoQuestionMark size={16} color="#EF4444"/></span>}
+                      {mf.name.includes('?')&&<span title={S.ttUncertain}><IcoQuestionMark size={16} color="#D97706"/></span>}
+                    </div>
                   </div>
                 );
               })()}
+              {/* Riga 2: nome grande + pill app */}
+              <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
+                <div style={{fontFamily:'Nebulica',fontSize:28,fontWeight:700,color:'#0B0B0B',lineHeight:1.15,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:1}}>{mf.name}</div>
+                {inApp&&<span style={{fontFamily:'Nebulica',fontSize:16,fontWeight:700,padding:'4px 14px',borderRadius:99,background:'rgba(34,197,94,0.15)',color:'#16A34A',whiteSpace:'nowrap',flexShrink:0}}>✓ {m.r.Pantone_ID}</span>}
+              </div>
             </div>
           );
         })}
@@ -4112,7 +4112,7 @@ function TransferDetail({formula,match,onImported,S,txState,updateTxState}){
           <div style={{marginBottom:22}}>
             <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'rgba(0,0,0,0.38)',marginBottom:8}}>{S.verifySection.toUpperCase()}</div>
             <div style={{display:'flex',gap:8}}>
-              {toggleBtn('barattolo',S.btnBarattolo,'#C2410C','rgba(234,88,12,0.1)')}
+              {toggleBtn('barattolo',S.btnBarattolo,'#A16207','rgba(161,98,7,0.1)')}
               {toggleBtn('copertura',S.btnCopertura,'#6D28D9','rgba(124,58,237,0.1)')}
               {toggleBtn('hex',S.btnHex,'#0E7490','rgba(8,145,178,0.1)')}
             </div>
