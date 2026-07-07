@@ -1095,7 +1095,7 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, currentHex, theme})
 
   const dbHex = PANTONE_DB[pantoneId] ? '#' + PANTONE_DB[pantoneId] : null;
   const icoUrl = pantoneId ? 'https://icolorpalette.com/color/pantone-' + pantoneId.toLowerCase().replace(/\s+/g,'-') : null;
-  const chromaUrl = pantoneId ? 'https://www.chromafinder.com/search/?q=pantone+' + pantoneId.toLowerCase().replace(/\s+/g,'+') : null;
+  const chromaUrl = pantoneId ? 'https://www.chromafinder.com/color/pantone-uncoated/' + pantoneId.trim().replace(/\s+/g,'-') : null;
   const manV = manualHex.replace('#','');
   const manValid = /^[0-9A-Fa-f]{6}$/.test(manV);
   const curHexNorm = currentHex ? '#'+currentHex.replace('#','').toUpperCase() : null;
