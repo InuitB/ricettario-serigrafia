@@ -4032,7 +4032,7 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,S,txState})
   );
 }
 
-function TransferDetail({formula,match,onImported,S,txState,updateTxState}){
+function TransferDetail({formula,match,onImported,isDone,S,txState,updateTxState}){
   const{newCode,oldCode,uncertain}=txParseName(formula.name);
   const[form,setForm]=React.useState({
     pantoneId:newCode,
@@ -4177,7 +4177,7 @@ function TransferDetail({formula,match,onImported,S,txState,updateTxState}){
       )}
 
       {/* Action: if already matched at ≥95%, show confirm button; else show import form */}
-      {saved||markedDone?(
+      {saved||markedDone||isDone?(
         <div style={{background:'rgba(34,197,94,0.09)',borderRadius:14,padding:'18px 20px',border:'1px solid rgba(34,197,94,0.22)',textAlign:'center'}}>
           <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#16A34A'}}>{saved?S.importedTitle:'✓ '+S.markDone}</div>
           {saved&&<div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:5}}>{S.importedSub(form.pantoneId)}</div>}
@@ -4369,7 +4369,7 @@ function TransferPanel(){
         {/* Detail */}
         <div style={{flex:1,overflowY:'auto',padding:'32px 48px'}}>
           {sel
-            ?<TransferDetail key={sel.id} formula={sel} match={matchMap[sel.id]} onImported={()=>markDone(sel.id)} S={S} txState={txState} updateTxState={updateTxState}/>
+            ?<TransferDetail key={sel.id} formula={sel} match={matchMap[sel.id]} onImported={()=>markDone(sel.id)} isDone={done.has(sel.id)} S={S} txState={txState} updateTxState={updateTxState}/>
             :<div style={{color:'rgba(0,0,0,0.28)',fontFamily:'Nebulica',fontSize:13,paddingTop:100,textAlign:'center',letterSpacing:0.5}}>{S.emptyState}</div>
           }
         </div>
