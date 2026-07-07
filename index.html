@@ -3954,11 +3954,11 @@ function TransferDetail({formula,match,onImported}){
             <div style={{fontFamily:'Nebulica',fontSize:12,color:'rgba(0,0,0,0.5)'}}>→ {match.r.Pantone_ID}</div>
           </div>
           <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.6)',marginBottom:12,lineHeight:1.6}}>
-            {match.score>=99&&'Formula identica. Quasi certamente già presente nell'app come '+match.r.Pantone_ID+'.'}
-            {match.score>=95&&match.score<99&&'Formula quasi identica (piccole differenze di arrotondamento). Probabilmente già importata.'}
-            {match.score>=70&&match.score<95&&'Composizione simile. Verifica se è la stessa ricetta con piccole variazioni intenzionali.'}
-            {match.score>=60&&match.score<70&&'Composizione in parte simile. Potrebbe essere una versione diversa dello stesso colore.'}
-            {match.score<60&&'Formule molto diverse. Non sembra lo stesso colore.'}
+            {match.score>=99&&`Formula identica. Quasi certamente già presente nell'app come ${match.r.Pantone_ID}.`}
+            {match.score>=95&&match.score<99&&"Formula quasi identica (piccole differenze di arrotondamento). Probabilmente già importata."}
+            {match.score>=70&&match.score<95&&"Composizione simile. Verifica se è la stessa ricetta con piccole variazioni intenzionali."}
+            {match.score>=60&&match.score<70&&"Composizione in parte simile. Potrebbe essere una versione diversa dello stesso colore."}
+            {match.score<60&&"Formule molto diverse. Non sembra lo stesso colore."}
           </div>
           {/* Comparison table */}
           <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr auto',gap:'3px 12px',alignItems:'center'}}>
