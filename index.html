@@ -3836,7 +3836,108 @@ function txFindMatch(mfInks){
   return best;
 }
 
-function TransferGroup({label,color,items,selected,onSelect,matchMap}){
+const TX={
+  it:{
+    noMatch:'nessun match',
+    pageAbbr:'pag.',
+    badgeUncertain:'⚠ CODICE INCERTO',
+    badgeCorrected:'⚡ CORRETTA A 40g',
+    badgeAS90:'AS90 CORRETTO',
+    badgeDuplicate:'DUPLICATO DI',
+    headerInks:'INCHIOSTRI',
+    matchFull:'✅ MATCH AL 100%',
+    matchHigh:s=>`✅ MATCH AL ${s}%`,
+    matchMid:s=>`≈ SIMILE AL ${s}%`,
+    matchLow:s=>`${s}% — non è un match`,
+    descFull:id=>`Formula identica. Quasi certamente già presente nell'app come ${id}.`,
+    descHigh:"Formula quasi identica (piccole differenze di arrotondamento). Probabilmente già importata.",
+    descMid:"Composizione simile. Verifica se è la stessa ricetta con piccole variazioni intenzionali.",
+    descMidLow:"Composizione in parte simile. Potrebbe essere una versione diversa dello stesso colore.",
+    descLow:"Formule molto diverse. Non sembra lo stesso colore.",
+    tableHeaders:['INCHIOSTRO','MONDAY','APP','DIFF'],
+    importedTitle:'✅ Ricetta importata',
+    importedSub:id=>`${id} salvata nel foglio Ricette`,
+    alreadyTitle:id=>`Formula già in app come ${id}`,
+    alreadySub:'Segna come fatto se hai verificato che è corretta.',
+    markDone:'Segna fatto ✓',
+    importTitle:'Importa come nuova ricetta',
+    labelPantone:'CODICE PANTONE *',
+    phPantone:'es. 116 U',
+    uncertainWarn:"⚠ Il codice nel Monday ha \"?\" — verifica sulla mazzetta Pantone prima di salvare",
+    labelHex:'COLORE HEX *',
+    labelCategoria:'CATEGORIA',
+    labelCopertura:'COPERTURA',
+    labelPagina:'PAGINA',
+    labelNote:'NOTE (vecchio nome)',
+    phNote:'es. ex 116 U',
+    saving:'Salvataggio…',
+    importBtn:'Importa ricetta →',
+    errPantone:'Codice Pantone obbligatorio',
+    errHex:'HEX obbligatorio',
+    panelTitle:'Trasferimento formule Monday',
+    panelTotal:n=>`${n} TOTALI`,
+    emptyState:'← seleziona una formula dalla lista',
+    groupConfirmed:'Già in app / Fatto',
+    groupTodo:'Da importare',
+    groupProblems:'Problemi',
+    ttCorrected:'Formula corretta a 40g',
+    ttAS90:'Codice AS90 corretto',
+    ttNot40g:'Totale ≠ 40g',
+    ttUncertain:'Codice incerto',
+    badgeNot40g:g=>`⚠ TOTALE ${g}g ≠ 40g`,
+  },
+  fr:{
+    noMatch:'aucune correspondance',
+    pageAbbr:'p.',
+    badgeUncertain:'⚠ CODE INCERTAIN',
+    badgeCorrected:'⚡ CORRIGÉE À 40g',
+    badgeAS90:'AS90 CORRIGÉ',
+    badgeDuplicate:'DOUBLON DE',
+    headerInks:'ENCRES',
+    matchFull:'✅ CORRESPONDANCE 100%',
+    matchHigh:s=>`✅ CORRESPONDANCE ${s}%`,
+    matchMid:s=>`≈ SIMILAIRE À ${s}%`,
+    matchLow:s=>`${s}% — pas de correspondance`,
+    descFull:id=>`Formule identique. Très probablement déjà présente dans l'application sous le code ${id}.`,
+    descHigh:"Formule quasi identique (légères différences d'arrondi). Probablement déjà importée.",
+    descMid:"Composition similaire. Vérifier s'il s'agit de la même recette avec de légères variations intentionnelles.",
+    descMidLow:"Composition partiellement similaire. Pourrait être une version différente de la même couleur.",
+    descLow:"Formules très différentes. Ne semble pas être la même couleur.",
+    tableHeaders:['ENCRE','MONDAY','APP','DIFF'],
+    importedTitle:'✅ Recette importée',
+    importedSub:id=>`${id} enregistrée dans la feuille Recettes`,
+    alreadyTitle:id=>`Formule déjà dans l'application sous le code ${id}`,
+    alreadySub:'Marquer comme fait si vous avez vérifié que la formule est correcte.',
+    markDone:'Marquer comme fait ✓',
+    importTitle:'Importer comme nouvelle recette',
+    labelPantone:'CODE PANTONE *',
+    phPantone:'ex. 116 U',
+    uncertainWarn:"⚠ Le code dans Monday contient \"?\" — vérifier sur le nuancier Pantone avant d'enregistrer",
+    labelHex:'COULEUR HEX *',
+    labelCategoria:'CATÉGORIE',
+    labelCopertura:'COUVERTURE',
+    labelPagina:'PAGE',
+    labelNote:'NOTES (ancien nom)',
+    phNote:'ex. ex 116 U',
+    saving:'Enregistrement…',
+    importBtn:'Importer la recette →',
+    errPantone:'Code Pantone obligatoire',
+    errHex:'Couleur HEX obligatoire',
+    panelTitle:'Transfert des formules Monday',
+    panelTotal:n=>`${n} AU TOTAL`,
+    emptyState:'← sélectionnez une formule dans la liste',
+    groupConfirmed:"Déjà dans l'app / Fait",
+    groupTodo:'À importer',
+    groupProblems:'Problèmes',
+    ttCorrected:'Formule corrigée à 40g',
+    ttAS90:'Code AS90 corrigé',
+    ttNot40g:'Total ≠ 40g',
+    ttUncertain:'Code incertain',
+    badgeNot40g:g=>`⚠ TOTAL ${g}g ≠ 40g`,
+  },
+};
+
+function TransferGroup({label,color,items,selected,onSelect,matchMap,S}){
   const[open,setOpen]=React.useState(true);
   if(!items.length)return null;
   return(
@@ -3856,14 +3957,14 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap}){
               <div style={{fontFamily:'Nebulica',fontSize:10,color:'rgba(0,0,0,0.42)',marginTop:2}}>
                 {m&&m.score>=95?<span style={{color:'#16A34A'}}>✓ {m.r.Pantone_ID}</span>
                 :m&&m.score>=60?<span style={{color:'#D97706'}}>≈ {m.r.Pantone_ID} ({m.score}%)</span>
-                :<span>nessun match</span>}
+                :<span>{S.noMatch}</span>}
               </div>
             </div>
             <div style={{display:'flex',gap:4,flexShrink:0,paddingTop:2}}>
-              {mf.flags.includes('corrected_to_40g')&&<span title="Formula corretta a 40g">⚡</span>}
-              {mf.flags.includes('as90_code_fixed')&&<span title="Codice AS90 corretto" style={{display:'inline-flex',alignItems:'center'}}><IcoWrench size={13} color="rgba(0,0,0,0.45)"/></span>}
-              {mf.flags.includes('not_40g')&&<span title="Totale ≠ 40g" style={{color:'#EF4444'}}>⚠</span>}
-              {mf.name.includes('?')&&<span title="Codice incerto" style={{color:'#EF4444',fontWeight:700,fontSize:11}}>?</span>}
+              {mf.flags.includes('corrected_to_40g')&&<span title={S.ttCorrected}>⚡</span>}
+              {mf.flags.includes('as90_code_fixed')&&<span title={S.ttAS90} style={{display:'inline-flex',alignItems:'center'}}><IcoWrench size={13} color="rgba(0,0,0,0.45)"/></span>}
+              {mf.flags.includes('not_40g')&&<span title={S.ttNot40g} style={{color:'#EF4444'}}>⚠</span>}
+              {mf.name.includes('?')&&<span title={S.ttUncertain} style={{color:'#EF4444',fontWeight:700,fontSize:11}}>?</span>}
             </div>
           </div>
         );
@@ -3872,7 +3973,7 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap}){
   );
 }
 
-function TransferDetail({formula,match,onImported}){
+function TransferDetail({formula,match,onImported,S}){
   const{newCode,oldCode,uncertain}=txParseName(formula.name);
   const[form,setForm]=React.useState({
     pantoneId:newCode,
@@ -3889,8 +3990,8 @@ function TransferDetail({formula,match,onImported}){
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
 
   async function handleImport(){
-    if(!form.pantoneId.trim()){setSaveErr('Codice Pantone obbligatorio');return;}
-    if(!form.hex.trim()){setSaveErr('HEX obbligatorio');return;}
+    if(!form.pantoneId.trim()){setSaveErr(S.errPantone);return;}
+    if(!form.hex.trim()){setSaveErr(S.errHex);return;}
     setSaving(true);setSaveErr('');
     try{
       const componenti=formula.inks.map(ink=>({Inchiostro:ink.code,'Dose_40g (g)':ink.dose}));
@@ -3923,18 +4024,18 @@ function TransferDetail({formula,match,onImported}){
         <div style={{fontFamily:'Nebulica',fontSize:22,fontWeight:700,letterSpacing:-0.5,color:'#0B0B0B',marginBottom:8}}>{formula.name}</div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           {formula.source&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'rgba(0,0,0,0.45)',background:'rgba(0,0,0,0.07)',padding:'3px 9px',borderRadius:99}}>{formula.source}</span>}
-          {formula.page_note&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'rgba(0,0,0,0.45)',background:'rgba(0,0,0,0.07)',padding:'3px 9px',borderRadius:99}}>pag. {formula.page_note}</span>}
-          {uncertain&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#EF4444',background:'rgba(239,68,68,0.1)',padding:'3px 9px',borderRadius:99}}>⚠ CODICE INCERTO</span>}
-          {formula.flags.includes('corrected_to_40g')&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#D97706',background:'rgba(217,119,6,0.1)',padding:'3px 9px',borderRadius:99}}>⚡ CORRETTA A 40g</span>}
-          {formula.flags.includes('as90_code_fixed')&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#8B5CF6',background:'rgba(139,92,246,0.1)',padding:'3px 9px',borderRadius:99,display:'inline-flex',alignItems:'center',gap:5}}><IcoWrench size={11} color="#8B5CF6"/>AS90 CORRETTO</span>}
-          {formula.flags.includes('not_40g')&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#EF4444',background:'rgba(239,68,68,0.1)',padding:'3px 9px',borderRadius:99}}>⚠ TOTALE {formula.total.toFixed(2)}g ≠ 40g</span>}
-          {formula.duplicate_of&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#F59E0B',background:'rgba(245,158,11,0.1)',padding:'3px 9px',borderRadius:99}}>DUPLICATO DI: {formula.duplicate_of}</span>}
+          {formula.page_note&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'rgba(0,0,0,0.45)',background:'rgba(0,0,0,0.07)',padding:'3px 9px',borderRadius:99}}>{S.pageAbbr} {formula.page_note}</span>}
+          {uncertain&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#EF4444',background:'rgba(239,68,68,0.1)',padding:'3px 9px',borderRadius:99}}>{S.badgeUncertain}</span>}
+          {formula.flags.includes('corrected_to_40g')&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#D97706',background:'rgba(217,119,6,0.1)',padding:'3px 9px',borderRadius:99}}>{S.badgeCorrected}</span>}
+          {formula.flags.includes('as90_code_fixed')&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#8B5CF6',background:'rgba(139,92,246,0.1)',padding:'3px 9px',borderRadius:99,display:'inline-flex',alignItems:'center',gap:5}}><IcoWrench size={11} color="#8B5CF6"/>{S.badgeAS90}</span>}
+          {formula.flags.includes('not_40g')&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#EF4444',background:'rgba(239,68,68,0.1)',padding:'3px 9px',borderRadius:99}}>{S.badgeNot40g(formula.total.toFixed(2))}</span>}
+          {formula.duplicate_of&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#F59E0B',background:'rgba(245,158,11,0.1)',padding:'3px 9px',borderRadius:99}}>{S.badgeDuplicate}: {formula.duplicate_of}</span>}
         </div>
       </div>
 
       {/* Formula Monday */}
       <div style={{marginBottom:22,background:'rgba(0,0,0,0.03)',borderRadius:14,padding:'16px 18px'}}>
-        <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'rgba(0,0,0,0.38)',marginBottom:10}}>FORMULA MONDAY · {formula.inks.length} INCHIOSTRI · Σ {formula.total.toFixed(3)}g</div>
+        <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'rgba(0,0,0,0.38)',marginBottom:10}}>FORMULA MONDAY · {formula.inks.length} {S.headerInks} · Σ {formula.total.toFixed(3)}g</div>
         {formula.inks.map(ink=>{
           const pct=(ink.dose/formula.total*100);
           return(
@@ -3955,20 +4056,20 @@ function TransferDetail({formula,match,onImported}){
         <div style={{marginBottom:22,borderRadius:14,padding:'16px 18px',background:match.score>=95?'rgba(34,197,94,0.07)':match.score>=60?'rgba(245,158,11,0.07)':'rgba(0,0,0,0.04)',border:`1px solid ${match.score>=95?'rgba(34,197,94,0.22)':match.score>=60?'rgba(245,158,11,0.22)':'rgba(0,0,0,0.09)'}`}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
             <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:match.score>=95?'#16A34A':match.score>=60?'#D97706':'rgba(0,0,0,0.5)'}}>
-              {match.score>=99?'✅ MATCH AL 100%':match.score>=95?`✅ MATCH AL ${match.score}%`:match.score>=60?`≈ SIMILE AL ${match.score}%`:`${match.score}% — non è un match`}
+              {match.score>=99?S.matchFull:match.score>=95?S.matchHigh(match.score):match.score>=60?S.matchMid(match.score):S.matchLow(match.score)}
             </div>
             <div style={{fontFamily:'Nebulica',fontSize:12,color:'rgba(0,0,0,0.5)'}}>→ {match.r.Pantone_ID}</div>
           </div>
           <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.6)',marginBottom:12,lineHeight:1.6}}>
-            {match.score>=99&&`Formula identica. Quasi certamente già presente nell'app come ${match.r.Pantone_ID}.`}
-            {match.score>=95&&match.score<99&&"Formula quasi identica (piccole differenze di arrotondamento). Probabilmente già importata."}
-            {match.score>=70&&match.score<95&&"Composizione simile. Verifica se è la stessa ricetta con piccole variazioni intenzionali."}
-            {match.score>=60&&match.score<70&&"Composizione in parte simile. Potrebbe essere una versione diversa dello stesso colore."}
-            {match.score<60&&"Formule molto diverse. Non sembra lo stesso colore."}
+            {match.score>=99&&S.descFull(match.r.Pantone_ID)}
+            {match.score>=95&&match.score<99&&S.descHigh}
+            {match.score>=70&&match.score<95&&S.descMid}
+            {match.score>=60&&match.score<70&&S.descMidLow}
+            {match.score<60&&S.descLow}
           </div>
           {/* Comparison table */}
           <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr auto',gap:'3px 12px',alignItems:'center'}}>
-            {['INCHIOSTRO','MONDAY','APP','DIFF'].map(h=>(
+            {S.tableHeaders.map(h=>(
               <div key={h} style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.2,fontWeight:700,color:'rgba(0,0,0,0.38)',paddingBottom:4}}>{h}</div>
             ))}
             {allCompCodes.map(code=>{
@@ -3992,28 +4093,28 @@ function TransferDetail({formula,match,onImported}){
       {/* Action: if already matched at ≥95%, show confirm button; else show import form */}
       {saved?(
         <div style={{background:'rgba(34,197,94,0.09)',borderRadius:14,padding:'18px 20px',border:'1px solid rgba(34,197,94,0.22)',textAlign:'center'}}>
-          <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#16A34A'}}>✅ Ricetta importata</div>
-          <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:5}}>{form.pantoneId} salvata nel foglio Ricette</div>
+          <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#16A34A'}}>{S.importedTitle}</div>
+          <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:5}}>{S.importedSub(form.pantoneId)}</div>
         </div>
       ):match&&match.score>=95?(
         <div style={{background:'rgba(34,197,94,0.07)',borderRadius:14,padding:'16px 18px',border:'1px solid rgba(34,197,94,0.18)',display:'flex',alignItems:'center',gap:14}}>
           <div style={{flex:1}}>
-            <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:'#16A34A'}}>Formula già in app come {match.r.Pantone_ID}</div>
-            <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:4}}>Segna come fatto se hai verificato che è corretta.</div>
+            <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:'#16A34A'}}>{S.alreadyTitle(match.r.Pantone_ID)}</div>
+            <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:4}}>{S.alreadySub}</div>
           </div>
-          <button onClick={onImported} style={{padding:'10px 18px',borderRadius:99,background:'#22C55E',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>Segna fatto ✓</button>
+          <button onClick={onImported} style={{padding:'10px 18px',borderRadius:99,background:'#22C55E',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>{S.markDone}</button>
         </div>
       ):(
         <div style={{background:'#fff',borderRadius:16,padding:'22px',border:'1px solid rgba(0,0,0,0.1)'}}>
-          <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:0.3,marginBottom:16,color:'#0B0B0B'}}>Importa come nuova ricetta</div>
+          <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:0.3,marginBottom:16,color:'#0B0B0B'}}>{S.importTitle}</div>
           <div style={{marginBottom:12}}>
-            <div style={labelStyle}>CODICE PANTONE *</div>
-            <input value={form.pantoneId} onChange={e=>setF('pantoneId',e.target.value)} style={inputStyle} placeholder="es. 116 U"/>
-            {uncertain&&<div style={{fontFamily:'Nebulica',fontSize:10,color:'#D97706',marginTop:4}}>⚠ Il codice nel Monday ha "?" — verifica sulla mazzetta Pantone prima di salvare</div>}
+            <div style={labelStyle}>{S.labelPantone}</div>
+            <input value={form.pantoneId} onChange={e=>setF('pantoneId',e.target.value)} style={inputStyle} placeholder={S.phPantone}/>
+            {uncertain&&<div style={{fontFamily:'Nebulica',fontSize:10,color:'#D97706',marginTop:4}}>{S.uncertainWarn}</div>}
           </div>
           <div style={{marginBottom:12,display:'flex',gap:8,alignItems:'flex-end'}}>
             <div style={{flex:1}}>
-              <div style={labelStyle}>COLORE HEX *</div>
+              <div style={labelStyle}>{S.labelHex}</div>
               <input value={form.hex} onChange={e=>setF('hex',e.target.value)} style={inputStyle} placeholder="#FFCC00"/>
             </div>
             <input type="color" value={form.hex&&form.hex.startsWith('#')&&form.hex.length>=4?form.hex:'#888888'} onChange={e=>setF('hex',e.target.value)} style={{width:38,height:38,borderRadius:8,border:'1.5px solid rgba(0,0,0,0.18)',padding:2,cursor:'pointer',flexShrink:0}}/>
@@ -4021,13 +4122,13 @@ function TransferDetail({formula,match,onImported}){
           </div>
           <div style={{marginBottom:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
             <div>
-              <div style={labelStyle}>CATEGORIA</div>
+              <div style={labelStyle}>{S.labelCategoria}</div>
               <select value={form.categoria} onChange={e=>setF('categoria',e.target.value)} style={{...inputStyle,cursor:'pointer'}}>
                 {['Serigrafica','Custom','Speciale','Pantone'].map(c=><option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <div style={labelStyle}>COPERTURA</div>
+              <div style={labelStyle}>{S.labelCopertura}</div>
               <select value={form.copertura} onChange={e=>setF('copertura',e.target.value)} style={{...inputStyle,cursor:'pointer'}}>
                 <option value="">—</option>
                 {['Alta','Media','Bassa'].map(c=><option key={c}>{c}</option>)}
@@ -4036,17 +4137,17 @@ function TransferDetail({formula,match,onImported}){
           </div>
           <div style={{marginBottom:12,display:'grid',gridTemplateColumns:'80px 1fr',gap:10}}>
             <div>
-              <div style={labelStyle}>PAGINA</div>
+              <div style={labelStyle}>{S.labelPagina}</div>
               <input value={form.pagina} onChange={e=>setF('pagina',e.target.value)} style={inputStyle} placeholder="42"/>
             </div>
             <div>
-              <div style={labelStyle}>NOTE (vecchio nome)</div>
-              <input value={form.note} onChange={e=>setF('note',e.target.value)} style={inputStyle} placeholder="es. ex 116 U"/>
+              <div style={labelStyle}>{S.labelNote}</div>
+              <input value={form.note} onChange={e=>setF('note',e.target.value)} style={inputStyle} placeholder={S.phNote}/>
             </div>
           </div>
           {saveErr&&<div style={{fontFamily:'Nebulica',fontSize:11,color:'#EF4444',marginBottom:10,padding:'8px 12px',background:'rgba(239,68,68,0.07)',borderRadius:8}}>{saveErr}</div>}
           <button onClick={handleImport} disabled={saving} style={{height:44,borderRadius:99,background:saving?'rgba(0,0,0,0.3)':'#0B0B0B',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:14,fontWeight:700,width:'100%',cursor:saving?'default':'pointer',transition:'background .2s'}}>
-            {saving?'Salvataggio…':'Importa ricetta →'}
+            {saving?S.saving:S.importBtn}
           </button>
         </div>
       )}
@@ -4056,6 +4157,9 @@ function TransferDetail({formula,match,onImported}){
 
 function TransferPanel(){
   const[selected,setSelected]=React.useState(null);
+  const[lang,setLang]=React.useState(()=>{try{return sessionStorage.getItem('tx_lang')||'it';}catch(e){return 'it';}});
+  const S=TX[lang]||TX.it;
+  const toggleLang=()=>setLang(l=>{const n=l==='it'?'fr':'it';try{sessionStorage.setItem('tx_lang',n);}catch(e){}return n;});
   const[done,setDone]=React.useState(()=>{
     try{return new Set(JSON.parse(sessionStorage.getItem('tx_done')||'[]'));}
     catch(e){return new Set();}
@@ -4087,24 +4191,29 @@ function TransferPanel(){
       <div style={{height:58,display:'flex',alignItems:'center',padding:'0 28px',borderBottom:'1.5px solid rgba(0,0,0,0.09)',flexShrink:0,gap:14,background:'#F4EFE2'}}>
         <a href="/" style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,letterSpacing:0.8,color:'rgba(0,0,0,0.45)',textDecoration:'none'}}>← APP</a>
         <div style={{width:1,height:16,background:'rgba(0,0,0,0.14)'}}/>
-        <span style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,letterSpacing:-0.2}}>Trasferimento formule Monday</span>
+        <span style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,letterSpacing:-0.2}}>{S.panelTitle}</span>
         <div style={{marginLeft:'auto',display:'flex',gap:18,alignItems:'center'}}>
           <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#16A34A'}}>✅ {confirmed.length}</span>
           <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#D97706'}}>🔶 {todo.length}</span>
           <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#EF4444'}}>⚠️ {problems.length}</span>
-          <span style={{fontFamily:'Nebulica',fontSize:10,color:'rgba(0,0,0,0.3)',fontWeight:700,background:'rgba(0,0,0,0.06)',padding:'3px 9px',borderRadius:99}}>{MONDAY_FORMULAS.length} TOTALI</span>
+          <span style={{fontFamily:'Nebulica',fontSize:10,color:'rgba(0,0,0,0.3)',fontWeight:700,background:'rgba(0,0,0,0.06)',padding:'3px 9px',borderRadius:99}}>{S.panelTotal(MONDAY_FORMULAS.length)}</span>
+          <button onClick={toggleLang} style={{height:28,padding:'0 12px',borderRadius:99,border:'1.5px solid rgba(0,0,0,0.18)',background:'transparent',fontFamily:'Nebulica',fontSize:11,fontWeight:700,cursor:'pointer',letterSpacing:0.5,color:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',gap:5}}>
+            <span style={{opacity:lang==='it'?1:0.3}}>IT</span>
+            <span style={{opacity:0.25}}>/</span>
+            <span style={{opacity:lang==='fr'?1:0.3}}>FR</span>
+          </button>
         </div>
       </div>
       <div style={{flex:1,display:'flex',overflow:'hidden'}}>
         <div style={{width:290,borderRight:'1.5px solid rgba(0,0,0,0.09)',overflowY:'auto',flexShrink:0,background:'rgba(255,255,255,0.35)'}}>
-          <TransferGroup label="✅ Già in app / Fatto" color="#16A34A" items={confirmed} selected={selected} onSelect={setSelected} matchMap={matchMap}/>
-          <TransferGroup label="🔶 Da importare" color="#D97706" items={todo} selected={selected} onSelect={setSelected} matchMap={matchMap}/>
-          <TransferGroup label="⚠️ Problemi" color="#EF4444" items={problems} selected={selected} onSelect={setSelected} matchMap={matchMap}/>
+          <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S}/>
+          <TransferGroup label={'🔶 '+S.groupTodo} color="#D97706" items={todo} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S}/>
+          <TransferGroup label={'⚠️ '+S.groupProblems} color="#EF4444" items={problems} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S}/>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:'32px 40px'}}>
           {sel
-            ?<TransferDetail key={sel.id} formula={sel} match={matchMap[sel.id]} onImported={()=>markDone(sel.id)}/>
-            :<div style={{color:'rgba(0,0,0,0.28)',fontFamily:'Nebulica',fontSize:13,paddingTop:100,textAlign:'center',letterSpacing:0.5}}>← seleziona una formula dalla lista</div>
+            ?<TransferDetail key={sel.id} formula={sel} match={matchMap[sel.id]} onImported={()=>markDone(sel.id)} S={S}/>
+            :<div style={{color:'rgba(0,0,0,0.28)',fontFamily:'Nebulica',fontSize:13,paddingTop:100,textAlign:'center',letterSpacing:0.5}}>{S.emptyState}</div>
           }
         </div>
       </div>
