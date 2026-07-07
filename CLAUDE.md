@@ -240,11 +240,14 @@ function toDose(v) { const s = String(v || '').replace(',', '.'); const n = pars
 Usato in tutti e tre i punti dove si scrive `Dose_40g (g)` (addRicetta, editRicetta, promuoviSperimentazione).
 Motivo: Google Sheets con locale italiano interpreta la stringa `"34.48"` come orario (34h 48m). Passando un numero JS, Sheets non può fraintenderlo. Accetta sia punto che virgola come separatore decimale.
 
-**Deployment — ⚠️ clasp NON funziona dall'ambiente Claude Code web** (credenziali assenti).
-Ogni modifica a `Code.gs` va deployata manualmente:
-1. Aprire script.google.com → progetto Ricettario
-2. Cmd+A → incollare il contenuto aggiornato → Cmd+S
-3. Esegui il deployment → Gestisci deployment → matita → Nuova versione → Distribuisci
+**Deployment — clasp funziona dall'ambiente Claude Code web** (credenziali in `~/.clasprc.json`).
+Deployment ID attivo: `AKfycbx1LQGufzvgcs66YUVc0em1iY7DRrugIKI9fcheXzmbpSl8RHmyEeJ2fF2Ma_XD5_A`
+Script ID: `18aYhMDPjoAa7Rtf_B08YwejhTPXIqlbclEa9nWTnr1WND19c85hwuqiQ`
+
+Procedura deploy da Claude Code:
+```
+clasp push && clasp deploy --deploymentId AKfycbx1LQGufzvgcs66YUVc0em1iY7DRrugIKI9fcheXzmbpSl8RHmyEeJ2fF2Ma_XD5_A --description "descrizione"
+```
 
 ---
 
