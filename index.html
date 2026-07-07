@@ -3773,11 +3773,346 @@ function KioskView({ rawCode }) {
   );
 }
 
+
+/* ═══════════════════ TRANSFER PANEL ═══════════════════ */
+
+const MONDAY_FORMULAS = [{"id":1,"name":"Nerino Tark","page_note":"","source":"","raw_name":"Nerino Tark","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 100","name":"AS 100 - BLACK","dose":30.08},{"code":"AS 90","name":"AS 91 - OPAQUE WHITE","dose":6.92},{"code":"AS 42","name":"AS 42 - YELLOW","dose":3.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":2,"name":"Cremino Tark","page_note":"","source":"","raw_name":"Cremino Tark","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 91 - OPAQUE WHITE","dose":39.45},{"code":"AS 42","name":"AS 42 - YELLOW","dose":0.55}],"total":40.0,"flags":[],"duplicate_of":null},{"id":3,"name":"Medium Purple U","page_note":"1.2","source":"SICO","raw_name":"Medium Purple U (pag. 1.2) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":11.45},{"code":"AS 15","name":"AS 15 - VIOLET","dose":20.0},{"code":"AS 90","name":"AS 90 - WHITE","dose":8.55}],"total":40.0,"flags":[],"duplicate_of":null},{"id":4,"name":"072","page_note":"126","source":"SICO","raw_name":"072 (pag. 126) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 15","name":"AS 15 - VIOLET","dose":26.88},{"code":"AS 25","name":"AS 25 - BLUE","dose":13.12}],"total":40.0,"flags":[],"duplicate_of":null},{"id":5,"name":"115 U","page_note":"6","source":"SICO","raw_name":"115 U (pag. 6) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":25.164},{"code":"AS 56","name":"AS 56 - VERMILION","dose":0.104},{"code":"AS 42","name":"AS 42 - YELLOW","dose":14.732}],"total":40.0,"flags":[],"duplicate_of":null},{"id":6,"name":"116 U","page_note":"6","source":"SICO","raw_name":"116 U (pag. 6) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":3.4},{"code":"AS 55","name":"AS 55 - ORANGE","dose":1.68},{"code":"AS 90","name":"AS 91 - OPAQUE WHITE","dose":9.4},{"code":"AS 42","name":"AS 42 - YELLOW","dose":25.56}],"total":40.04,"flags":[],"duplicate_of":null},{"id":7,"name":"184 U","page_note":"46","source":"SICO","raw_name":"184 U (pag. 46) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 65","name":"AS 65 - RED","dose":11.12},{"code":"AS 90","name":"AS 90 - WHITE","dose":28.88}],"total":40.0,"flags":[],"duplicate_of":null},{"id":8,"name":"189","page_note":"48","source":"CUSTOM","raw_name":"189 (pag. 48) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":31.5},{"code":"AS 65","name":"AS 65 - RED","dose":1.0},{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":7.5}],"total":40.0,"flags":[],"duplicate_of":null},{"id":9,"name":"190 ―  ex708 U","page_note":"48","source":"SICO","raw_name":"190 (pag. 48) ―  ex708 U (pag. 50) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 65","name":"AS 65 - RED","dose":4.542},{"code":"AS 90","name":"AS 90 - WHITE","dose":35.458}],"total":40.0,"flags":[],"duplicate_of":null},{"id":10,"name":"196?","page_note":"47","source":"CUSTOM","raw_name":"196? (pag. 47) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":38.21},{"code":"AS 65","name":"AS 65 - RED","dose":0.55},{"code":"AS 42","name":"AS 42 - YELLOW","dose":1.24}],"total":40.0,"flags":[],"duplicate_of":null},{"id":11,"name":"217? ― ex3568","page_note":"70","source":"SICO","raw_name":"217? (pag.70) ― ex3568 (pag. S6 U) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":38.848},{"code":"AS 65","name":"AS 65 - RED","dose":0.496},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":0.656}],"total":40.0,"flags":[],"duplicate_of":null},{"id":12,"name":"278 U","page_note":"127","source":"SICO","raw_name":"278 U (pag. 127) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":38.288},{"code":"AS 25","name":"AS 25 - BLUE","dose":0.808},{"code":"AS 15","name":"AS 15 - VIOLET","dose":0.904}],"total":40.0,"flags":[],"duplicate_of":null},{"id":13,"name":"286","page_note":"128","source":"CUSTOM","raw_name":"286 (pag. 128) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 15","name":"AS 15 - VIOLET","dose":10.0},{"code":"AS 25","name":"AS 25 - BLUE","dose":20.0},{"code":"AS 90","name":"AS 90 - WHITE","dose":10.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":14,"name":"286D","page_note":"128","source":"CUSTOM","raw_name":"286D (pag. 128) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 15","name":"AS 15 - VIOLET","dose":10.0},{"code":"AS 25","name":"AS 25 - BLUE","dose":10.0},{"code":"AS 90","name":"AS 90 - WHITE","dose":20.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":15,"name":"293?","page_note":"132","source":"CUSTOM","raw_name":"293? (pag. 132) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 15","name":"AS 15 - VIOLET","dose":10.0},{"code":"AS 25","name":"AS 25 - BLUE","dose":30.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":16,"name":"309","page_note":"146","source":"SICO","raw_name":"309 (pag. 146) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":16.332},{"code":"AS 100","name":"AS 100 - BLACK","dose":5.804},{"code":"AS 25","name":"AS 25 - BLUE","dose":14.356},{"code":"AS 40","name":"AS 40 - YELLOW","dose":3.508}],"total":40.0,"flags":[],"duplicate_of":null},{"id":17,"name":"321 U","page_note":"156","source":"SICO","raw_name":"321 U (pag. 156) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":6.724},{"code":"AS 34","name":"AS 35 - GREEN","dose":12.228},{"code":"AS 25","name":"AS 25 - BLUE","dose":4.056},{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":15.764},{"code":"AS 100","name":"AS 100 - BLACK","dose":1.228}],"total":40.0,"flags":["as90_code_fixed"],"duplicate_of":null},{"id":18,"name":"323","page_note":"156","source":"CUSTOM","raw_name":"323 (pag. 156) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":16.35},{"code":"AS 100","name":"AS 100 - BLACK","dose":3.8},{"code":"AS 25","name":"AS 25 - BLUE","dose":9.35},{"code":"AS 40","name":"AS 40 - YELLOW","dose":10.5}],"total":40.0,"flags":[],"duplicate_of":null},{"id":19,"name":"340 U (pag 179)","page_note":"","source":"SICO","raw_name":"340 U (pag 179) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 25","name":"AS 25 - BLUE","dose":5.48},{"code":"AS 40","name":"AS 40 - YELLOW","dose":9.48},{"code":"AS 90","name":"AS 90 - WHITE","dose":25.04}],"total":40.0,"flags":[],"duplicate_of":null},{"id":20,"name":"??366??","page_note":"196","source":"SICO","raw_name":"??366?? (pag. 196) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 56","name":"AS 56 - VERMILION","dose":0.368},{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":6.292},{"code":"AS 34","name":"AS 35 - GREEN","dose":2.616},{"code":"AS 40","name":"AS 40 - YELLOW","dose":7.732},{"code":"AS 42","name":"AS 42 - YELLOW","dose":3.52},{"code":"AS 90","name":"AS 90 - WHITE","dose":19.472}],"total":40.0,"flags":[],"duplicate_of":null},{"id":21,"name":"395 U","page_note":"211","source":"SICO","raw_name":"395 U (pag. 211) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 40","name":"AS 40 - YELLOW","dose":35.632},{"code":"AS 34","name":"AS 35 - GREEN","dose":0.088},{"code":"AS 90","name":"AS 90 - WHITE","dose":4.28}],"total":40.0,"flags":[],"duplicate_of":null},{"id":22,"name":"472 U","page_note":"227","source":"SICO","raw_name":"472 U (pag. 227) SICO","notes":"","corrected_to_40g":true,"inks":[{"code":"AS 42","name":"AS 42 - YELLOW","dose":7.6626},{"code":"AS 55","name":"AS 55 - ORANGE","dose":5.6525},{"code":"AS 90","name":"AS 90 - WHITE","dose":26.6849}],"total":40.0,"flags":["as90_code_fixed","corrected_to_40g"],"duplicate_of":null},{"id":23,"name":"487 U","page_note":"37","source":"SICO","raw_name":"487 U (pag. 37) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 100","name":"AS 100 - BLACK","dose":0.0776},{"code":"AS 42","name":"AS 42 - YELLOW","dose":1.1772},{"code":"AS 65","name":"AS 65 - RED","dose":1.8096},{"code":"AS 90","name":"AS 90 - WHITE","dose":24.8792},{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":12.0564}],"total":40.0,"flags":[],"duplicate_of":null},{"id":24,"name":"537 U","page_note":"110","source":"SICO","raw_name":"537 U (pag. 110) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":39.4},{"code":"AS 15","name":"AS 15 - VIOLET","dose":0.32},{"code":"AS 25","name":"AS 25 - BLUE","dose":0.28}],"total":40.0,"flags":[],"duplicate_of":null},{"id":25,"name":"577 U","page_note":"201","source":"CUSTOM","raw_name":"577 U (pag. 201) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 56","name":"AS 56 - VERMILION","dose":0.37},{"code":"AS 34","name":"AS 35 - GREEN","dose":2.6},{"code":"AS 40","name":"AS 40 - YELLOW","dose":7.8},{"code":"AS 42","name":"AS 42 - YELLOW","dose":3.5},{"code":"AS 90","name":"AS 90 - WHITE","dose":25.73}],"total":40.0,"flags":[],"duplicate_of":null},{"id":26,"name":"577B","page_note":"","source":"CUSTOM","raw_name":"577B (pag.) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":20.0},{"code":"AS 34","name":"AS 35 - GREEN","dose":1.5},{"code":"AS 40","name":"AS 40 - YELLOW","dose":17.5},{"code":"AS 42","name":"AS 42 - YELLOW","dose":1.0}],"total":40.0,"flags":[],"duplicate_of":"366 (ex577B)"},{"id":27,"name":"543 U","page_note":"131","source":"SICO","raw_name":"543 U (pag. 131) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":36.96},{"code":"AS 25","name":"AS 25 - BLUE","dose":1.62},{"code":"AS 15","name":"AS 15 - VIOLET","dose":1.02},{"code":"AS 100","name":"AS 100 - BLACK","dose":0.2},{"code":"AS 40","name":"AS 40 - YELLOW","dose":0.2}],"total":40.0,"flags":[],"duplicate_of":null},{"id":28,"name":"658 U","page_note":"120","source":"SICO","raw_name":"658 U (pag. 120) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":38.516},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":0.48},{"code":"AS 25","name":"AS 25 - BLUE","dose":0.548},{"code":"AS 15","name":"AS 15 - VIOLET","dose":0.456}],"total":40.0,"flags":[],"duplicate_of":null},{"id":29,"name":"699 U","page_note":"51","source":"SICO","raw_name":"699 U (pag. 51) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":30.0},{"code":"AS 65","name":"AS 65 - RED","dose":2.5},{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":7.5}],"total":40.0,"flags":[],"duplicate_of":null},{"id":30,"name":"705 U","page_note":"50","source":"SICO","raw_name":"705 U (pag. 50) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":39.48},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":0.52}],"total":40.0,"flags":[],"duplicate_of":null},{"id":31,"name":"706 U","page_note":"50","source":"SICO","raw_name":"706 U (pag. 50) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":39.16},{"code":"AS 65","name":"AS 65 - RED","dose":0.6},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":0.24}],"total":40.0,"flags":[],"duplicate_of":null},{"id":32,"name":"708 U","page_note":"50","source":"CUSTOM","raw_name":"708 U (pag. 50) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":36.39},{"code":"AS 65","name":"AS 65 - RED","dose":1.58},{"code":"AS 42","name":"AS 42 - YELLOW","dose":1.18},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":0.85}],"total":40.0,"flags":[],"duplicate_of":null},{"id":33,"name":"709 U ― ex3572","page_note":"50","source":"SICO","raw_name":"709 U (pag. 50) ― ex3572 (pag. S4 U) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 65","name":"AS 65 - RED","dose":3.6},{"code":"AS 42","name":"AS 42 - YELLOW","dose":1.12},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":0.8},{"code":"AS 90","name":"AS 90 - WHITE","dose":34.48}],"total":40.0,"flags":[],"duplicate_of":null},{"id":34,"name":"1235 U","page_note":"8","source":"SICO","raw_name":"1235 U (pag. 8) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 65","name":"AS 65 - RED","dose":0.312},{"code":"AS 55","name":"AS 55 - ORANGE","dose":3.384},{"code":"AS 90","name":"AS 90 - WHITE","dose":14.524},{"code":"AS 42","name":"AS 42 - YELLOW","dose":21.78}],"total":40.0,"flags":[],"duplicate_of":null},{"id":35,"name":"2034 U","page_note":"38","source":"SICO","raw_name":"2034 U (pag. 38) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 65","name":"AS 65 - RED","dose":12.112},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":3.6},{"code":"AS 90","name":"AS 90 - WHITE","dose":14.88},{"code":"AS 100","name":"AS 100 - BLACK","dose":0.176},{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":6.432},{"code":"AS 42","name":"AS 42 - YELLOW","dose":2.8}],"total":40.0,"flags":["as90_code_fixed"],"duplicate_of":null},{"id":36,"name":"2036","page_note":"54","source":"CUSTOM","raw_name":"2036 (pag. 54) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":32.0},{"code":"AS 65","name":"AS 65 - RED","dose":0.5},{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":7.5}],"total":40.0,"flags":[],"duplicate_of":null},{"id":37,"name":"2123","page_note":"123","source":"CUSTOM","raw_name":"2123 (pag.123) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":35.0},{"code":"AS 25","name":"AS 25 - BLUE","dose":1.36},{"code":"AS 15","name":"AS 15 - VIOLET","dose":2.68},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":0.94}],"total":39.98,"flags":[],"duplicate_of":null},{"id":38,"name":"2130","page_note":"121","source":"CUSTOM","raw_name":"2130 (pag.121) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":29.4},{"code":"AS 25","name":"AS 25 - BLUE","dose":2.9},{"code":"AS 15","name":"AS 15 - VIOLET","dose":5.7},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":2.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":39,"name":"2132 ― ex2727","page_note":"121","source":"SICO","raw_name":"2132 (pag.121) ― ex2727 (pag. 126) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":21.084},{"code":"AS 25","name":"AS 25 - BLUE","dose":2.908},{"code":"AS 15","name":"AS 15 - VIOLET","dose":5.712},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":2.0},{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":8.296}],"total":40.0,"flags":[],"duplicate_of":null},{"id":40,"name":"2237","page_note":"","source":"","raw_name":"2237","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":37.0},{"code":"AS 65","name":"AS 65 - RED","dose":1.0},{"code":"AS 42","name":"AS 42 - YELLOW","dose":1.2},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":0.8}],"total":40.0,"flags":[],"duplicate_of":null},{"id":41,"name":"2252?","page_note":"182","source":"CUSTOM","raw_name":"2252? (pag. 182) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 34","name":"AS 35 - GREEN","dose":11.85},{"code":"AS 90","name":"AS 90 - WHITE","dose":17.77},{"code":"AS 40","name":"AS 40 - YELLOW","dose":10.38}],"total":40.0,"flags":[],"duplicate_of":"3405"},{"id":42,"name":"2363","page_note":"74","source":"CUSTOM","raw_name":"2363 (pag. 74) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":39.43},{"code":"AS 65","name":"AS 65 - RED","dose":0.57}],"total":40.0,"flags":[],"duplicate_of":null},{"id":43,"name":"2418? ― ex7480","page_note":"183","source":"SICO","raw_name":"2418? (pag. 183) ― ex7480 (pag. 186) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 34","name":"AS 35 - GREEN","dose":27.16},{"code":"AS 40","name":"AS 40 - YELLOW","dose":12.72},{"code":"AS 100","name":"AS 100 - BLACK","dose":0.12}],"total":40.0,"flags":[],"duplicate_of":null},{"id":44,"name":"2965 ― ex540","page_note":"133","source":"SICO","raw_name":"2965 (pag.133) ― ex540 (pag. 131) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":14.424},{"code":"AS 25","name":"AS 25 - BLUE","dose":12.628},{"code":"AS 100","name":"AS 100 - BLACK","dose":2.048},{"code":"AS 65","name":"AS 65 - RED","dose":4.924},{"code":"AS 15","name":"AS 15 - VIOLET","dose":4.34},{"code":"AS 40","name":"AS 40 - YELLOW","dose":1.636}],"total":40.0,"flags":[],"duplicate_of":null},{"id":45,"name":"2965 DEF ― ex2965B","page_note":"?","source":"","raw_name":"2965 DEF (pag.?) ― ex2965B","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":10.3},{"code":"AS 25","name":"AS 25 - BLUE","dose":10.0},{"code":"AS 100","name":"AS 100 - BLACK","dose":6.0},{"code":"AS 65","name":"AS 65 - RED","dose":7.2},{"code":"AS 15","name":"AS 15 - VIOLET","dose":4.0},{"code":"AS 40","name":"AS 40 - YELLOW","dose":2.5}],"total":40.0,"flags":[],"duplicate_of":null},{"id":46,"name":"3125","page_note":"153","source":"CUSTOM","raw_name":"3125 (pag. 153) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":22.37},{"code":"AS 25","name":"AS 25 - BLUE","dose":12.83},{"code":"AS 40","name":"AS 40 - YELLOW","dose":4.8}],"total":40.0,"flags":[],"duplicate_of":null},{"id":47,"name":"3298","page_note":"168","source":"CUSTOM","raw_name":"3298 (pag. 168) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":12.0},{"code":"AS 100","name":"AS 100 - BLACK","dose":2.0},{"code":"AS 25","name":"AS 25 - BLUE","dose":3.0},{"code":"AS 40","name":"AS 40 - YELLOW","dose":11.0},{"code":"AS 34","name":"AS 35 - GREEN","dose":12.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":48,"name":"3298 B","page_note":"?","source":"CUSTOM","raw_name":"3298 B (pag. ?) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 34","name":"AS 35 - GREEN","dose":12.0},{"code":"AS 90","name":"AS 90 - WHITE","dose":11.0},{"code":"AS 100","name":"AS 100 - BLACK","dose":3.0},{"code":"AS 25","name":"AS 25 - BLUE","dose":3.0},{"code":"AS 40","name":"AS 40 - YELLOW","dose":11.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":49,"name":"3298 C","page_note":"?","source":"CUSTOM","raw_name":"3298 C (pag. ?) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 34","name":"AS 35 - GREEN","dose":12.0},{"code":"AS 90","name":"AS 90 - WHITE","dose":10.0},{"code":"AS 100","name":"AS 100 - BLACK","dose":4.0},{"code":"AS 25","name":"AS 25 - BLUE","dose":3.0},{"code":"AS 40","name":"AS 40 - YELLOW","dose":11.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":50,"name":"3305","page_note":"167","source":"CUSTOM","raw_name":"3305 (pag. 167) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":22.0},{"code":"AS 100","name":"AS 100 - BLACK","dose":3.9},{"code":"AS 25","name":"AS 25 - BLUE","dose":2.1},{"code":"AS 34","name":"AS 35 - GREEN","dose":5.0},{"code":"AS 40","name":"AS 40 - YELLOW","dose":7.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":51,"name":"3405","page_note":"181","source":"CUSTOM","raw_name":"3405 (pag. 181) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 34","name":"AS 35 - GREEN","dose":11.85},{"code":"AS 90","name":"AS 90 - WHITE","dose":17.77},{"code":"AS 40","name":"AS 40 - YELLOW","dose":10.38}],"total":40.0,"flags":[],"duplicate_of":"2252?"},{"id":52,"name":"3506 U","page_note":"S9 U","source":"SICO","raw_name":"3506 U (pag. S9 U) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 25","name":"AS 25 - BLUE","dose":6.332},{"code":"AS 15","name":"AS 15 - VIOLET","dose":6.244},{"code":"AS 100","name":"AS 100 - BLACK","dose":0.464},{"code":"AS 90","name":"AS 90 - WHITE","dose":23.112},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":3.848}],"total":40.0,"flags":["as90_code_fixed"],"duplicate_of":null},{"id":53,"name":"5645 U","page_note":"174","source":"SICO","raw_name":"5645 U (pag. 174) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":37.308},{"code":"AS 42","name":"AS 42 - YELLOW","dose":1.188},{"code":"AS 100","name":"AS 100 - BLACK","dose":0.952},{"code":"AS 34","name":"AS 35 - GREEN","dose":0.552}],"total":40.0,"flags":["as90_code_fixed"],"duplicate_of":null},{"id":54,"name":"7458 U","page_note":"145","source":"SICO","raw_name":"7458 U (pag. 145) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":36.396},{"code":"AS 25","name":"AS 25 - BLUE","dose":1.652},{"code":"AS 15","name":"AS 15 - VIOLET","dose":0.736},{"code":"AS 100","name":"AS 100 - BLACK","dose":0.3},{"code":"AS 34","name":"AS 35 - GREEN","dose":0.916}],"total":40.0,"flags":[],"duplicate_of":null},{"id":55,"name":"7546 U","page_note":"111","source":"SICO","raw_name":"7546 U (pag. 111) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":31.38},{"code":"AS 100","name":"AS 100 - BLACK","dose":6.196},{"code":"AS 25","name":"AS 25 - BLUE","dose":0.808},{"code":"AS 15","name":"AS 15 - VIOLET","dose":1.616}],"total":40.0,"flags":["as90_code_fixed"],"duplicate_of":null},{"id":56,"name":"7744","page_note":"207","source":"SICO","raw_name":"7744 (pag. 207) SICO","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 42","name":"AS 42 - YELLOW","dose":19.376},{"code":"AS 25","name":"AS 25 - BLUE","dose":0.704},{"code":"AS 90","name":"AS 90 - WHITE","dose":19.856},{"code":"AS 100","name":"AS 100 - BLACK","dose":0.064}],"total":40.0,"flags":["as90_code_fixed"],"duplicate_of":null},{"id":57,"name":"Rosa chiaro (BERTON)","page_note":"","source":"CUSTOM","raw_name":"Rosa chiaro (BERTON) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 65","name":"AS 65 - RED","dose":0.5},{"code":"AS 90","name":"AS 90 - WHITE","dose":32.0},{"code":"AS 150","name":"AS 150 - TRANSPARENT BASE","dose":7.48}],"total":39.98,"flags":[],"duplicate_of":null},{"id":58,"name":"Bordeaux (BERTON)","page_note":"","source":"CUSTOM","raw_name":"Bordeaux (BERTON) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 22","name":"AS 22 - BLUE","dose":4.1256},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":35.8744}],"total":40.0,"flags":[],"duplicate_of":null},{"id":59,"name":"Viola scuro (BERTON)","page_note":"","source":"CUSTOM","raw_name":"Viola scuro (BERTON) CUSTOM","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 22","name":"AS 22 - BLUE","dose":18.0},{"code":"AS 75","name":"AS 75 - MAGENTA","dose":22.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":60,"name":"366 (ex577B)","page_note":"","source":"","raw_name":"366 (ex577B)","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":20.0},{"code":"AS 34","name":"AS 35 - GREEN","dose":1.5},{"code":"AS 40","name":"AS 40 - YELLOW","dose":17.5},{"code":"AS 42","name":"AS 42 - YELLOW","dose":1.0}],"total":40.0,"flags":[],"duplicate_of":"577B"},{"id":61,"name":"7480 GOOD","page_note":"","source":"","raw_name":"7480 GOOD","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":17.3},{"code":"AS 34","name":"AS 35 - GREEN","dose":10.0},{"code":"AS 40","name":"AS 40 - YELLOW","dose":12.7}],"total":40.0,"flags":[],"duplicate_of":null},{"id":62,"name":"1406 RED PROTO V1","page_note":"","source":"","raw_name":"1406 RED PROTO V1","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 133","name":"AS 133 - RED FLUO (copy)","dose":19.0},{"code":"AS 75","name":"AS 75 - MAGENTA (copy)","dose":15.0},{"code":"AS 90","name":"AS 90 - WHITE (copy)","dose":6.0}],"total":40.0,"flags":[],"duplicate_of":null},{"id":63,"name":"278 AZZURRO PROTO V1","page_note":"","source":"","raw_name":"278 AZZURRO PROTO V1","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":36.3},{"code":"AS 25","name":"AS 25 - BLUE","dose":2.8},{"code":"AS 15","name":"AS 15 - VIOLET","dose":0.9}],"total":40.0,"flags":[],"duplicate_of":null},{"id":64,"name":"Rosino Risanamento 25 A","page_note":"","source":"","raw_name":"Rosino Risanamento 25 A","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":20.0},{"code":"AS 40","name":"AS 40 - YELLOW","dose":4.0}],"total":24.0,"flags":["not_40g"],"duplicate_of":null},{"id":65,"name":"Rosino Risanamento 25 B (def)","page_note":"","source":"","raw_name":"Rosino Risanamento 25 B (def)","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 90","name":"AS 90 - WHITE","dose":27.0},{"code":"AS 40","name":"AS 40 - YELLOW","dose":4.0}],"total":31.0,"flags":["not_40g"],"duplicate_of":null},{"id":66,"name":"PESCA (D) BERTON RISANAMENTO 24","page_note":"","source":"","raw_name":"PESCA (D) BERTON RISANAMENTO 24","notes":"","corrected_to_40g":false,"inks":[{"code":"AS 75","name":"AS 75 - MAGENTA","dose":2.0},{"code":"AS 42","name":"AS 42 - YELLOW","dose":3.0},{"code":"AS 65","name":"AS 65 - RED","dose":3.0},{"code":"AS 90","name":"AS 90 - WHITE","dose":32.0}],"total":40.0,"flags":[],"duplicate_of":null}];
+
+// Normalize ink code: strip spaces, uppercase, apply known aliases
+function txNormCode(c){
+  const s=String(c||'').trim().toUpperCase().replace(/\s+/g,'');
+  if(s==='AS91')return'AS90';
+  if(s==='AS35')return'AS34';
+  return s;
+}
+
+// Normalize formula to percentage map {normCode: pct}
+function txNormInks(inks){
+  const getDose=k=>k.dose!=null?+k.dose:parseFloat(k['Dose_40g (g)'])||0;
+  const total=inks.reduce((s,k)=>s+getDose(k),0);
+  if(!total)return{};
+  const m={};
+  for(const ink of inks){
+    const code=txNormCode(ink.code||ink.Inchiostro||'');
+    if(code)m[code]=(m[code]||0)+getDose(ink)/total*100;
+  }
+  return m;
+}
+
+// Compare two normalized formula maps → {score 0-100, diffs per code}
+function txCompare(a,b){
+  const codes=new Set([...Object.keys(a),...Object.keys(b)]);
+  let sum=0;const diffs={};
+  for(const c of codes){const d=Math.abs((a[c]||0)-(b[c]||0));diffs[c]=d;sum+=d;}
+  return{score:Math.round(Math.max(0,100-sum/2)*10)/10,diffs};
+}
+
+// Parse Monday name like "190 ― ex708 U" or "196?" → {newCode, oldCode, uncertain}
+function txParseName(name){
+  const m=name.match(/^(.+?)\s*[\u2015\u2014\u2013\-]{1,2}\s*ex\s*(.+)$/i);
+  if(m)return{newCode:m[1].trim().replace(/\?$/,''),oldCode:m[2].trim(),uncertain:m[1].includes('?')};
+  return{newCode:name.replace(/\?$/,'').trim(),oldCode:null,uncertain:name.includes('?')};
+}
+
+// Find best matching recipe in allRicette for given Monday inks
+function txFindMatch(mfInks){
+  if(!mfInks||!mfInks.length)return null;
+  const mfNorm=txNormInks(mfInks);
+  if(!Object.keys(mfNorm).length)return null;
+  let best=null;
+  for(const r of allRicette){
+    const comps=allComponenti.filter(c=>String(c.Pantone_ID)===String(r.Pantone_ID));
+    if(!comps.length)continue;
+    const rNorm=txNormInks(comps);
+    const{score,diffs}=txCompare(mfNorm,rNorm);
+    if(!best||score>best.score)best={r,score,diffs,comps};
+  }
+  return best;
+}
+
+function TransferGroup({label,color,items,selected,onSelect,matchMap}){
+  const[open,setOpen]=React.useState(true);
+  if(!items.length)return null;
+  return(
+    <div>
+      <div onClick={()=>setOpen(o=>!o)} style={{padding:'10px 18px',display:'flex',alignItems:'center',gap:8,cursor:'pointer',borderBottom:'1px solid rgba(0,0,0,0.07)',background:'rgba(0,0,0,0.025)',userSelect:'none'}}>
+        <span style={{fontFamily:'Nebulica',fontSize:10,fontWeight:700,letterSpacing:1.3,color}}>{label.toUpperCase()}</span>
+        <span style={{marginLeft:'auto',fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'rgba(0,0,0,0.35)'}}>{items.length} {open?'▾':'▸'}</span>
+      </div>
+      {open&&items.map(mf=>{
+        const isSel=selected===mf.id;
+        const m=matchMap[mf.id];
+        return(
+          <div key={mf.id} onClick={()=>onSelect(isSel?null:mf.id)}
+            style={{padding:'10px 18px 9px',cursor:'pointer',borderBottom:'1px solid rgba(0,0,0,0.05)',background:isSel?'rgba(0,0,0,0.07)':'transparent',display:'flex',alignItems:'flex-start',gap:8,transition:'background .12s'}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,color:'#0B0B0B',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{mf.name}</div>
+              <div style={{fontFamily:'Nebulica',fontSize:10,color:'rgba(0,0,0,0.42)',marginTop:2}}>
+                {m&&m.score>=95?<span style={{color:'#16A34A'}}>✓ {m.r.Pantone_ID}</span>
+                :m&&m.score>=60?<span style={{color:'#D97706'}}>≈ {m.r.Pantone_ID} ({m.score}%)</span>
+                :<span>nessun match</span>}
+              </div>
+            </div>
+            <div style={{display:'flex',gap:4,flexShrink:0,paddingTop:2}}>
+              {mf.flags.includes('corrected_to_40g')&&<span title="Formula corretta a 40g">⚡</span>}
+              {mf.flags.includes('as90_code_fixed')&&<span title="Codice AS90 corretto">🔧</span>}
+              {mf.flags.includes('not_40g')&&<span title="Totale ≠ 40g" style={{color:'#EF4444'}}>⚠</span>}
+              {mf.name.includes('?')&&<span title="Codice incerto" style={{color:'#EF4444',fontWeight:700,fontSize:11}}>?</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TransferDetail({formula,match,onImported}){
+  const{newCode,oldCode,uncertain}=txParseName(formula.name);
+  const[form,setForm]=React.useState({
+    pantoneId:newCode,
+    hex:'',
+    categoria:'Serigrafica',
+    copertura:'',
+    pagina:formula.page_note||'',
+    note:oldCode?'ex '+oldCode:'',
+    progetti:'',
+  });
+  const[saving,setSaving]=React.useState(false);
+  const[saved,setSaved]=React.useState(false);
+  const[saveErr,setSaveErr]=React.useState('');
+  const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
+
+  async function handleImport(){
+    if(!form.pantoneId.trim()){setSaveErr('Codice Pantone obbligatorio');return;}
+    if(!form.hex.trim()){setSaveErr('HEX obbligatorio');return;}
+    setSaving(true);setSaveErr('');
+    try{
+      const componenti=formula.inks.map(ink=>({Inchiostro:ink.code,'Dose_40g (g)':ink.dose}));
+      await postGAS({action:'addRicetta',Pantone_ID:form.pantoneId.trim(),HEX:form.hex.replace('#',''),Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Pagina:form.pagina,Progetti:form.progetti,componenti});
+      allRicette.push({Pantone_ID:form.pantoneId.trim(),HEX:form.hex.replace('#',''),Categoria:form.categoria,Copertura:form.copertura,Note:form.note,Pagina:form.pagina,Progetti:form.progetti});
+      componenti.forEach(c=>allComponenti.push({Pantone_ID:form.pantoneId.trim(),...c}));
+      window._bumpData?.();
+      setSaved(true);onImported();
+    }catch(e){setSaveErr(String(e));}
+    finally{setSaving(false);}
+  }
+
+  // All ink codes involved in both Monday and app formula (for comparison table)
+  const allCompCodes=React.useMemo(()=>{
+    const mfNorm=txNormInks(formula.inks);
+    const rNorm=match?txNormInks(match.comps):{};
+    return [...new Set([...Object.keys(mfNorm),...Object.keys(rNorm)])].sort();
+  },[formula.id,match]);
+
+  const mfNorm=React.useMemo(()=>txNormInks(formula.inks),[formula.id]);
+  const rNorm=React.useMemo(()=>match?txNormInks(match.comps):{},[match]);
+
+  const inputStyle={width:'100%',height:38,borderRadius:10,border:'1.5px solid rgba(0,0,0,0.18)',padding:'0 12px',fontFamily:'Nebulica',fontSize:13,outline:'none',boxSizing:'border-box',background:'#FAFAFA'};
+  const labelStyle={fontFamily:'Nebulica',fontSize:9,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.42)',marginBottom:5};
+
+  return(
+    <div style={{maxWidth:660}}>
+      {/* Name + badges */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontFamily:'Nebulica',fontSize:22,fontWeight:700,letterSpacing:-0.5,color:'#0B0B0B',marginBottom:8}}>{formula.name}</div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          {formula.source&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'rgba(0,0,0,0.45)',background:'rgba(0,0,0,0.07)',padding:'3px 9px',borderRadius:99}}>{formula.source}</span>}
+          {formula.page_note&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'rgba(0,0,0,0.45)',background:'rgba(0,0,0,0.07)',padding:'3px 9px',borderRadius:99}}>pag. {formula.page_note}</span>}
+          {uncertain&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#EF4444',background:'rgba(239,68,68,0.1)',padding:'3px 9px',borderRadius:99}}>⚠ CODICE INCERTO</span>}
+          {formula.flags.includes('corrected_to_40g')&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#D97706',background:'rgba(217,119,6,0.1)',padding:'3px 9px',borderRadius:99}}>⚡ CORRETTA A 40g</span>}
+          {formula.flags.includes('as90_code_fixed')&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#8B5CF6',background:'rgba(139,92,246,0.1)',padding:'3px 9px',borderRadius:99}}>🔧 AS90 CORRETTO</span>}
+          {formula.flags.includes('not_40g')&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#EF4444',background:'rgba(239,68,68,0.1)',padding:'3px 9px',borderRadius:99}}>⚠ TOTALE {formula.total.toFixed(2)}g ≠ 40g</span>}
+          {formula.duplicate_of&&<span style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.3,fontWeight:700,color:'#F59E0B',background:'rgba(245,158,11,0.1)',padding:'3px 9px',borderRadius:99}}>DUPLICATO DI: {formula.duplicate_of}</span>}
+        </div>
+      </div>
+
+      {/* Formula Monday */}
+      <div style={{marginBottom:22,background:'rgba(0,0,0,0.03)',borderRadius:14,padding:'16px 18px'}}>
+        <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'rgba(0,0,0,0.38)',marginBottom:10}}>FORMULA MONDAY · {formula.inks.length} INCHIOSTRI · Σ {formula.total.toFixed(3)}g</div>
+        {formula.inks.map(ink=>{
+          const pct=(ink.dose/formula.total*100);
+          return(
+            <div key={ink.code+ink.dose} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 0',borderTop:'1px solid rgba(0,0,0,0.06)'}}>
+              <div style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,background:'#0B0B0B',color:'#fff',padding:'3px 10px',borderRadius:99,minWidth:56,textAlign:'center',flexShrink:0}}>{ink.code}</div>
+              <div style={{flex:1,height:3,borderRadius:99,background:'rgba(0,0,0,0.08)'}}>
+                <div style={{width:pct+'%',height:'100%',borderRadius:99,background:'#0B0B0B',minWidth:2}}/>
+              </div>
+              <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,minWidth:58,textAlign:'right'}}>{ink.dose.toFixed(3)}<span style={{fontSize:9,opacity:0.45,marginLeft:2}}>g</span></div>
+              <div style={{fontFamily:'Nebulica',fontSize:10,color:'rgba(0,0,0,0.38)',minWidth:36,textAlign:'right'}}>{pct.toFixed(1)}%</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Match analysis */}
+      {match&&(
+        <div style={{marginBottom:22,borderRadius:14,padding:'16px 18px',background:match.score>=95?'rgba(34,197,94,0.07)':match.score>=60?'rgba(245,158,11,0.07)':'rgba(0,0,0,0.04)',border:`1px solid ${match.score>=95?'rgba(34,197,94,0.22)':match.score>=60?'rgba(245,158,11,0.22)':'rgba(0,0,0,0.09)'}`}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+            <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:match.score>=95?'#16A34A':match.score>=60?'#D97706':'rgba(0,0,0,0.5)'}}>
+              {match.score>=99?'✅ MATCH AL 100%':match.score>=95?`✅ MATCH AL ${match.score}%`:match.score>=60?`≈ SIMILE AL ${match.score}%`:`${match.score}% — non è un match`}
+            </div>
+            <div style={{fontFamily:'Nebulica',fontSize:12,color:'rgba(0,0,0,0.5)'}}>→ {match.r.Pantone_ID}</div>
+          </div>
+          <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.6)',marginBottom:12,lineHeight:1.6}}>
+            {match.score>=99&&'Formula identica. Quasi certamente già presente nell'app come '+match.r.Pantone_ID+'.'}
+            {match.score>=95&&match.score<99&&'Formula quasi identica (piccole differenze di arrotondamento). Probabilmente già importata.'}
+            {match.score>=70&&match.score<95&&'Composizione simile. Verifica se è la stessa ricetta con piccole variazioni intenzionali.'}
+            {match.score>=60&&match.score<70&&'Composizione in parte simile. Potrebbe essere una versione diversa dello stesso colore.'}
+            {match.score<60&&'Formule molto diverse. Non sembra lo stesso colore.'}
+          </div>
+          {/* Comparison table */}
+          <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr auto',gap:'3px 12px',alignItems:'center'}}>
+            {['INCHIOSTRO','MONDAY','APP','DIFF'].map(h=>(
+              <div key={h} style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.2,fontWeight:700,color:'rgba(0,0,0,0.38)',paddingBottom:4}}>{h}</div>
+            ))}
+            {allCompCodes.map(code=>{
+              const mPct=mfNorm[code]||0;
+              const rPct=rNorm[code]||0;
+              const diff=Math.abs(mPct-rPct);
+              const isGood=diff<0.5,isWarn=diff>=0.5&&diff<5,isBad=diff>=5;
+              return(
+                <React.Fragment key={code}>
+                  <div style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700}}>{code}</div>
+                  <div style={{fontFamily:'Nebulica',fontSize:11,color:mPct===0?'rgba(0,0,0,0.25)':'rgba(0,0,0,0.7)'}}>{mPct.toFixed(1)}%</div>
+                  <div style={{fontFamily:'Nebulica',fontSize:11,color:rPct===0?'rgba(0,0,0,0.25)':'rgba(0,0,0,0.7)'}}>{rPct.toFixed(1)}%</div>
+                  <div style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:isBad?'#EF4444':isWarn?'#D97706':'#22C55E'}}>{isGood?'✓':'±'+diff.toFixed(1)+'%'}</div>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Action: if already matched at ≥95%, show confirm button; else show import form */}
+      {saved?(
+        <div style={{background:'rgba(34,197,94,0.09)',borderRadius:14,padding:'18px 20px',border:'1px solid rgba(34,197,94,0.22)',textAlign:'center'}}>
+          <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#16A34A'}}>✅ Ricetta importata</div>
+          <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:5}}>{form.pantoneId} salvata nel foglio Ricette</div>
+        </div>
+      ):match&&match.score>=95?(
+        <div style={{background:'rgba(34,197,94,0.07)',borderRadius:14,padding:'16px 18px',border:'1px solid rgba(34,197,94,0.18)',display:'flex',alignItems:'center',gap:14}}>
+          <div style={{flex:1}}>
+            <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:'#16A34A'}}>Formula già in app come {match.r.Pantone_ID}</div>
+            <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:4}}>Segna come fatto se hai verificato che è corretta.</div>
+          </div>
+          <button onClick={onImported} style={{padding:'10px 18px',borderRadius:99,background:'#22C55E',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>Segna fatto ✓</button>
+        </div>
+      ):(
+        <div style={{background:'#fff',borderRadius:16,padding:'22px',border:'1px solid rgba(0,0,0,0.1)'}}>
+          <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:0.3,marginBottom:16,color:'#0B0B0B'}}>Importa come nuova ricetta</div>
+          <div style={{marginBottom:12}}>
+            <div style={labelStyle}>CODICE PANTONE *</div>
+            <input value={form.pantoneId} onChange={e=>setF('pantoneId',e.target.value)} style={inputStyle} placeholder="es. 116 U"/>
+            {uncertain&&<div style={{fontFamily:'Nebulica',fontSize:10,color:'#D97706',marginTop:4}}>⚠ Il codice nel Monday ha "?" — verifica sulla mazzetta Pantone prima di salvare</div>}
+          </div>
+          <div style={{marginBottom:12,display:'flex',gap:8,alignItems:'flex-end'}}>
+            <div style={{flex:1}}>
+              <div style={labelStyle}>COLORE HEX *</div>
+              <input value={form.hex} onChange={e=>setF('hex',e.target.value)} style={inputStyle} placeholder="#FFCC00"/>
+            </div>
+            <input type="color" value={form.hex&&form.hex.startsWith('#')&&form.hex.length>=4?form.hex:'#888888'} onChange={e=>setF('hex',e.target.value)} style={{width:38,height:38,borderRadius:8,border:'1.5px solid rgba(0,0,0,0.18)',padding:2,cursor:'pointer',flexShrink:0}}/>
+            <div style={{width:38,height:38,borderRadius:8,background:form.hex||'rgba(0,0,0,0.1)',flexShrink:0,border:'1px solid rgba(0,0,0,0.1)'}}/>
+          </div>
+          <div style={{marginBottom:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div>
+              <div style={labelStyle}>CATEGORIA</div>
+              <select value={form.categoria} onChange={e=>setF('categoria',e.target.value)} style={{...inputStyle,cursor:'pointer'}}>
+                {['Serigrafica','Custom','Speciale','Pantone'].map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={labelStyle}>COPERTURA</div>
+              <select value={form.copertura} onChange={e=>setF('copertura',e.target.value)} style={{...inputStyle,cursor:'pointer'}}>
+                <option value="">—</option>
+                {['Alta','Media','Bassa'].map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{marginBottom:12,display:'grid',gridTemplateColumns:'80px 1fr',gap:10}}>
+            <div>
+              <div style={labelStyle}>PAGINA</div>
+              <input value={form.pagina} onChange={e=>setF('pagina',e.target.value)} style={inputStyle} placeholder="42"/>
+            </div>
+            <div>
+              <div style={labelStyle}>NOTE (vecchio nome)</div>
+              <input value={form.note} onChange={e=>setF('note',e.target.value)} style={inputStyle} placeholder="es. ex 116 U"/>
+            </div>
+          </div>
+          {saveErr&&<div style={{fontFamily:'Nebulica',fontSize:11,color:'#EF4444',marginBottom:10,padding:'8px 12px',background:'rgba(239,68,68,0.07)',borderRadius:8}}>{saveErr}</div>}
+          <button onClick={handleImport} disabled={saving} style={{height:44,borderRadius:99,background:saving?'rgba(0,0,0,0.3)':'#0B0B0B',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:14,fontWeight:700,width:'100%',cursor:saving?'default':'pointer',transition:'background .2s'}}>
+            {saving?'Salvataggio…':'Importa ricetta →'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TransferPanel(){
+  const[selected,setSelected]=React.useState(null);
+  const[done,setDone]=React.useState(()=>{
+    try{return new Set(JSON.parse(sessionStorage.getItem('tx_done')||'[]'));}
+    catch{return new Set();}
+  });
+  const markDone=(id)=>setDone(prev=>{const n=new Set(prev);n.add(id);sessionStorage.setItem('tx_done',JSON.stringify([...n]));return n;});
+
+  const matchMap=React.useMemo(()=>{
+    const m={};
+    for(const mf of MONDAY_FORMULAS)m[mf.id]=txFindMatch(mf.inks);
+    return m;
+  },[allRicette.length,allComponenti.length]);
+
+  const{confirmed,todo,problems}=React.useMemo(()=>{
+    const confirmed=[],todo=[],problems=[];
+    for(const mf of MONDAY_FORMULAS){
+      if(done.has(mf.id)){confirmed.push(mf);continue;}
+      if(mf.flags.includes('not_40g')||mf.duplicate_of){problems.push(mf);continue;}
+      const m=matchMap[mf.id];
+      if(m&&m.score>=95){confirmed.push(mf);continue;}
+      todo.push(mf);
+    }
+    return{confirmed,todo,problems};
+  },[matchMap,done]);
+
+  const sel=selected?MONDAY_FORMULAS.find(f=>f.id===selected):null;
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'#F4EFE2',display:'flex',flexDirection:'column',fontFamily:'Nebulica,Arial,sans-serif',zIndex:9999}}>
+      <div style={{height:58,display:'flex',alignItems:'center',padding:'0 28px',borderBottom:'1.5px solid rgba(0,0,0,0.09)',flexShrink:0,gap:14,background:'#F4EFE2'}}>
+        <a href="/" style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,letterSpacing:0.8,color:'rgba(0,0,0,0.45)',textDecoration:'none'}}>← APP</a>
+        <div style={{width:1,height:16,background:'rgba(0,0,0,0.14)'}}/>
+        <span style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,letterSpacing:-0.2}}>Trasferimento formule Monday</span>
+        <div style={{marginLeft:'auto',display:'flex',gap:18,alignItems:'center'}}>
+          <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#16A34A'}}>✅ {confirmed.length}</span>
+          <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#D97706'}}>🔶 {todo.length}</span>
+          <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#EF4444'}}>⚠️ {problems.length}</span>
+          <span style={{fontFamily:'Nebulica',fontSize:10,color:'rgba(0,0,0,0.3)',fontWeight:700,background:'rgba(0,0,0,0.06)',padding:'3px 9px',borderRadius:99}}>{MONDAY_FORMULAS.length} TOTALI</span>
+        </div>
+      </div>
+      <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+        <div style={{width:290,borderRight:'1.5px solid rgba(0,0,0,0.09)',overflowY:'auto',flexShrink:0,background:'rgba(255,255,255,0.35)'}}>
+          <TransferGroup label="✅ Già in app / Fatto" color="#16A34A" items={confirmed} selected={selected} onSelect={setSelected} matchMap={matchMap}/>
+          <TransferGroup label="🔶 Da importare" color="#D97706" items={todo} selected={selected} onSelect={setSelected} matchMap={matchMap}/>
+          <TransferGroup label="⚠️ Problemi" color="#EF4444" items={problems} selected={selected} onSelect={setSelected} matchMap={matchMap}/>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:'32px 40px'}}>
+          {sel
+            ?<TransferDetail key={sel.id} formula={sel} match={matchMap[sel.id]} onImported={()=>markDone(sel.id)}/>
+            :<div style={{color:'rgba(0,0,0,0.28)',fontFamily:'Nebulica',fontSize:13,paddingTop:100,textAlign:'center',letterSpacing:0.5}}>← seleziona una formula dalla lista</div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function App() {
   const [status, setStatus] = React.useState('loading');
   const [dataVer, setDataVer] = React.useState(0);
   const [isMobile] = React.useState(()=>window.innerWidth<1024);
   const kioskCode = React.useMemo(()=>{ const p=new URLSearchParams(window.location.search); return p.get('pantone')||null; },[]);
+  const isTransfer = React.useMemo(()=>new URLSearchParams(window.location.search).has('transfer'),[]);
 
   const doLoad = React.useCallback(()=>{
     setStatus('loading');
@@ -3805,6 +4140,7 @@ function App() {
   if(status==='loading') return <LoadingScreen/>;
   if(status==='error') return <ErrorScreen onRetry={doLoad}/>;
   if(kioskCode) return <KioskView rawCode={kioskCode}/>;
+  if(isTransfer) return <TransferPanel/>;
 
   if(isMobile) {
     return <MobileApp/>;
