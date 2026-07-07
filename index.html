@@ -1074,12 +1074,12 @@ function ensureHexPickerKf() {
 
 function HexPickerSheet({open, onClose, pantoneId, onSelect, currentHex, theme}) {
   const [manualHex, setManualHex] = React.useState('');
-  const [popStates, setPopStates] = React.useState([false, false]);
+  const [popStates, setPopStates] = React.useState([false, false, false]);
   const [pickedIdx, setPickedIdx] = React.useState(null);
   ensureHexPickerKf();
 
   React.useEffect(() => {
-    if (!open) { setPopStates([false, false]); setPickedIdx(null); return; }
+    if (!open) { setPopStates([false, false, false]); setPickedIdx(null); return; }
     if (!pantoneId) return;
     const saved = localStorage.getItem('icoHex_'+pantoneId);
     setManualHex(saved||'');
@@ -1087,29 +1087,31 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, currentHex, theme})
 
   React.useEffect(() => {
     if (!open) return;
-    const t0 = setTimeout(() => setPopStates(s => [true, s[1]]), 80);
-    const t1 = setTimeout(() => setPopStates(s => [s[0], true]), 220);
-    return () => { clearTimeout(t0); clearTimeout(t1); };
+    const t0 = setTimeout(() => setPopStates(s => [true, s[1], s[2]]), 80);
+    const t1 = setTimeout(() => setPopStates(s => [s[0], true, s[2]]), 200);
+    const t2 = setTimeout(() => setPopStates(s => [s[0], s[1], true]), 320);
+    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); };
   }, [open]);
 
   const dbHex = PANTONE_DB[pantoneId] ? '#' + PANTONE_DB[pantoneId] : null;
   const icoUrl = pantoneId ? 'https://icolorpalette.com/color/pantone-' + pantoneId.toLowerCase().replace(/\s+/g,'-') : null;
+  const chromaUrl = pantoneId ? 'https://www.chromafinder.com/search/?q=pantone+' + pantoneId.toLowerCase().replace(/\s+/g,'+') : null;
   const manV = manualHex.replace('#','');
   const manValid = /^[0-9A-Fa-f]{6}$/.test(manV);
   const curHexNorm = currentHex ? '#'+currentHex.replace('#','').toUpperCase() : null;
   const isCurrentDb  = !!(curHexNorm && dbHex   && curHexNorm.toUpperCase() === dbHex.toUpperCase());
-  const isCurrentIco = !!(curHexNorm && manValid && curHexNorm.toUpperCase() === ('#'+manV).toUpperCase());
+  const isCurrentMan = !!(curHexNorm && manValid && curHexNorm.toUpperCase() === ('#'+manV).toUpperCase());
 
   function doPick(idx, cb) {
     setPickedIdx(idx);
     setTimeout(() => { cb(); }, 650);
   }
 
-  function Card({hex, label, rotate, dy, loading, isLink, url, onPick, popped, idx, isCurrentHex}) {
+  function Card({hex, label, rotate, dy, loading, isLink, url, onPick, popped, idx, isCurrentHex, size}) {
     const valid = hex && /^#?[0-9A-Fa-f]{6}$/.test(hex.replace('#',''));
     const h = valid ? '#' + hex.replace('#','').toUpperCase() : null;
     const fg = h ? textOnDesk(h.replace('#','')) : '#888';
-    const SIZE = 136;
+    const SIZE = size || 136;
     const showColor = h;
     const isPicked = pickedIdx === idx;
     const isFaded  = pickedIdx !== null && pickedIdx !== idx;
@@ -1207,21 +1209,24 @@ function HexPickerSheet({open, onClose, pantoneId, onSelect, currentHex, theme})
           {pantoneId} — tocca una card per applicare il colore
         </div>
 
-        <div style={{display:'flex',justifyContent:'center',alignItems:'flex-end',gap:32,marginBottom:32,paddingBottom:6}}>
-          <Card hex={dbHex} label="Database app" rotate="-12deg" dy={14}
+        <div style={{display:'flex',justifyContent:'center',alignItems:'flex-end',gap:16,marginBottom:32,paddingBottom:6}}>
+          <Card size={112} hex={dbHex} label="Database app" rotate="-10deg" dy={12}
             popped={popStates[0]} idx={0} isCurrentHex={isCurrentDb}
             onPick={()=>{ onSelect(dbHex.replace('#','')); onClose(); }}/>
-          <Card isLink={!manValid} url={icoUrl} hex={manValid?'#'+manV:null} label="icolorpalette.com"
-            rotate="12deg" dy={14} popped={popStates[1]} idx={1} isCurrentHex={isCurrentIco}
+          <Card size={112} isLink={!manValid} url={icoUrl} hex={manValid?'#'+manV:null} label="icolorpalette"
+            rotate="0deg" dy={0} popped={popStates[1]} idx={1} isCurrentHex={isCurrentMan}
+            onPick={()=>{ onSelect(manV); onClose(); }}/>
+          <Card size={112} isLink={!manValid} url={chromaUrl} hex={manValid?'#'+manV:null} label="chromafinder"
+            rotate="10deg" dy={12} popped={popStates[2]} idx={2} isCurrentHex={isCurrentMan}
             onPick={()=>{ onSelect(manV); onClose(); }}/>
         </div>
 
         <div>
           <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.3,fontWeight:700,
-            color:theme.sub,marginBottom:7}}>HEX MANUALE → aggiorna card icolorpalette</div>
+            color:theme.sub,marginBottom:7}}>HEX DA SITO ESTERNO → incolla qui, poi tocca la card per applicare</div>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <input value={manualHex} onChange={e=>{const v=e.target.value;setManualHex(v);const mv=v.replace('#','');if(/^[0-9A-Fa-f]{6}$/.test(mv)&&pantoneId)localStorage.setItem('icoHex_'+pantoneId,mv);}}
-              placeholder="Incolla HEX da icolorpalette (es. EA60A7)"
+              placeholder="Incolla HEX da icolorpalette o chromafinder (es. EA60A7)"
               style={{flex:1,height:44,borderRadius:12,border:`1.5px solid ${theme.line}`,
                 padding:'0 14px',fontFamily:'"JetBrains Mono",monospace',fontSize:13,
                 background:theme.field||theme.panel||'#f5f5f5',color:theme.ink,
