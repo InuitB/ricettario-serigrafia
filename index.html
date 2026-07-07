@@ -4061,7 +4061,8 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
         {items.map(mf=>{
           const isSel=selected===mf.id;
           const{newCode:mfCode}=txParseName(mf.name);
-          const codeInApp=!!(mfCode&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=(r.Vecchio_Nome||'').trim().toLowerCase();return vn==='ex '+mfCode.trim().toLowerCase();}));
+          const _vnNorm1=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
+          const codeInApp=!!(mfCode&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm1(r.Vecchio_Nome||'');const mc=_vnNorm1(mfCode);return!!(vn&&mc&&vn===mc);}));
           const inApp=done.has(mf.id)||codeInApp;
           const st0=txState[mf.id]||{};
           const allVerified=!!(inApp&&st0.barattolo&&st0.codice&&st0.copertura&&st0.hex);
@@ -4475,7 +4476,8 @@ function TransferPanel(){
     const confirmed=[],todo=[],problems=[];
     for(const mf of MONDAY_FORMULAS){
       const{newCode:c}=txParseName(mf.name);
-      const codeMatch=!!(c&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=c.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=(r.Vecchio_Nome||'').trim().toLowerCase();return vn==='ex '+c.trim().toLowerCase();}));
+      const _vnNorm2=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
+      const codeMatch=!!(c&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=c.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);}));
       if(done.has(mf.id)||codeMatch){confirmed.push(mf);continue;}
       if(mf.flags.includes('not_40g')||mf.duplicate_of){problems.push(mf);continue;}
       todo.push(mf);
@@ -4491,7 +4493,8 @@ function TransferPanel(){
     if(activeFilter==='all')return true;
     const st=txState[mf.id]||{};
     const{newCode:mfCode2}=txParseName(mf.name);
-    const codeInApp2=!!(mfCode2&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode2.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=(r.Vecchio_Nome||'').trim().toLowerCase();return vn==='ex '+mfCode2.trim().toLowerCase();}));
+    const _vnNorm3=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
+    const codeInApp2=!!(mfCode2&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode2.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm3(r.Vecchio_Nome||'');const mc=_vnNorm3(mfCode2);return!!(vn&&mc&&vn===mc);}));
     const inApp=done.has(mf.id)||codeInApp2;
     if(activeFilter==='inapp')return inApp;
     if(activeFilter==='noapp')return !inApp;
