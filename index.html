@@ -4060,7 +4060,9 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
       {open&&<div style={{padding:'6px 10px 10px'}}>
         {items.map(mf=>{
           const isSel=selected===mf.id;
-          const inApp=done.has(mf.id);
+          const{newCode:mfCode}=txParseName(mf.name);
+          const codeInApp=!!(mfCode&&allRicette.some(r=>(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ')===mfCode.trim().toUpperCase().replace(/\s+/g,' ')));
+          const inApp=done.has(mf.id)||codeInApp;
           const st0=txState[mf.id]||{};
           const allVerified=!!(inApp&&st0.barattolo&&st0.codice&&st0.copertura&&st0.hex);
           return(
@@ -4472,12 +4474,14 @@ function TransferPanel(){
   const{confirmed,todo,problems}=React.useMemo(()=>{
     const confirmed=[],todo=[],problems=[];
     for(const mf of MONDAY_FORMULAS){
-      if(done.has(mf.id)){confirmed.push(mf);continue;}
+      const{newCode:c}=txParseName(mf.name);
+      const codeMatch=!!(c&&allRicette.some(r=>(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ')===c.trim().toUpperCase().replace(/\s+/g,' ')));
+      if(done.has(mf.id)||codeMatch){confirmed.push(mf);continue;}
       if(mf.flags.includes('not_40g')||mf.duplicate_of){problems.push(mf);continue;}
       todo.push(mf);
     }
     return{confirmed,todo,problems};
-  },[matchMap,done]);
+  },[done,allRicette.length]);
 
   const filterFn=React.useCallback(mf=>{
     if(searchQuery){
@@ -4486,7 +4490,9 @@ function TransferPanel(){
     }
     if(activeFilter==='all')return true;
     const st=txState[mf.id]||{};
-    const inApp=done.has(mf.id);
+    const{newCode:mfCode2}=txParseName(mf.name);
+    const codeInApp2=!!(mfCode2&&allRicette.some(r=>(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ')===mfCode2.trim().toUpperCase().replace(/\s+/g,' ')));
+    const inApp=done.has(mf.id)||codeInApp2;
     if(activeFilter==='inapp')return inApp;
     if(activeFilter==='noapp')return !inApp;
     if(activeFilter==='barattolo')return!!st.barattolo;
