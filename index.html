@@ -4288,6 +4288,7 @@ function TransferPanel(){
     return n;
   });
   const[activeFilter,setActiveFilter]=React.useState('all');
+  const[searchQuery,setSearchQuery]=React.useState('');
   const markDone=(id)=>setDone(prev=>{const n=new Set(prev);n.add(id);try{localStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
 
   const matchMap=React.useMemo(()=>{
@@ -4309,6 +4310,10 @@ function TransferPanel(){
   },[matchMap,done]);
 
   const filterFn=React.useCallback(mf=>{
+    if(searchQuery){
+      const q=searchQuery.toLowerCase();
+      if(!mf.name.toLowerCase().includes(q))return false;
+    }
     if(activeFilter==='all')return true;
     const st=txState[mf.id]||{};
     const inApp=matchMap[mf.id]?.score>=95||done.has(mf.id);
@@ -4319,7 +4324,7 @@ function TransferPanel(){
     if(activeFilter==='nocopertura')return!st.copertura;
     if(activeFilter==='nohex')return!st.hex;
     return true;
-  },[activeFilter,txState,matchMap,done]);
+  },[activeFilter,searchQuery,txState,matchMap,done]);
 
   const flatItems=React.useMemo(()=>
     [...confirmed,...todo,...problems].filter(filterFn),
@@ -4381,6 +4386,22 @@ function TransferPanel(){
       <div style={{flex:1,display:'flex',overflow:'hidden'}}>
         {/* Sidebar */}
         <div style={{width:480,borderRight:'1.5px solid rgba(0,0,0,0.09)',display:'flex',flexDirection:'column',flexShrink:0,background:'rgba(255,255,255,0.35)'}}>
+          {/* Search bar */}
+          <div style={{padding:'10px 12px',flexShrink:0,borderBottom:'1px solid rgba(0,0,0,0.07)'}}>
+            <div style={{position:'relative',display:'flex',alignItems:'center'}}>
+              <svg style={{position:'absolute',left:11,pointerEvents:'none',flexShrink:0}} width="14" height="14" viewBox="0 0 20 20" fill="none">
+                <circle cx="8.5" cy="8.5" r="5.75" stroke="rgba(0,0,0,0.35)" strokeWidth="1.8"/>
+                <line x1="13" y1="13" x2="18" y2="18" stroke="rgba(0,0,0,0.35)" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+              <input
+                value={searchQuery}
+                onChange={e=>setSearchQuery(e.target.value)}
+                placeholder={lang==='fr'?'Rechercher…':'Cerca…'}
+                style={{width:'100%',height:36,borderRadius:99,border:'1.5px solid rgba(0,0,0,0.13)',background:'rgba(255,255,255,0.8)',padding:'0 32px 0 32px',fontFamily:'Nebulica',fontSize:13,fontWeight:500,outline:'none',boxSizing:'border-box',color:'#0B0B0B'}}
+              />
+              {searchQuery&&<button onClick={()=>setSearchQuery('')} style={{position:'absolute',right:10,background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:1,color:'rgba(0,0,0,0.4)',fontSize:16,fontWeight:700}}>×</button>}
+            </div>
+          </div>
           {/* Filter bar */}
           <div style={{padding:'8px 10px',display:'flex',gap:6,overflowX:'auto',flexShrink:0,borderBottom:'1px solid rgba(0,0,0,0.07)',WebkitOverflowScrolling:'touch'}}>
             {FILTERS.map(f=>(
