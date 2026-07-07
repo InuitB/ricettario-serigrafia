@@ -2005,7 +2005,18 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
     setCardH(Math.min(natural,avail));
   },[selected&&selected.code,anim,qty,theme.cardSurface,theme.display,theme.borders,theme.borderWidth]);
 
-  if (!selected) return null;
+  if (!selected) return (
+    <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:theme.bg,fontFamily:'Nebulica,system-ui,sans-serif',gap:16}}>
+      <div style={{width:64,height:64,borderRadius:99,background:rgba(theme.ink,0.06),display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={rgba(theme.ink,0.3)} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:theme.ink,marginBottom:6}}>Nessuna ricetta</div>
+        <div style={{fontFamily:'Nebulica',fontSize:13,color:theme.sub,maxWidth:280,lineHeight:1.5}}>Importa le prime formule dal pannello trasferimento, oppure aggiungine una manualmente.</div>
+      </div>
+      <button onClick={onNuova} style={{padding:'11px 24px',borderRadius:99,background:theme.accent,color:'#fff',border:'none',fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>+ Nuova ricetta</button>
+    </div>
+  );
 
   return (
     <div style={{width:'100%',height:'100%',position:'relative'}}>
