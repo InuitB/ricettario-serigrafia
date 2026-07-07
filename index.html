@@ -4115,7 +4115,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
     categoria:autoCategoria,
     copertura:'',
     pagina:formula.page_note||'',
-    vecchioNome:(oldCode||newCode)?'ex '+(oldCode||newCode):'',
+    vecchioNome:(()=>{const c=oldCode||newCode;return(c&&!/[?]/.test(c))?'ex '+c:'';})(),
     note:corrected?`⚠ dose conv. da ${formula.total.toFixed(2)}g — verificare prima di stampare`:'',
     progetti:'',
   });
