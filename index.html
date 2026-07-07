@@ -672,6 +672,12 @@ function IcoWrench({size=16,color='currentColor'}){
   </svg>;
 }
 
+function IcoQuestionMark({size=16,color='currentColor'}){
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20.5381 20.1848" width={size} height={size} style={{display:'block',flexShrink:0}}>
+    <path d="M20.1767 10.0875C20.1767 15.6478 15.6576 20.175 10.0875 20.175C4.52715 20.175 0 15.6478 0 10.0875C0 4.51914 4.52715 0 10.0875 0C15.6576 0 20.1767 4.51914 20.1767 10.0875ZM8.64785 14.1094C8.64785 14.7471 9.19433 15.2246 9.84882 15.2246C10.5033 15.2246 11.0428 14.7551 11.0428 14.1094C11.0428 13.4689 10.5113 12.9861 9.84882 12.9861C9.18633 12.9861 8.64785 13.4752 8.64785 14.1094ZM6.94492 6.61426C6.8873 6.78281 6.84473 6.95586 6.84473 7.1457C6.84473 7.63359 7.23418 7.94101 7.64707 7.94101C8.01523 7.94101 8.27323 7.77675 8.47636 7.51777L8.63105 7.30527C8.98007 6.75448 9.45371 6.46464 10.0625 6.46464C10.8758 6.46464 11.424 6.94706 11.424 7.62617C11.424 8.26933 11.0006 8.58378 10.1428 9.18144C9.42188 9.6875 8.88906 10.2043 8.88906 11.1301C8.88906 11.1639 8.88906 11.2039 8.88906 11.2377C8.88906 11.816 9.24004 12.1176 9.86308 12.1176C10.4201 12.1176 10.7836 11.79 10.8117 11.3721C10.8135 11.3312 10.8152 11.2824 10.817 11.2549C10.8486 10.7254 11.2025 10.3728 11.86 9.9455C12.8646 9.29218 13.5168 8.70976 13.5168 7.52519C13.5168 5.83144 11.9892 4.87597 10.1826 4.87597C8.43554 4.87597 7.26054 5.66191 6.94492 6.61426Z" fill={color}/>
+  </svg>;
+}
+
 /* ═══════════════════ DESKTOP RECIPE COMPONENTS ═══════════════════ */
 function QuantityPicker({value, onChange, theme}) {
   return (
@@ -3946,29 +3952,40 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,S}){
         <span style={{fontFamily:'Nebulica',fontSize:10,fontWeight:700,letterSpacing:1.3,color}}>{label.toUpperCase()}</span>
         <span style={{marginLeft:'auto',fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'rgba(0,0,0,0.35)'}}>{items.length} {open?'▾':'▸'}</span>
       </div>
-      {open&&items.map(mf=>{
-        const isSel=selected===mf.id;
-        const m=matchMap[mf.id];
-        return(
-          <div key={mf.id} onClick={()=>onSelect(isSel?null:mf.id)}
-            style={{padding:'10px 18px 9px',cursor:'pointer',borderBottom:'1px solid rgba(0,0,0,0.05)',background:isSel?'rgba(0,0,0,0.07)':'transparent',display:'flex',alignItems:'flex-start',gap:8,transition:'background .12s'}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,color:'#0B0B0B',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{mf.name}</div>
-              <div style={{fontFamily:'Nebulica',fontSize:10,color:'rgba(0,0,0,0.42)',marginTop:2}}>
-                {m&&m.score>=95?<span style={{color:'#16A34A'}}>✓ {m.r.Pantone_ID}</span>
-                :m&&m.score>=60?<span style={{color:'#D97706'}}>≈ {m.r.Pantone_ID} ({m.score}%)</span>
-                :<span>{S.noMatch}</span>}
+      {open&&<div style={{padding:'6px 10px 8px'}}>
+        {items.map(mf=>{
+          const isSel=selected===mf.id;
+          const m=matchMap[mf.id];
+          const hasWarn=mf.flags.includes('not_40g')||mf.name.includes('?');
+          return(
+            <div key={mf.id} onClick={()=>onSelect(isSel?null:mf.id)}
+              style={{marginBottom:6,borderRadius:14,padding:'12px 14px',cursor:'pointer',
+                background:isSel?'rgba(0,0,0,0.08)':'rgba(255,255,255,0.92)',
+                border:`1.5px solid ${isSel?'rgba(0,0,0,0.2)':'rgba(0,0,0,0.08)'}`,
+                boxShadow:isSel?'none':'0 1px 4px rgba(0,0,0,0.05)',
+                transition:'all .12s'}}>
+              <div style={{display:'flex',alignItems:'flex-start',gap:8}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#0B0B0B',lineHeight:1.25,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{mf.name}</div>
+                  <div style={{fontFamily:'Nebulica',fontSize:11,marginTop:5,display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+                    {m&&m.score>=95
+                      ?<span style={{color:'#16A34A',fontWeight:700}}>✓ {m.r.Pantone_ID}</span>
+                      :m&&m.score>=60
+                      ?<span style={{color:'#D97706',fontWeight:700}}>≈ {m.r.Pantone_ID} <span style={{fontWeight:400,opacity:0.7}}>({m.score}%)</span></span>
+                      :<span style={{color:'rgba(0,0,0,0.38)'}}>{S.noMatch}</span>}
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:5,flexShrink:0,paddingTop:1,alignItems:'center'}}>
+                  {mf.flags.includes('corrected_to_40g')&&<span title={S.ttCorrected} style={{fontSize:13,lineHeight:1}}>⚡</span>}
+                  {mf.flags.includes('as90_code_fixed')&&<span title={S.ttAS90} style={{display:'inline-flex',alignItems:'center'}}><IcoWrench size={14} color="rgba(0,0,0,0.4)"/></span>}
+                  {mf.flags.includes('not_40g')&&<span title={S.ttNot40g} style={{display:'inline-flex',alignItems:'center'}}><IcoQuestionMark size={15} color="#EF4444"/></span>}
+                  {mf.name.includes('?')&&<span title={S.ttUncertain} style={{display:'inline-flex',alignItems:'center'}}><IcoQuestionMark size={15} color="#D97706"/></span>}
+                </div>
               </div>
             </div>
-            <div style={{display:'flex',gap:4,flexShrink:0,paddingTop:2}}>
-              {mf.flags.includes('corrected_to_40g')&&<span title={S.ttCorrected}>⚡</span>}
-              {mf.flags.includes('as90_code_fixed')&&<span title={S.ttAS90} style={{display:'inline-flex',alignItems:'center'}}><IcoWrench size={13} color="rgba(0,0,0,0.45)"/></span>}
-              {mf.flags.includes('not_40g')&&<span title={S.ttNot40g} style={{color:'#EF4444'}}>⚠</span>}
-              {mf.name.includes('?')&&<span title={S.ttUncertain} style={{color:'#EF4444',fontWeight:700,fontSize:11}}>?</span>}
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>}
     </div>
   );
 }
@@ -3986,6 +4003,7 @@ function TransferDetail({formula,match,onImported,S}){
   });
   const[saving,setSaving]=React.useState(false);
   const[saved,setSaved]=React.useState(false);
+  const[markedDone,setMarkedDone]=React.useState(false);
   const[saveErr,setSaveErr]=React.useState('');
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
 
@@ -4091,10 +4109,10 @@ function TransferDetail({formula,match,onImported,S}){
       )}
 
       {/* Action: if already matched at ≥95%, show confirm button; else show import form */}
-      {saved?(
+      {saved||markedDone?(
         <div style={{background:'rgba(34,197,94,0.09)',borderRadius:14,padding:'18px 20px',border:'1px solid rgba(34,197,94,0.22)',textAlign:'center'}}>
-          <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#16A34A'}}>{S.importedTitle}</div>
-          <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:5}}>{S.importedSub(form.pantoneId)}</div>
+          <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#16A34A'}}>{saved?S.importedTitle:'✓ '+S.markDone}</div>
+          {saved&&<div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:5}}>{S.importedSub(form.pantoneId)}</div>}
         </div>
       ):match&&match.score>=95?(
         <div style={{background:'rgba(34,197,94,0.07)',borderRadius:14,padding:'16px 18px',border:'1px solid rgba(34,197,94,0.18)',display:'flex',alignItems:'center',gap:14}}>
@@ -4102,7 +4120,7 @@ function TransferDetail({formula,match,onImported,S}){
             <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:'#16A34A'}}>{S.alreadyTitle(match.r.Pantone_ID)}</div>
             <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:4}}>{S.alreadySub}</div>
           </div>
-          <button onClick={onImported} style={{padding:'10px 18px',borderRadius:99,background:'#22C55E',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>{S.markDone}</button>
+          <button onClick={()=>{setMarkedDone(true);onImported();}} style={{padding:'10px 18px',borderRadius:99,background:'#22C55E',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>{S.markDone}</button>
         </div>
       ):(
         <div style={{background:'#fff',borderRadius:16,padding:'22px',border:'1px solid rgba(0,0,0,0.1)'}}>
@@ -4205,7 +4223,7 @@ function TransferPanel(){
         </div>
       </div>
       <div style={{flex:1,display:'flex',overflow:'hidden'}}>
-        <div style={{width:290,borderRight:'1.5px solid rgba(0,0,0,0.09)',overflowY:'auto',flexShrink:0,background:'rgba(255,255,255,0.35)'}}>
+        <div style={{width:340,borderRight:'1.5px solid rgba(0,0,0,0.09)',overflowY:'auto',flexShrink:0,background:'rgba(255,255,255,0.35)'}}>
           <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S}/>
           <TransferGroup label={'🔶 '+S.groupTodo} color="#D97706" items={todo} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S}/>
           <TransferGroup label={'⚠️ '+S.groupProblems} color="#EF4444" items={problems} selected={selected} onSelect={setSelected} matchMap={matchMap} S={S}/>
