@@ -4107,7 +4107,7 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
           const _vnNorm1=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
           const matchedAppRecipe=mfCode?allRicette.find(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm1(r.Vecchio_Nome||'');const mc=_vnNorm1(mfCode);return!!(vn&&mc&&vn===mc);}):null;
           const matchedAppCode=matchedAppRecipe?matchedAppRecipe.Pantone_ID:null;
-          const formulaMatchRecipe=!matchedAppCode&&matchMap[mf.id]?.score>=1.0?matchMap[mf.id]?.r:null;
+          const formulaMatchRecipe=!matchedAppCode&&matchMap[mf.id]?.score>=99?matchMap[mf.id]?.r:null;
           const effectiveAppRecipe=matchedAppRecipe||formulaMatchRecipe;
           const effectiveAppCode=matchedAppCode||(formulaMatchRecipe?.Pantone_ID||null);
           const inApp=done.has(mf.id)||!!effectiveAppCode;
@@ -4172,7 +4172,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
   const _vnNormDt=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
   const matchedAppRecipe=newCode?allRicette.find(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=newCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNormDt(r.Vecchio_Nome||'');const mc=_vnNormDt(newCode);return!!(vn&&mc&&vn===mc);}):null;
   const matchedAppCode=matchedAppRecipe?matchedAppRecipe.Pantone_ID:null;
-  const formulaMatchedCode=!matchedAppCode&&match?.score>=1.0?(match?.r?.Pantone_ID||null):null;
+  const formulaMatchedCode=!matchedAppCode&&match?.score>=99?(match?.r?.Pantone_ID||null):null;
   const effectiveDtCode=matchedAppCode||formulaMatchedCode;
   const displayTitle=effectiveDtCode||newCode||formula.name;
   const mondayCodeDiffers=!!(effectiveDtCode&&effectiveDtCode.trim().toUpperCase()!==(newCode||'').trim().toUpperCase());
@@ -4572,7 +4572,7 @@ function TransferPanel(){
     for(const mf of MONDAY_FORMULAS){
       const{newCode:c}=txParseName(mf.name);
       const codeMatch=!!(c&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=c.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);}));
-      const formulaMatch100=!codeMatch&&!!(matchMap[mf.id]?.score>=1.0);
+      const formulaMatch100=!codeMatch&&!!(matchMap[mf.id]?.score>=99);
       if(done.has(mf.id)||codeMatch||formulaMatch100){confirmed.push(mf);continue;}
       if(mf.flags.includes('not_40g')||mf.duplicate_of){problems.push(mf);continue;}
       todo.push(mf);
@@ -4591,7 +4591,7 @@ function TransferPanel(){
           if(idx>=0)return{idx,direct:false};
         }
         const fm=matchMap[mf.id];
-        if(fm?.score>=1.0&&fm?.r){const idx=allRicette.findIndex(r=>r.Pantone_ID===fm.r.Pantone_ID);if(idx>=0)return{idx,direct:false};}
+        if(fm?.score>=99&&fm?.r){const idx=allRicette.findIndex(r=>r.Pantone_ID===fm.r.Pantone_ID);if(idx>=0)return{idx,direct:false};}
         return{idx:9999,direct:false};
       };
       const ia=getInfo(a),ib=getInfo(b);
@@ -4611,7 +4611,7 @@ function TransferPanel(){
       const mr=allRicette.find(r=>{const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);});
       if(mr){const key=(mr.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
       const fm=matchMap[mf.id];
-      if(fm?.score>=1.0&&fm?.r?.Pantone_ID){const key=(fm.r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
+      if(fm?.score>=99&&fm?.r?.Pantone_ID){const key=(fm.r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
       return true;
     });
     return{confirmed:confirmedFinal,todo,problems};
@@ -4627,7 +4627,7 @@ function TransferPanel(){
     const{newCode:mfCode2}=txParseName(mf.name);
     const _vnNorm3=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
     const codeInApp2=!!(mfCode2&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode2.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm3(r.Vecchio_Nome||'');const mc=_vnNorm3(mfCode2);return!!(vn&&mc&&vn===mc);}));
-    const inApp=done.has(mf.id)||codeInApp2||!!(matchMap[mf.id]?.score>=1.0);
+    const inApp=done.has(mf.id)||codeInApp2||!!(matchMap[mf.id]?.score>=99);
     if(activeFilter==='inapp')return inApp;
     if(activeFilter==='noapp')return !inApp;
     if(activeFilter==='barattolo')return!!st.barattolo;
