@@ -4546,22 +4546,38 @@ function TransferPanel(){
       if(mf.flags.includes('not_40g')||mf.duplicate_of){problems.push(mf);continue;}
       todo.push(mf);
     }
-    // Ordina "confirmed" per ordine wallet (allRicette)
+    // Ordina "confirmed": prima per ordine wallet, poi match diretto prima del match via Vecchio_Nome
     confirmed.sort((a,b)=>{
-      const getIdx=mf=>{
+      const getInfo=mf=>{
         const{newCode:c}=txParseName(mf.name);
-        if(!c)return 9999;
-        return allRicette.findIndex(r=>{
-          const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');
-          const cn=c.trim().toUpperCase().replace(/\s+/g,' ');
-          if(pid===cn)return true;
-          return _vnNorm2(r.Vecchio_Nome||'')===_vnNorm2(c);
-        });
+        if(!c)return{idx:9999,direct:false};
+        const cn=c.trim().toUpperCase().replace(/\s+/g,' ');
+        for(let i=0;i<allRicette.length;i++){
+          const pid=(allRicette[i].Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');
+          if(pid===cn)return{idx:i,direct:true};
+        }
+        const idx=allRicette.findIndex(r=>{const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);});
+        return{idx:idx<0?9999:idx,direct:false};
       };
-      const ia=getIdx(a),ib=getIdx(b);
-      return(ia<0?9999:ia)-(ib<0?9999:ib);
+      const ia=getInfo(a),ib=getInfo(b);
+      if(ia.idx!==ib.idx)return ia.idx-ib.idx;
+      return(ia.direct?0:1)-(ib.direct?0:1);
     });
-    return{confirmed,todo,problems};
+    // Deduplica: se due righe Monday puntano allo stesso codice app, tieni solo la prima (già ordinata: diretta > Vecchio_Nome)
+    const seenAppCodes=new Set();
+    const confirmedFinal=confirmed.filter(mf=>{
+      const{newCode:c}=txParseName(mf.name);
+      if(!c)return true;
+      const cn=c.trim().toUpperCase().replace(/\s+/g,' ');
+      for(const r of allRicette){
+        const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');
+        if(pid===cn){if(seenAppCodes.has(pid))return false;seenAppCodes.add(pid);return true;}
+      }
+      const mr=allRicette.find(r=>{const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);});
+      if(mr){const key=(mr.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
+      return true;
+    });
+    return{confirmed:confirmedFinal,todo,problems};
   },[done,allRicette.length]);
 
   const filterFn=React.useCallback(mf=>{
