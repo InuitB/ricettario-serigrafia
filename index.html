@@ -4107,7 +4107,10 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
           const _vnNorm1=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
           const matchedAppRecipe=mfCode?allRicette.find(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm1(r.Vecchio_Nome||'');const mc=_vnNorm1(mfCode);return!!(vn&&mc&&vn===mc);}):null;
           const matchedAppCode=matchedAppRecipe?matchedAppRecipe.Pantone_ID:null;
-          const inApp=done.has(mf.id)||!!matchedAppCode;
+          const formulaMatchRecipe=!matchedAppCode&&matchMap[mf.id]?.score>=1.0?matchMap[mf.id]?.r:null;
+          const effectiveAppRecipe=matchedAppRecipe||formulaMatchRecipe;
+          const effectiveAppCode=matchedAppCode||(formulaMatchRecipe?.Pantone_ID||null);
+          const inApp=done.has(mf.id)||!!effectiveAppCode;
           const st0=txState[mf.id]||{};
           const allVerified=!!(inApp&&st0.barattolo&&st0.codice&&st0.copertura&&st0.hex);
           return(
@@ -4140,10 +4143,10 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
               })()}
               {/* Riga 2: codice app (o Monday se non rinominato) + icona fatto */}
               {(()=>{
-                const displayCode=matchedAppCode||mfCode||mf.name;
-                const mondayDiffers=matchedAppCode&&matchedAppCode.trim().toUpperCase()!==(mfCode||'').trim().toUpperCase();
+                const displayCode=effectiveAppCode||mfCode||mf.name;
+                const mondayDiffers=effectiveAppCode&&effectiveAppCode.trim().toUpperCase()!==(mfCode||'').trim().toUpperCase();
                 // Se il codice Monday coincide col codice app, mostra Vecchio_Nome dell'app come contesto
-                const appVN=(matchedAppRecipe?.Vecchio_Nome||'').replace(/^ex\.?\s*/i,'').trim();
+                const appVN=(effectiveAppRecipe?.Vecchio_Nome||'').replace(/^ex\.?\s*/i,'').trim();
                 const exLabel=mondayDiffers?mfCode:(appVN||null);
                 return(
                   <div style={{display:'flex',alignItems:'flex-start',gap:10,minWidth:0}}>
@@ -4169,8 +4172,10 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
   const _vnNormDt=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
   const matchedAppRecipe=newCode?allRicette.find(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=newCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNormDt(r.Vecchio_Nome||'');const mc=_vnNormDt(newCode);return!!(vn&&mc&&vn===mc);}):null;
   const matchedAppCode=matchedAppRecipe?matchedAppRecipe.Pantone_ID:null;
-  const displayTitle=matchedAppCode||newCode||formula.name;
-  const mondayCodeDiffers=!!(matchedAppCode&&matchedAppCode.trim().toUpperCase()!==(newCode||'').trim().toUpperCase());
+  const formulaMatchedCode=!matchedAppCode&&match?.score>=1.0?(match?.r?.Pantone_ID||null):null;
+  const effectiveDtCode=matchedAppCode||formulaMatchedCode;
+  const displayTitle=effectiveDtCode||newCode||formula.name;
+  const mondayCodeDiffers=!!(effectiveDtCode&&effectiveDtCode.trim().toUpperCase()!==(newCode||'').trim().toUpperCase());
   const dtAppVN=(matchedAppRecipe?.Vecchio_Nome||'').replace(/^ex\.?\s*/i,'').trim();
   const dtExLabel=mondayCodeDiffers?newCode:(dtAppVN||null);
   const corrected=formula.flags.includes('corrected_to_40g');
@@ -4567,7 +4572,8 @@ function TransferPanel(){
     for(const mf of MONDAY_FORMULAS){
       const{newCode:c}=txParseName(mf.name);
       const codeMatch=!!(c&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=c.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);}));
-      if(done.has(mf.id)||codeMatch){confirmed.push(mf);continue;}
+      const formulaMatch100=!codeMatch&&!!(matchMap[mf.id]?.score>=1.0);
+      if(done.has(mf.id)||codeMatch||formulaMatch100){confirmed.push(mf);continue;}
       if(mf.flags.includes('not_40g')||mf.duplicate_of){problems.push(mf);continue;}
       todo.push(mf);
     }
@@ -4575,14 +4581,18 @@ function TransferPanel(){
     confirmed.sort((a,b)=>{
       const getInfo=mf=>{
         const{newCode:c}=txParseName(mf.name);
-        if(!c)return{idx:9999,direct:false};
-        const cn=c.trim().toUpperCase().replace(/\s+/g,' ');
-        for(let i=0;i<allRicette.length;i++){
-          const pid=(allRicette[i].Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');
-          if(pid===cn)return{idx:i,direct:true};
+        if(c){
+          const cn=c.trim().toUpperCase().replace(/\s+/g,' ');
+          for(let i=0;i<allRicette.length;i++){
+            const pid=(allRicette[i].Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');
+            if(pid===cn)return{idx:i,direct:true};
+          }
+          const idx=allRicette.findIndex(r=>{const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);});
+          if(idx>=0)return{idx,direct:false};
         }
-        const idx=allRicette.findIndex(r=>{const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);});
-        return{idx:idx<0?9999:idx,direct:false};
+        const fm=matchMap[mf.id];
+        if(fm?.score>=1.0&&fm?.r){const idx=allRicette.findIndex(r=>r.Pantone_ID===fm.r.Pantone_ID);if(idx>=0)return{idx,direct:false};}
+        return{idx:9999,direct:false};
       };
       const ia=getInfo(a),ib=getInfo(b);
       if(ia.idx!==ib.idx)return ia.idx-ib.idx;
@@ -4600,10 +4610,12 @@ function TransferPanel(){
       }
       const mr=allRicette.find(r=>{const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);});
       if(mr){const key=(mr.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
+      const fm=matchMap[mf.id];
+      if(fm?.score>=1.0&&fm?.r?.Pantone_ID){const key=(fm.r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
       return true;
     });
     return{confirmed:confirmedFinal,todo,problems};
-  },[done,allRicette.length]);
+  },[done,allRicette.length,matchMap]);
 
   const filterFn=React.useCallback(mf=>{
     if(searchQuery){
@@ -4615,7 +4627,7 @@ function TransferPanel(){
     const{newCode:mfCode2}=txParseName(mf.name);
     const _vnNorm3=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
     const codeInApp2=!!(mfCode2&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode2.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm3(r.Vecchio_Nome||'');const mc=_vnNorm3(mfCode2);return!!(vn&&mc&&vn===mc);}));
-    const inApp=done.has(mf.id)||codeInApp2;
+    const inApp=done.has(mf.id)||codeInApp2||!!(matchMap[mf.id]?.score>=1.0);
     if(activeFilter==='inapp')return inApp;
     if(activeFilter==='noapp')return !inApp;
     if(activeFilter==='barattolo')return!!st.barattolo;
