@@ -4309,7 +4309,7 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
             </button>
           );
         };
-        const inApp=isDone;
+        const inApp=isDone||!!effectiveDtCode;
         const allVerified=!!(inApp&&st.barattolo&&st.codice&&st.copertura&&st.hex);
         return(
           <div style={{marginBottom:22}}>
@@ -4495,10 +4495,26 @@ function TransferPanel(){
     return n;
   });
   React.useEffect(()=>{
+    let localState={};
+    try{localState=JSON.parse(localStorage.getItem('tx_state')||'{}');}catch(e){}
     fetch(SCRIPT_URL+'?action=getVerifiche')
       .then(r=>r.json())
       .then(d=>{
-        if(d&&d.verifiche&&Object.keys(d.verifiche).length>0){
+        if(!d||!d.verifiche)return;
+        const sheetsIds=new Set(Object.keys(d.verifiche));
+        // Retroactive sync: marks only in localStorage → push to Sheets
+        for(const[id,st]of Object.entries(localState)){
+          if(!sheetsIds.has(String(id))&&(st.barattolo||st.codice||st.copertura||st.hex||st.done)){
+            fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'salvaVerifica',formula_id:Number(id),barattolo:!!st.barattolo,codice:!!st.codice,copertura:!!st.copertura,hex:!!st.hex,done:!!st.done})}).catch(()=>{});
+          }
+        }
+        // Rebuild done Set from Sheets
+        const sheetsDone=Object.entries(d.verifiche).filter(([,v])=>v.done).map(([id])=>Number(id));
+        if(sheetsDone.length>0){
+          setDone(prev=>{const n=new Set(prev);sheetsDone.forEach(id=>n.add(id));try{localStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
+        }
+        // Merge Sheets into txState
+        if(Object.keys(d.verifiche).length>0){
           setTxState(prev=>{
             const merged={...prev};
             for(const[id,v]of Object.entries(d.verifiche)){
@@ -4512,7 +4528,11 @@ function TransferPanel(){
   },[]);
   const[activeFilter,setActiveFilter]=React.useState('all');
   const[searchQuery,setSearchQuery]=React.useState('');
-  const markDone=(id)=>setDone(prev=>{const n=new Set(prev);n.add(id);try{localStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
+  const markDone=(id)=>{
+    setDone(prev=>{const n=new Set(prev);n.add(id);try{localStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
+    const st=txState[id]||{};
+    fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'salvaVerifica',formula_id:id,barattolo:!!st.barattolo,codice:!!st.codice,copertura:!!st.copertura,hex:!!st.hex,done:true})}).catch(()=>{});
+  };
 
   const matchMap=React.useMemo(()=>{
     const m={};

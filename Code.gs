@@ -616,16 +616,18 @@ function getVerifiche() {
   const data = sh.getDataRange().getValues();
   const headers = data[0];
   const result = {};
+  const bool = v => !!(v === 1 || v === true || String(v) === '1');
   for (let i = 1; i < data.length; i++) {
     const row = {};
     headers.forEach((h, j) => { row[h] = data[i][j]; });
     const id = row['Formula_ID'];
     if (id !== '' && id !== undefined && id !== null) {
       result[String(id)] = {
-        barattolo: !!(row['Barattolo'] === 1 || row['Barattolo'] === true || String(row['Barattolo']) === '1'),
-        codice:    !!(row['Codice']    === 1 || row['Codice']    === true || String(row['Codice'])    === '1'),
-        copertura: !!(row['Copertura'] === 1 || row['Copertura'] === true || String(row['Copertura']) === '1'),
-        hex:       !!(row['HEX']       === 1 || row['HEX']       === true || String(row['HEX'])       === '1'),
+        barattolo: bool(row['Barattolo']),
+        codice:    bool(row['Codice']),
+        copertura: bool(row['Copertura']),
+        hex:       bool(row['HEX']),
+        done:      bool(row['Done']),
       };
     }
   }
@@ -637,21 +639,36 @@ function salvaVerifica(data) {
   let sh = ss.getSheetByName('VerificheTX');
   if (!sh) {
     sh = ss.insertSheet('VerificheTX');
-    sh.appendRow(['Formula_ID', 'Barattolo', 'Codice', 'Copertura', 'HEX', 'Aggiornato']);
+    sh.appendRow(['Formula_ID', 'Barattolo', 'Codice', 'Copertura', 'HEX', 'Done', 'Aggiornato']);
     sh.setFrozenRows(1);
   }
+  // Ensure Done column exists (backward compat with old sheets)
+  let headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  if (headers.indexOf('Done') === -1) {
+    sh.getRange(1, sh.getLastColumn() + 1).setValue('Done');
+    headers = [...headers, 'Done'];
+  }
   const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
   const idCol = headers.indexOf('Formula_ID');
   const id = String(data.formula_id);
   const ts = new Date().toISOString();
-  const vals = [id, data.barattolo ? 1 : 0, data.codice ? 1 : 0, data.copertura ? 1 : 0, data.hex ? 1 : 0, ts];
+  const cellVal = h => {
+    if (h === 'Formula_ID') return id;
+    if (h === 'Barattolo')  return data.barattolo ? 1 : 0;
+    if (h === 'Codice')     return data.codice ? 1 : 0;
+    if (h === 'Copertura')  return data.copertura ? 1 : 0;
+    if (h === 'HEX')        return data.hex ? 1 : 0;
+    if (h === 'Done')       return data.done ? 1 : 0;
+    if (h === 'Aggiornato') return ts;
+    return '';
+  };
+  const vals = [headers.map(cellVal)];
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][idCol]) === id) {
-      sh.getRange(i + 1, 1, 1, 6).setValues([vals]);
+      sh.getRange(i + 1, 1, 1, headers.length).setValues(vals);
       return { ok: true };
     }
   }
-  sh.appendRow(vals);
+  sh.appendRow(vals[0]);
   return { ok: true };
 }
