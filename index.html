@@ -4570,6 +4570,13 @@ function TransferPanel(){
       else if(discarded.has(mf.id))discardedList.push(mf);
       else todo.push(mf);
     }
+    // Ordina i "fatti" nello stesso ordine del foglio/wallet (ordine di approvazione),
+    // così il confronto riga-per-riga con il wallet è immediato.
+    confirmed.sort((a,b)=>{
+      const ia=allRicette.indexOf(transferredMap[a.id]);
+      const ib=allRicette.indexOf(transferredMap[b.id]);
+      return (ia<0?9999:ia)-(ib<0?9999:ib);
+    });
     return{confirmed,todo,discardedList};
   },[transferredMap,discarded]);
 
