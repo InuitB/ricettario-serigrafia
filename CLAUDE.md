@@ -1,5 +1,28 @@
 # Ricettario Serigrafia — Contesto progetto per Claude Code
 
+## ⚙️ Pannello Trasferimento — architettura Monday_ID (sessione 2026-07-08)
+
+Il pannello trasferimento NON usa più matching fuzzy (formule/nomi). Il collegamento
+Monday ⇄ ricetta è **esplicito e memorizzato**:
+
+- Ogni ricetta ha un campo **`Monday_ID`** (colonna nel foglio Ricette) = id della formula
+  Monday da cui nasce. Scritto da `addRicetta` al momento dell'import.
+- `getMondayId(r)` legge `Monday_ID` dal foglio; se assente usa `MONDAY_BACKFILL`
+  (mappa hardcoded Pantone_ID→id per le 34 ricette storiche, ricostruita dai Vecchio_Nome).
+- `transferredMap[mondayId] = ricetta`. È l'unica verità: "confermato" = esiste una ricetta
+  con quel Monday_ID. Conteggio trasferimento = conteggio wallet **per costruzione**.
+- Categorie pannello: **Fatti** (transferredMap) · **Da importare** (todo) · **Scartati**
+  (`tx_discarded` in localStorage — formule Monday superate/non volute).
+- Rimossi: `matchMap`, `conflictMap`, `done`/`markDone`, `orphanIds`, txFindMatch scoring per
+  categorizzazione (le funzioni txCompare/txFindMatch restano ma sono codice morto).
+- **3 regole di unicità** all'import (`handleImport`): Pantone_ID duplicato → blocco;
+  formula identica al 100% (`txFormulaIdentica`, ε=0.15) → blocco; HEX duplicato → blocco
+  + 3 HEX vicini liberi (`hexAlternativesVicine`).
+- `Vecchio_Nome` è SOLO informazione, non serve più al matching.
+- Code.gs: `addRicetta` crea la colonna Monday_ID se manca e la scrive; azione
+  `backfillMondayIds({map})` scrive i 34 collegamenti storici nel foglio (bottone "⛓ COLLEGA
+  FOGLIO" nell'header del pannello — una tantum, opzionale: l'app funziona già con la mappa).
+
 ## Panoramica
 
 App web mobile-first per la gestione delle formule di inchiostri serigrafia (SICO · Pantone).

@@ -75,6 +75,7 @@ function doPost(e) {
       case 'registraMescola':         result = registraMescola(data);         break;
       case 'aggiornaStock':           result = aggiornaStock(data);           break;
       case 'salvaVerifica':           result = salvaVerifica(data);           break;
+      case 'backfillMondayIds':       result = backfillMondayIds(data);       break;
       default: result = { error: 'Azione sconosciuta: ' + data.action };
     }
     return ContentService
@@ -245,8 +246,14 @@ function addRicetta(data) {
   const ricette = ss.getSheetByName('Ricette');
   const comp    = ss.getSheetByName('Componenti');
 
+  // Assicura la colonna Monday_ID (collegamento esplicito con la formula di origine)
+  let rHeaders = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  if (rHeaders.indexOf('Monday_ID') === -1) {
+    ricette.getRange(1, ricette.getLastColumn() + 1).setValue('Monday_ID');
+    rHeaders = [...rHeaders, 'Monday_ID'];
+  }
+
   // Write by column header order to survive any sheet column rearrangement
-  const rHeaders = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
   const fieldMap = {
     'Pantone_ID':   data.Pantone_ID   || '',
     'HEX':          data.HEX          || '',
@@ -256,7 +263,8 @@ function addRicetta(data) {
     'Note':         data.Note         || '',
     'Vecchio_Nome': data.Vecchio_Nome || '',
     'Pagina':       data.Pagina       || '',
-    'Progetti':     data.Progetti     || ''
+    'Progetti':     data.Progetti     || '',
+    'Monday_ID':    (data.Monday_ID != null && data.Monday_ID !== '') ? data.Monday_ID : ''
   };
   ricette.appendRow(rHeaders.map(h => fieldMap.hasOwnProperty(h) ? fieldMap[h] : ''));
 
@@ -272,6 +280,36 @@ function addRicetta(data) {
   });
 
   return { ok: true };
+}
+
+// ── BACKFILL Monday_ID ────────────────────────────────────────────────────
+// Scrive una volta sola il collegamento Monday_ID per le ricette già esistenti.
+// data.map = { "Pantone_ID": mondayId, ... }. Crea la colonna se manca.
+function backfillMondayIds(data) {
+  const map = data.map || {};
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ricette = ss.getSheetByName('Ricette');
+  let headers = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  let midCol = headers.indexOf('Monday_ID');
+  if (midCol === -1) {
+    midCol = ricette.getLastColumn(); // 0-based indice della nuova colonna
+    ricette.getRange(1, midCol + 1).setValue('Monday_ID');
+  }
+  const idCol = headers.indexOf('Pantone_ID');
+  const rData = ricette.getDataRange().getValues();
+  let scritti = 0;
+  for (let i = 1; i < rData.length; i++) {
+    const pid = String(rData[i][idCol] || '').trim();
+    if (map.hasOwnProperty(pid)) {
+      const cur = rData[i][midCol];
+      // Non sovrascrive un valore già presente (rispetta eventuali correzioni manuali)
+      if (cur === '' || cur === null || cur === undefined) {
+        ricette.getRange(i + 1, midCol + 1).setValue(map[pid]);
+        scritti++;
+      }
+    }
+  }
+  return { ok: true, scritti: scritti };
 }
 
 // ── MODIFICA RICETTA ──────────────────────────────────────────────────────

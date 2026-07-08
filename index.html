@@ -3946,6 +3946,60 @@ function txFindMatch(mfInks){
   return best;
 }
 
+// ═══════════════ COLLEGAMENTO ESPLICITO Monday ⇄ Ricetta ═══════════════
+// Ogni ricetta ricorda da quale formula Monday nasce (campo Monday_ID nel foglio).
+// Per le 34 ricette già esistenti (salvate prima che esistesse il campo) usiamo
+// questa mappa di backfill, ricostruita dal Vecchio_Nome e confermata dall'utente.
+// Così l'app è corretta da subito; i nuovi import scrivono Monday_ID nel foglio.
+const MONDAY_BACKFILL = {
+  '121 U':5,'2372 U':4,'7487 U':26,'7451 U':28,'283 U':24,'543 U':54,'1235 U':34,
+  'Black 6 U':45,'2091 U':3,'Pantone Reflex Blue':15,'3405 U':51,'336 U':47,
+  '2402 U':19,'2305 U':56,'230 U':11,'200 U':35,'250 U':30,'2036 U':42,'191 U':9,
+  '489 U':10,'2965 U':44,'322 U':17,'3965 U':21,'204 U':66,'183 U':33,'323 U':18,
+  '309 U':16,'2132 U':39,'2123 U':37,'2388 U':14,'3595 U':40,'330 U':49,'2339 U':67,
+  '284 U':27,
+};
+// Restituisce l'id Monday di una ricetta: dal foglio se presente, altrimenti dalla mappa.
+function getMondayId(r){
+  if(!r)return null;
+  const raw=r.Monday_ID;
+  if(raw!=null&&String(raw).trim()!==''){const n=parseInt(raw,10);if(!isNaN(n))return n;}
+  const bf=MONDAY_BACKFILL[(r.Pantone_ID||'').trim()];
+  return bf!=null?bf:null;
+}
+
+// Verifica se una formula (percentuali normalizzate) è identica al 100% a una ricetta.
+// "Identica" = stessi inchiostri e ogni percentuale entro EPS. Usato per bloccare doppioni.
+const TX_FORMULA_EPS=0.15;
+function txFormulaIdentica(mfNorm,rNorm){
+  const codes=new Set([...Object.keys(mfNorm),...Object.keys(rNorm)]);
+  for(const c of codes){if(Math.abs((mfNorm[c]||0)-(rNorm[c]||0))>TX_FORMULA_EPS)return false;}
+  return true;
+}
+
+// ── HEX vicini liberi ─────────────────────────────────────────────────────
+// Genera alternative HEX vicine a un colore ma non ancora usate da nessuna ricetta.
+function hslToHex(h,s,l){
+  s/=100;l/=100;
+  const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l);
+  const f=n=>{const v=l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return Math.round(v*255).toString(16).padStart(2,'0');};
+  return '#'+f(0)+f(8)+f(4);
+}
+function hexAlternativesVicine(hex,usedSet,n=3){
+  const {h,s,l}=hexToHSL(hex);
+  const out=[];const seen=new Set([...usedSet].map(x=>x.toUpperCase()));
+  seen.add(hex.toUpperCase());
+  // Perturbazioni progressive di luminosità e tonalità, dalla più vicina alla più lontana
+  const deltas=[[0,3],[0,-3],[4,0],[-4,0],[0,6],[0,-6],[8,2],[-8,-2],[0,9],[0,-9],[12,0],[-12,0]];
+  for(const [dh,dl] of deltas){
+    const nl=Math.max(4,Math.min(96,l+dl));
+    const nh=((h+dh)%360+360)%360;
+    const cand=hslToHex(nh,s,nl).toUpperCase();
+    if(!seen.has(cand)){seen.add(cand);out.push(cand);if(out.length>=n)break;}
+  }
+  return out;
+}
+
 const TX={
   it:{
     noMatch:'nessun match',
@@ -4091,7 +4145,7 @@ const TX={
   },
 };
 
-function TransferGroup({label,color,items,selected,onSelect,matchMap,done,conflictMap,S,txState,orphanIds}){
+function TransferGroup({label,color,items,selected,onSelect,transferredMap,S,txState}){
   const[open,setOpen]=React.useState(true);
   if(!items.length)return null;
   return(
@@ -4104,13 +4158,9 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
         {items.map(mf=>{
           const isSel=selected===mf.id;
           const{newCode:mfCode}=txParseName(mf.name);
-          const _vnNorm1=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
-          const matchedAppRecipe=mfCode?allRicette.find(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm1(r.Vecchio_Nome||'');const mc=_vnNorm1(mfCode);return!!(vn&&mc&&vn===mc);}):null;
-          const matchedAppCode=matchedAppRecipe?matchedAppRecipe.Pantone_ID:null;
-          const formulaMatchRecipe=!matchedAppCode&&matchMap[mf.id]?.score>=99?matchMap[mf.id]?.r:null;
-          const effectiveAppRecipe=matchedAppRecipe||formulaMatchRecipe;
-          const effectiveAppCode=matchedAppCode||(formulaMatchRecipe?.Pantone_ID||null);
-          const inApp=done.has(mf.id)||!!effectiveAppCode;
+          // Collegamento esplicito: la ricetta che nasce da questa formula Monday (o null).
+          const linkedRecipe=transferredMap[mf.id]||null;
+          const inApp=!!linkedRecipe;
           const st0=txState[mf.id]||{};
           const allVerified=!!(inApp&&st0.barattolo&&st0.codice&&st0.copertura&&st0.hex);
           return(
@@ -4127,7 +4177,6 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
                 return(
                   <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap',marginBottom:10}}>
                     {pill(S.tagMonday,'rgba(59,130,246,0.12)','#2563EB')}
-                    {orphanIds?.has(mf.id)&&pill('SENZA RICETTA','rgba(239,68,68,0.12)','#DC2626')}
                     {st.barattolo?pill(S.tagBarattoloOk,'rgba(161,98,7,0.12)','#A16207'):pill(S.tagBarattolo+' —','rgba(0,0,0,0.04)','rgba(0,0,0,0.25)')}
                     {st.copertura&&pill(S.tagCopertura,'rgba(124,58,237,0.12)','#6D28D9')}
                     {st.hex&&pill(S.tagHex,'rgba(8,145,178,0.12)','#0E7490')}
@@ -4137,18 +4186,15 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
                       {mf.flags.includes('not_40g')&&<span title={S.ttNot40g}><IcoQuestionMark size={16} color="#EF4444"/></span>}
                       {mf.name.includes('?')&&<span title={S.ttUncertain}><IcoQuestionMark size={16} color="#D97706"/></span>}
                       {allVerified&&<IcoCheckSeal size={17} color="#16A34A"/>}
-                      {(conflictMap[mf.id]?.length>0)&&<span style={{fontFamily:'Nebulica',fontSize:9,fontWeight:700,letterSpacing:0.8,padding:'2px 7px',borderRadius:99,background:'rgba(239,68,68,0.12)',color:'#DC2626'}}>⚠ {conflictMap[mf.id].length}</span>}
                     </div>
                   </div>
                 );
               })()}
-              {/* Riga 2: codice app (o Monday se non rinominato) + icona fatto */}
+              {/* Riga 2: codice nuovo (dalla ricetta collegata) + "ex nome Monday" */}
               {(()=>{
-                const displayCode=effectiveAppCode||mfCode||mf.name;
-                const mondayDiffers=effectiveAppCode&&effectiveAppCode.trim().toUpperCase()!==(mfCode||'').trim().toUpperCase();
-                // Se il codice Monday coincide col codice app, mostra Vecchio_Nome dell'app come contesto
-                const appVN=(effectiveAppRecipe?.Vecchio_Nome||'').replace(/^ex\.?\s*/i,'').trim();
-                const exLabel=mondayDiffers?mfCode:(appVN||null);
+                const displayCode=linkedRecipe?linkedRecipe.Pantone_ID:(mfCode||mf.name);
+                const mondayDiffers=linkedRecipe&&(displayCode||'').trim().toUpperCase()!==(mfCode||'').trim().toUpperCase();
+                const exLabel=mondayDiffers?(mfCode||mf.name):null;
                 return(
                   <div style={{display:'flex',alignItems:'flex-start',gap:10,minWidth:0}}>
                     <div style={{minWidth:0,flexShrink:1}}>
@@ -4167,18 +4213,13 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
   );
 }
 
-function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,updateTxState}){
+function TransferDetail({formula,linkedRecipe,isDiscarded,onToggleDiscard,onImported,S,txState,updateTxState,lang}){
   const{newCode,oldCode,uncertain}=txParseName(formula.name);
-  // Codice app corrispondente (può differire dal codice Monday via Vecchio_Nome)
-  const _vnNormDt=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
-  const matchedAppRecipe=newCode?allRicette.find(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=newCode.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNormDt(r.Vecchio_Nome||'');const mc=_vnNormDt(newCode);return!!(vn&&mc&&vn===mc);}):null;
-  const matchedAppCode=matchedAppRecipe?matchedAppRecipe.Pantone_ID:null;
-  const formulaMatchedCode=!matchedAppCode&&match?.score>=99?(match?.r?.Pantone_ID||null):null;
-  const effectiveDtCode=matchedAppCode||formulaMatchedCode;
-  const displayTitle=effectiveDtCode||newCode||formula.name;
-  const mondayCodeDiffers=!!(effectiveDtCode&&effectiveDtCode.trim().toUpperCase()!==(newCode||'').trim().toUpperCase());
-  const dtAppVN=(matchedAppRecipe?.Vecchio_Nome||'').replace(/^ex\.?\s*/i,'').trim();
-  const dtExLabel=mondayCodeDiffers?newCode:(dtAppVN||null);
+  const inApp=!!linkedRecipe;
+  // Titolo = codice nuovo della ricetta collegata (se esiste), altrimenti codice Monday.
+  const displayTitle=linkedRecipe?linkedRecipe.Pantone_ID:(newCode||formula.name);
+  const mondayCodeDiffers=!!(linkedRecipe&&(displayTitle||'').trim().toUpperCase()!==(newCode||'').trim().toUpperCase());
+  const dtExLabel=mondayCodeDiffers?(newCode||formula.name):null;
   const corrected=formula.flags.includes('corrected_to_40g');
   const autoCategoria=React.useMemo(()=>{
     const candidates=[newCode,newCode?.toUpperCase(),(newCode||'').toUpperCase().replace(/([0-9])([A-Z])$/,'$1 $2')];
@@ -4197,45 +4238,47 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
   });
   const[saving,setSaving]=React.useState(false);
   const[saved,setSaved]=React.useState(false);
-  const[markedDone,setMarkedDone]=React.useState(false);
   const[saveErr,setSaveErr]=React.useState('');
+  const[hexAlts,setHexAlts]=React.useState([]);
   const[pickerOpen,setPickerOpen]=React.useState(false);
-  const[showImportForm,setShowImportForm]=React.useState(false);
-  const[formulaWarnOk,setFormulaWarnOk]=React.useState(false);
-  const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const setF=(k,v)=>{setForm(f=>({...f,[k]:v}));if(k==='hex'){setHexAlts([]);setSaveErr('');}};
 
   async function handleImport(){
     const finalPantoneId=normalizePantoneCode(form.pantoneId);
     if(!finalPantoneId.trim()){setSaveErr(S.errPantone);return;}
     if(!form.hex.trim()){setSaveErr(S.errHex);return;}
+    // REGOLA 1 — codice Pantone unico
     const normId=finalPantoneId.trim().toUpperCase().replace(/\s+/g,' ');
     const existCode=allRicette.find(r=>(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ')===normId);
-    if(existCode){setSaveErr(`Il codice "${form.pantoneId.trim()}" esiste già nell'app. Modifica il codice oppure usa "Segna fatto" se è già importato.`);return;}
+    if(existCode){setSaveErr(`Il codice "${finalPantoneId.trim()}" esiste già nell'app. Usa un codice diverso.`);return;}
+    // REGOLA 2 — HEX unico (blocco duro + 3 alternative vicine libere)
     const normHex=form.hex.replace('#','').trim().toUpperCase();
-    if(/^[0-9A-Fa-f]{6}$/.test(normHex)){
-      const existHex=allRicette.find(r=>(r.HEX||'').replace('#','').trim().toUpperCase()===normHex);
-      if(existHex){setSaveErr(`L'HEX #${normHex} è già usato da "${existHex.Pantone_ID}". Se è lo stesso colore usa "Segna fatto", altrimenti verifica l'HEX.`);return;}
+    if(!/^[0-9A-Fa-f]{6}$/.test(normHex)){setSaveErr('HEX non valido: servono 6 cifre esadecimali.');return;}
+    const usedHex=new Set(allRicette.map(r=>(r.HEX||'').replace('#','').trim().toUpperCase()).filter(h=>h.length===6).map(h=>'#'+h));
+    const existHex=allRicette.find(r=>(r.HEX||'').replace('#','').trim().toUpperCase()===normHex);
+    if(existHex){
+      const alts=hexAlternativesVicine('#'+normHex,usedHex,3);
+      setHexAlts(alts);
+      setSaveErr(`L'HEX #${normHex} è già usato da "${existHex.Pantone_ID}". Due Pantone non possono avere lo stesso HEX. Scegli un HEX vicino qui sotto o cambialo a mano.`);
+      return;
     }
-    if(!formulaWarnOk){
-      const mfNorm=txNormInks(formula.inks);
-      for(const r of allRicette){
-        const comps=allComponenti.filter(c=>String(c.Pantone_ID)===String(r.Pantone_ID));
-        if(!comps.length)continue;
-        const rNorm=txNormInks(comps);
-        const codes=new Set([...Object.keys(mfNorm),...Object.keys(rNorm)]);
-        if(Object.keys(mfNorm).length!==Object.keys(rNorm).length)continue;
-        let similar=true;
-        for(const c of codes){if(Math.abs((mfNorm[c]||0)-(rNorm[c]||0))>1){similar=false;break;}}
-        if(similar){setSaveErr(`⚠ Formula molto simile a "${r.Pantone_ID}" (differenza ≤1g per ingrediente). Premi di nuovo Importa se sei sicuro che siano colori diversi.`);setFormulaWarnOk(true);return;}
+    // REGOLA 3 — formula unica (nessuna ricetta identica al 100%)
+    const mfN=txNormInks(formula.inks);
+    for(const r of allRicette){
+      const comps=allComponenti.filter(c=>String(c.Pantone_ID)===String(r.Pantone_ID));
+      if(!comps.length)continue;
+      if(txFormulaIdentica(mfN,txNormInks(comps))){
+        setSaveErr(`Formula identica a "${r.Pantone_ID}" (stessi inchiostri e stesse dosi). Non puoi avere due ricette con la stessa formula.`);
+        return;
       }
     }
-    setFormulaWarnOk(false);
-    setSaving(true);setSaveErr('');
+    setSaving(true);setSaveErr('');setHexAlts([]);
     try{
       const hexVal='#'+normHex;
       const componenti=formula.inks.map(ink=>({Inchiostro:ink.code,'Dose_40g (g)':ink.dose}));
-      await postGAS({action:'addRicetta',Pantone_ID:finalPantoneId,HEX:hexVal,Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti,componenti});
-      allRicette.push({Pantone_ID:finalPantoneId,HEX:hexVal,Categoria:form.categoria,Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti});
+      // Monday_ID = collegamento esplicito alla formula di origine.
+      await postGAS({action:'addRicetta',Pantone_ID:finalPantoneId,HEX:hexVal,Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti,Monday_ID:formula.id,componenti});
+      allRicette.push({Pantone_ID:finalPantoneId,HEX:hexVal,Categoria:form.categoria,Temperatura:'',Copertura:form.copertura,Note:form.note,Vecchio_Nome:form.vecchioNome,Pagina:form.pagina,Progetti:form.progetti,Monday_ID:formula.id});
       componenti.forEach(c=>allComponenti.push({Pantone_ID:finalPantoneId,...c}));
       window._bumpData?.();
       setSaved(true);onImported();
@@ -4243,15 +4286,11 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
     finally{setSaving(false);}
   }
 
-  // All ink codes involved in both Monday and app formula (for comparison table)
-  const allCompCodes=React.useMemo(()=>{
-    const mfNorm=txNormInks(formula.inks);
-    const rNorm=match?txNormInks(match.comps):{};
-    return [...new Set([...Object.keys(mfNorm),...Object.keys(rNorm)])].sort();
-  },[formula.id,match]);
-
+  // Tabella confronto: formula Monday vs formula della ricetta collegata (se esiste).
+  const linkedComps=React.useMemo(()=>linkedRecipe?allComponenti.filter(c=>String(c.Pantone_ID)===String(linkedRecipe.Pantone_ID)):[],[linkedRecipe]);
   const mfNorm=React.useMemo(()=>txNormInks(formula.inks),[formula.id]);
-  const rNorm=React.useMemo(()=>match?txNormInks(match.comps):{},[match]);
+  const rNorm=React.useMemo(()=>linkedComps.length?txNormInks(linkedComps):{},[linkedComps]);
+  const allCompCodes=React.useMemo(()=>[...new Set([...Object.keys(mfNorm),...Object.keys(rNorm)])].sort(),[mfNorm,rNorm]);
 
   const inputStyle={width:'100%',height:38,borderRadius:10,border:'1.5px solid rgba(0,0,0,0.18)',padding:'0 12px',fontFamily:'Nebulica',fontSize:13,outline:'none',boxSizing:'border-box',background:'#FAFAFA'};
   const labelStyle={fontFamily:'Nebulica',fontSize:9,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.42)',marginBottom:5};
@@ -4275,26 +4314,6 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
         </div>
       </div>
 
-      {/* Conflitti */}
-      {conflicts&&conflicts.length>0&&(
-        <div style={{marginBottom:22,borderRadius:14,border:'1.5px solid rgba(220,38,38,0.25)',background:'rgba(239,68,68,0.05)',padding:'14px 16px'}}>
-          <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'#DC2626',marginBottom:10}}>{S.conflictTitle.toUpperCase()}</div>
-          <div style={{display:'flex',flexDirection:'column',gap:7}}>
-            {conflicts.map((c,i)=>{
-              let desc='';
-              if(c.type==='dup_code_mon')desc=S.conflictDupCodeMon(c.with);
-              else if(c.type==='dup_code_app')desc=S.conflictDupCodeApp(c.with);
-              else if(c.type==='dup_hex')desc=S.conflictDupHex(c.hex,c.with);
-              else if(c.type==='dup_formula_mon')desc=S.conflictDupFormula(c.with);
-              return <div key={i} style={{fontFamily:'Nebulica',fontSize:11,color:'#DC2626',display:'flex',gap:6,alignItems:'flex-start'}}>
-                <span style={{marginTop:1,flexShrink:0}}>⚠</span>
-                <span>{desc}</span>
-              </div>;
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Verifiche */}
       {(()=>{
         const st=txState[formula.id]||{};
@@ -4310,7 +4329,6 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
             </button>
           );
         };
-        const inApp=isDone||!!effectiveDtCode;
         const allVerified=!!(inApp&&st.barattolo&&st.codice&&st.copertura&&st.hex);
         return(
           <div style={{marginBottom:22}}>
@@ -4349,24 +4367,11 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
         })}
       </div>
 
-      {/* Match analysis — solo se score >= 90% */}
-      {match&&match.score>=90&&(
-        <div style={{marginBottom:22,borderRadius:14,padding:'16px 18px',background:match.score>=95?'rgba(34,197,94,0.07)':match.score>=60?'rgba(245,158,11,0.07)':'rgba(0,0,0,0.04)',border:`1px solid ${match.score>=95?'rgba(34,197,94,0.22)':match.score>=60?'rgba(245,158,11,0.22)':'rgba(0,0,0,0.09)'}`}}>
-          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-            <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:match.score>=95?'#16A34A':match.score>=60?'#D97706':'rgba(0,0,0,0.5)'}}>
-              {match.score>=99?S.matchFull:match.score>=95?S.matchHigh(match.score):match.score>=60?S.matchMid(match.score):S.matchLow(match.score)}
-            </div>
-            <div style={{fontFamily:'Nebulica',fontSize:12,color:'rgba(0,0,0,0.5)'}}>→ {match.r.Pantone_ID}</div>
-          </div>
-          <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.6)',marginBottom:12,lineHeight:1.6}}>
-            {match.score>=99&&S.descFull(match.r.Pantone_ID)}
-            {match.score>=95&&match.score<99&&S.descHigh}
-            {match.score>=70&&match.score<95&&S.descMid}
-            {match.score>=60&&match.score<70&&S.descMidLow}
-            {match.score<60&&S.descLow}
-          </div>
-          {/* Comparison table — only shown when score >=70% */}
-          {match.score>=70&&<div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr auto',gap:'3px 12px',alignItems:'center'}}>
+      {/* Confronto formula: Monday vs ricetta collegata (solo se già in app) */}
+      {linkedRecipe&&allCompCodes.length>0&&(
+        <div style={{marginBottom:22,borderRadius:14,padding:'16px 18px',background:'rgba(34,197,94,0.06)',border:'1px solid rgba(34,197,94,0.2)'}}>
+          <div style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'#16A34A',marginBottom:10}}>CONFRONTO CON {linkedRecipe.Pantone_ID}</div>
+          <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr auto',gap:'3px 12px',alignItems:'center'}}>
             {S.tableHeaders.map(h=>(
               <div key={h} style={{fontFamily:'Nebulica',fontSize:9,letterSpacing:1.2,fontWeight:700,color:'rgba(0,0,0,0.38)',paddingBottom:4}}>{h}</div>
             ))}
@@ -4384,29 +4389,28 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
                 </React.Fragment>
               );
             })}
-          </div>}
+          </div>
         </div>
       )}
 
       {/* Action */}
-      {saved||markedDone||isDone?(
+      {saved||inApp?(
         <div style={{background:'rgba(34,197,94,0.09)',borderRadius:14,padding:'18px 20px',border:'1px solid rgba(34,197,94,0.22)',textAlign:'center'}}>
-          <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#16A34A'}}>{saved?S.importedTitle:'✓ '+S.markDone}</div>
-          {saved&&<div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:5}}>{S.importedSub(form.pantoneId)}</div>}
+          <div style={{fontFamily:'Nebulica',fontSize:15,fontWeight:700,color:'#16A34A'}}>{saved?S.importedTitle:S.alreadyTitle(displayTitle)}</div>
+          <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:5}}>{saved?S.importedSub(form.pantoneId):S.alreadySub}</div>
+        </div>
+      ):isDiscarded?(
+        <div style={{background:'rgba(0,0,0,0.04)',borderRadius:14,padding:'18px 20px',border:'1px solid rgba(0,0,0,0.12)',textAlign:'center'}}>
+          <div style={{fontFamily:'Nebulica',fontSize:14,fontWeight:700,color:'rgba(0,0,0,0.5)'}}>{lang==='fr'?'Formule écartée':'Formula scartata'}</div>
+          <button onClick={onToggleDiscard} style={{marginTop:12,padding:'9px 18px',borderRadius:99,background:'transparent',color:'rgba(0,0,0,0.6)',border:'1.5px solid rgba(0,0,0,0.2)',fontFamily:'Nebulica',fontSize:12,fontWeight:700,cursor:'pointer'}}>{lang==='fr'?'Restaurer':'Ripristina'}</button>
         </div>
       ):(
         <>
-        {match&&match.score>=95&&(
-          <div style={{background:'rgba(34,197,94,0.07)',borderRadius:14,padding:'16px 18px',border:'1px solid rgba(34,197,94,0.18)',display:'flex',alignItems:'center',gap:14,marginBottom:12}}>
-            <div style={{flex:1}}>
-              <div style={{fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:'#16A34A'}}>{S.alreadyTitle(match.r.Pantone_ID)}</div>
-              <div style={{fontFamily:'Nebulica',fontSize:11,color:'rgba(0,0,0,0.5)',marginTop:4}}>{S.alreadySub}</div>
-            </div>
-            <button onClick={()=>{setMarkedDone(true);onImported();}} style={{padding:'10px 18px',borderRadius:99,background:'#22C55E',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>{S.markDone}</button>
-          </div>
-        )}
         <div style={{background:'#fff',borderRadius:16,padding:'22px',border:'1px solid rgba(0,0,0,0.1)'}}>
-          <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:0.3,marginBottom:16,color:'#0B0B0B'}}>{S.importTitle}</div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+            <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:0.3,color:'#0B0B0B'}}>{S.importTitle}</div>
+            <button onClick={onToggleDiscard} title={lang==='fr'?'Écarter cette formule':'Scarta questa formula'} style={{padding:'6px 12px',borderRadius:99,background:'transparent',color:'rgba(0,0,0,0.4)',border:'1.5px solid rgba(0,0,0,0.15)',fontFamily:'Nebulica',fontSize:10,fontWeight:700,letterSpacing:0.5,cursor:'pointer'}}>✕ {lang==='fr'?'Écarter':'Scarta'}</button>
+          </div>
           <div style={{marginBottom:12}}>
             <div style={labelStyle}>{S.labelPantone}</div>
             <input value={form.pantoneId} onChange={e=>setF('pantoneId',e.target.value)} onBlur={e=>setF('pantoneId',normalizePantoneCode(e.target.value))} style={inputStyle} placeholder={S.phPantone}/>
@@ -4461,6 +4465,18 @@ function TransferDetail({formula,match,onImported,isDone,conflicts,S,txState,upd
             </div>
           </div>
           {saveErr&&<div style={{fontFamily:'Nebulica',fontSize:11,color:'#EF4444',marginBottom:10,padding:'8px 12px',background:'rgba(239,68,68,0.07)',borderRadius:8}}>{saveErr}</div>}
+          {hexAlts.length>0&&(
+            <div style={{marginBottom:12}}>
+              <div style={{...labelStyle,marginBottom:7}}>{lang==='fr'?'HEX PROCHES LIBRES':'HEX VICINI LIBERI'}</div>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                {hexAlts.map(alt=>(
+                  <button key={alt} onClick={()=>{setF('hex',alt);}} style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px 6px 6px',borderRadius:99,border:'1.5px solid rgba(0,0,0,0.15)',background:'#fff',cursor:'pointer',fontFamily:'Nebulica',fontSize:12,fontWeight:700,color:'#0B0B0B'}}>
+                    <span style={{width:22,height:22,borderRadius:'50%',background:alt,flexShrink:0,border:'1px solid rgba(0,0,0,0.1)'}}/>{alt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <button onClick={handleImport} disabled={saving} style={{height:44,borderRadius:99,background:saving?'rgba(0,0,0,0.3)':'#0B0B0B',color:'#fff',border:'none',fontFamily:'Nebulica',fontSize:14,fontWeight:700,width:'100%',cursor:saving?'default':'pointer',transition:'background .2s'}}>
             {saving?S.saving:S.importBtn}
           </button>
@@ -4477,9 +4493,22 @@ function TransferPanel(){
   const[lang,setLang]=React.useState(()=>{try{return localStorage.getItem('tx_lang')||'it';}catch(e){return 'it';}});
   const S=TX[lang]||TX.it;
   const toggleLang=()=>setLang(l=>{const n=l==='it'?'fr':'it';try{localStorage.setItem('tx_lang',n);}catch(e){}return n;});
-  const[done,setDone]=React.useState(()=>{
-    try{return new Set(JSON.parse(localStorage.getItem('tx_done')||'[]'));}
+  // Backfill: scrive una volta i Monday_ID delle 34 ricette esistenti nel foglio (rende permanente il collegamento).
+  const[backfillState,setBackfillState]=React.useState('idle'); // idle | running | done | error
+  const runBackfill=async()=>{
+    setBackfillState('running');
+    try{const r=await postGAS({action:'backfillMondayIds',map:MONDAY_BACKFILL});setBackfillState('done');}
+    catch(e){setBackfillState('error');}
+  };
+  // Scartati: formule Monday che l'utente ha deciso di NON importare (prove superate).
+  const[discarded,setDiscarded]=React.useState(()=>{
+    try{return new Set(JSON.parse(localStorage.getItem('tx_discarded')||'[]'));}
     catch(e){return new Set();}
+  });
+  const toggleDiscard=(id)=>setDiscarded(prev=>{
+    const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);
+    try{localStorage.setItem('tx_discarded',JSON.stringify([...n]));}catch(e){}
+    return n;
   });
   const[txState,setTxState]=React.useState(()=>{
     try{return JSON.parse(localStorage.getItem('tx_state')||'{}');}
@@ -4503,18 +4532,13 @@ function TransferPanel(){
       .then(d=>{
         if(!d||!d.verifiche)return;
         const sheetsIds=new Set(Object.keys(d.verifiche));
-        // Retroactive sync: marks only in localStorage → push to Sheets
+        // Sync retroattivo: spunte presenti solo in localStorage → le mando a Sheets
         for(const[id,st]of Object.entries(localState)){
-          if(!sheetsIds.has(String(id))&&(st.barattolo||st.codice||st.copertura||st.hex||st.done)){
-            fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'salvaVerifica',formula_id:Number(id),barattolo:!!st.barattolo,codice:!!st.codice,copertura:!!st.copertura,hex:!!st.hex,done:!!st.done})}).catch(()=>{});
+          if(!sheetsIds.has(String(id))&&(st.barattolo||st.codice||st.copertura||st.hex)){
+            fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'salvaVerifica',formula_id:Number(id),barattolo:!!st.barattolo,codice:!!st.codice,copertura:!!st.copertura,hex:!!st.hex})}).catch(()=>{});
           }
         }
-        // Rebuild done Set from Sheets
-        const sheetsDone=Object.entries(d.verifiche).filter(([,v])=>v.done).map(([id])=>Number(id));
-        if(sheetsDone.length>0){
-          setDone(prev=>{const n=new Set(prev);sheetsDone.forEach(id=>n.add(id));try{localStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
-        }
-        // Merge Sheets into txState
+        // Merge Sheets → txState
         if(Object.keys(d.verifiche).length>0){
           setTxState(prev=>{
             const merged={...prev};
@@ -4529,116 +4553,25 @@ function TransferPanel(){
   },[]);
   const[activeFilter,setActiveFilter]=React.useState('all');
   const[searchQuery,setSearchQuery]=React.useState('');
-  const markDone=(id)=>{
-    setDone(prev=>{const n=new Set(prev);n.add(id);try{localStorage.setItem('tx_done',JSON.stringify([...n]));}catch(e){}return n;});
-    const st=txState[id]||{};
-    fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'salvaVerifica',formula_id:id,barattolo:!!st.barattolo,codice:!!st.codice,copertura:!!st.copertura,hex:!!st.hex,done:true})}).catch(()=>{});
-  };
-
-  const matchMap=React.useMemo(()=>{
+  // ── Collegamento deterministico Monday ⇄ Ricetta ─────────────────────────
+  // transferredMap[mondayId] = ricetta app che nasce da quella formula.
+  // È l'unica verità: nessun match fuzzy, nessun confronto di nomi o formule.
+  const transferredMap=React.useMemo(()=>{
     const m={};
-    for(const mf of MONDAY_FORMULAS)m[mf.id]=txFindMatch(mf.inks);
+    for(const r of allRicette){const id=getMondayId(r);if(id!=null&&!m[id])m[id]=r;}
     return m;
-  },[allRicette.length,allComponenti.length]);
+  },[allRicette.length]);
 
-  const conflictMap=React.useMemo(()=>{
-    const map={};
-    const add=(id,obj)=>{if(!map[id])map[id]=[];map[id].push(obj);};
-    // 1. Duplicate Pantone code within Monday
-    const codeIdx={};
+  // Categorizzazione: fatto se esiste una ricetta collegata; scartato se marcato; altrimenti da importare.
+  const{confirmed,todo,discardedList}=React.useMemo(()=>{
+    const confirmed=[],todo=[],discardedList=[];
     for(const mf of MONDAY_FORMULAS){
-      const{newCode}=txParseName(mf.name);
-      const k=(newCode||'').trim().toUpperCase().replace(/\s+/g,'');
-      if(!k)continue;
-      if(!codeIdx[k])codeIdx[k]=[];
-      codeIdx[k].push(mf);
+      if(transferredMap[mf.id])confirmed.push(mf);
+      else if(discarded.has(mf.id))discardedList.push(mf);
+      else todo.push(mf);
     }
-    for(const group of Object.values(codeIdx)){
-      if(group.length>1)group.forEach(mf=>add(mf.id,{type:'dup_code_mon',with:group.filter(x=>x.id!==mf.id).map(x=>x.name).join(', ')}));
-    }
-    // 2. Pantone code already in app with different formula
-    const appCodes={};
-    for(const r of allRicette){const k=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,'');if(k)appCodes[k]=r;}
-    for(const mf of MONDAY_FORMULAS){
-      const{newCode}=txParseName(mf.name);
-      const k=(newCode||'').trim().toUpperCase().replace(/\s+/g,'');
-      if(!k||!appCodes[k])continue;
-      const m=matchMap[mf.id];
-      const sameCode=m&&m.score>=95&&(m.r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,'')===k;
-      if(!sameCode)add(mf.id,{type:'dup_code_app',with:appCodes[k].Pantone_ID});
-    }
-    // 3. Duplicate HEX in app (flag Monday formulas whose matched recipe shares HEX)
-    const hexIdx={};
-    for(const r of allRicette){const h=(r.HEX||'').trim().toUpperCase().replace(/^#/,'');if(h.length===6){if(!hexIdx[h])hexIdx[h]=[];hexIdx[h].push(r);}}
-    for(const mf of MONDAY_FORMULAS){
-      const m=matchMap[mf.id];
-      if(!m?.r?.HEX)continue;
-      const h=(m.r.HEX||'').trim().toUpperCase().replace(/^#/,'');
-      const grp=hexIdx[h];
-      if(grp&&grp.length>1)add(mf.id,{type:'dup_hex',hex:'#'+h,with:grp.filter(r=>r.Pantone_ID!==m.r.Pantone_ID).map(r=>r.Pantone_ID).join(', ')});
-    }
-    // 4. Duplicate formula composition within Monday
-    const fmKey=norm=>Object.entries(norm).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}:${v.toFixed(1)}`).join('|');
-    const fmIdx={};
-    for(const mf of MONDAY_FORMULAS){const k=fmKey(txNormInks(mf.inks));if(!k)continue;if(!fmIdx[k])fmIdx[k]=[];fmIdx[k].push(mf);}
-    for(const group of Object.values(fmIdx)){
-      if(group.length>1)group.forEach(mf=>add(mf.id,{type:'dup_formula_mon',with:group.filter(x=>x.id!==mf.id).map(x=>x.name).join(', ')}));
-    }
-    return map;
-  },[matchMap,allRicette.length,allComponenti.length]);
-
-  const{confirmed,todo,problems,orphanIds}=React.useMemo(()=>{
-    const confirmed=[],todo=[],problems=[];
-    const _vnNorm2=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
-    for(const mf of MONDAY_FORMULAS){
-      const{newCode:c}=txParseName(mf.name);
-      const codeMatch=!!(c&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=c.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);}));
-      const formulaMatch100=!codeMatch&&!!(matchMap[mf.id]?.score>=99);
-      if(done.has(mf.id)||codeMatch||formulaMatch100){confirmed.push(mf);continue;}
-      if(mf.flags.includes('not_40g')||mf.duplicate_of){problems.push(mf);continue;}
-      todo.push(mf);
-    }
-    // Ordina "confirmed": prima per ordine wallet, poi match diretto prima del match via Vecchio_Nome
-    confirmed.sort((a,b)=>{
-      const getInfo=mf=>{
-        const{newCode:c}=txParseName(mf.name);
-        if(c){
-          const cn=c.trim().toUpperCase().replace(/\s+/g,' ');
-          for(let i=0;i<allRicette.length;i++){
-            const pid=(allRicette[i].Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');
-            if(pid===cn)return{idx:i,direct:true};
-          }
-          const idx=allRicette.findIndex(r=>{const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);});
-          if(idx>=0)return{idx,direct:false};
-        }
-        const fm=matchMap[mf.id];
-        if(fm?.score>=99&&fm?.r){const idx=allRicette.findIndex(r=>r.Pantone_ID===fm.r.Pantone_ID);if(idx>=0)return{idx,direct:false};}
-        return{idx:9999,direct:false};
-      };
-      const ia=getInfo(a),ib=getInfo(b);
-      if(ia.idx!==ib.idx)return ia.idx-ib.idx;
-      return(ia.direct?0:1)-(ib.direct?0:1);
-    });
-    // Deduplica: se due righe Monday puntano allo stesso codice app, tieni solo la prima (già ordinata: diretta > Vecchio_Nome)
-    const seenAppCodes=new Set();
-    const orphanIds=new Set();
-    const confirmedFinal=confirmed.filter(mf=>{
-      const{newCode:c}=txParseName(mf.name);
-      if(!c)return true;
-      const cn=c.trim().toUpperCase().replace(/\s+/g,' ');
-      for(const r of allRicette){
-        const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');
-        if(pid===cn){if(seenAppCodes.has(pid))return false;seenAppCodes.add(pid);return true;}
-      }
-      const mr=allRicette.find(r=>{const vn=_vnNorm2(r.Vecchio_Nome||'');const mc=_vnNorm2(c);return!!(vn&&mc&&vn===mc);});
-      if(mr){const key=(mr.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
-      const fm=matchMap[mf.id];
-      if(fm?.score>=99&&fm?.r?.Pantone_ID){const key=(fm.r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
-      orphanIds.add(mf.id);
-      return true;
-    });
-    return{confirmed:confirmedFinal,todo,problems,orphanIds};
-  },[done,allRicette.length,matchMap]);
+    return{confirmed,todo,discardedList};
+  },[transferredMap,discarded]);
 
   const filterFn=React.useCallback(mf=>{
     if(searchQuery){
@@ -4647,10 +4580,7 @@ function TransferPanel(){
     }
     if(activeFilter==='all')return true;
     const st=txState[mf.id]||{};
-    const{newCode:mfCode2}=txParseName(mf.name);
-    const _vnNorm3=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
-    const codeInApp2=!!(mfCode2&&allRicette.some(r=>{const pid=(r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');const cn=mfCode2.trim().toUpperCase().replace(/\s+/g,' ');if(pid===cn)return true;const vn=_vnNorm3(r.Vecchio_Nome||'');const mc=_vnNorm3(mfCode2);return!!(vn&&mc&&vn===mc);}));
-    const inApp=done.has(mf.id)||codeInApp2||!!(matchMap[mf.id]?.score>=99);
+    const inApp=!!transferredMap[mf.id];
     if(activeFilter==='inapp')return inApp;
     if(activeFilter==='noapp')return !inApp;
     if(activeFilter==='barattolo')return!!st.barattolo;
@@ -4658,11 +4588,11 @@ function TransferPanel(){
     if(activeFilter==='nocopertura')return!st.copertura;
     if(activeFilter==='nohex')return!st.hex;
     return true;
-  },[activeFilter,searchQuery,txState,matchMap,done]);
+  },[activeFilter,searchQuery,txState,transferredMap]);
 
   const flatItems=React.useMemo(()=>
-    [...confirmed,...todo,...problems].filter(filterFn),
-  [confirmed,todo,problems,filterFn]);
+    [...confirmed,...todo,...discardedList].filter(filterFn),
+  [confirmed,todo,discardedList,filterFn]);
 
   // Keyboard navigation
   React.useEffect(()=>{
@@ -4708,7 +4638,8 @@ function TransferPanel(){
         <div style={{marginLeft:'auto',display:'flex',gap:18,alignItems:'center'}}>
           <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#16A34A'}}>✅ {confirmed.length}</span>
           <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#D97706'}}>🔶 {todo.length}</span>
-          <span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'#EF4444'}}>⚠️ {problems.length}</span>
+          {discardedList.length>0&&<span style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,color:'rgba(0,0,0,0.35)'}}>✕ {discardedList.length}</span>}
+          <button onClick={runBackfill} disabled={backfillState==='running'||backfillState==='done'} title="Scrive i collegamenti Monday_ID nel foglio (una tantum)" style={{height:24,padding:'0 10px',borderRadius:99,border:'1.5px solid rgba(0,0,0,0.14)',background:backfillState==='done'?'rgba(22,163,74,0.1)':'transparent',fontFamily:'Nebulica',fontSize:9.5,fontWeight:700,letterSpacing:0.5,cursor:backfillState==='done'?'default':'pointer',color:backfillState==='done'?'#16A34A':backfillState==='error'?'#EF4444':'rgba(0,0,0,0.45)'}}>{backfillState==='running'?'…':backfillState==='done'?'✓ COLLEGATO':backfillState==='error'?'ERRORE':'⛓ COLLEGA FOGLIO'}</button>
           <span style={{fontFamily:'Nebulica',fontSize:10,color:'rgba(0,0,0,0.3)',fontWeight:700,background:'rgba(0,0,0,0.06)',padding:'3px 9px',borderRadius:99}}>{S.panelTotal(MONDAY_FORMULAS.length)}</span>
           <button onClick={toggleLang} style={{height:28,padding:'0 12px',borderRadius:99,border:'1.5px solid rgba(0,0,0,0.18)',background:'transparent',fontFamily:'Nebulica',fontSize:11,fontWeight:700,cursor:'pointer',letterSpacing:0.5,color:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',gap:5}}>
             <span style={{opacity:lang==='it'?1:0.3}}>IT</span>
@@ -4744,15 +4675,15 @@ function TransferPanel(){
           </div>
           {/* Groups */}
           <div style={{flex:1,overflowY:'auto'}}>
-            <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} conflictMap={conflictMap} S={S} txState={txState} orphanIds={orphanIds}/>
-            <TransferGroup label={'🔶 '+S.groupTodo} color="#D97706" items={todo.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} conflictMap={conflictMap} S={S} txState={txState}/>
-            <TransferGroup label={'⚠️ '+S.groupProblems} color="#EF4444" items={problems.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} conflictMap={conflictMap} S={S} txState={txState}/>
+            <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed.filter(filterFn)} selected={selected} onSelect={setSelected} transferredMap={transferredMap} S={S} txState={txState}/>
+            <TransferGroup label={'🔶 '+S.groupTodo} color="#D97706" items={todo.filter(filterFn)} selected={selected} onSelect={setSelected} transferredMap={transferredMap} S={S} txState={txState}/>
+            <TransferGroup label={'✕ '+(lang==='fr'?'Écartés':'Scartati')} color="rgba(0,0,0,0.4)" items={discardedList.filter(filterFn)} selected={selected} onSelect={setSelected} transferredMap={transferredMap} S={S} txState={txState}/>
           </div>
         </div>
         {/* Detail */}
         <div style={{flex:1,overflowY:'auto',padding:'32px 48px'}}>
           {sel
-            ?<TransferDetail key={sel.id} formula={sel} match={matchMap[sel.id]} onImported={()=>markDone(sel.id)} isDone={done.has(sel.id)} conflicts={conflictMap[sel.id]||null} S={S} txState={txState} updateTxState={updateTxState}/>
+            ?<TransferDetail key={sel.id} formula={sel} linkedRecipe={transferredMap[sel.id]||null} isDiscarded={discarded.has(sel.id)} onToggleDiscard={()=>toggleDiscard(sel.id)} onImported={()=>window._bumpData?.()} S={S} txState={txState} updateTxState={updateTxState} lang={lang}/>
             :<div style={{color:'rgba(0,0,0,0.28)',fontFamily:'Nebulica',fontSize:13,paddingTop:100,textAlign:'center',letterSpacing:0.5}}>{S.emptyState}</div>
           }
         </div>
