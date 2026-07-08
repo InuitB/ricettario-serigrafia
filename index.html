@@ -4091,7 +4091,7 @@ const TX={
   },
 };
 
-function TransferGroup({label,color,items,selected,onSelect,matchMap,done,conflictMap,S,txState}){
+function TransferGroup({label,color,items,selected,onSelect,matchMap,done,conflictMap,S,txState,orphanIds}){
   const[open,setOpen]=React.useState(true);
   if(!items.length)return null;
   return(
@@ -4127,6 +4127,7 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
                 return(
                   <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap',marginBottom:10}}>
                     {pill(S.tagMonday,'rgba(59,130,246,0.12)','#2563EB')}
+                    {orphanIds?.has(mf.id)&&pill('SENZA RICETTA','rgba(239,68,68,0.12)','#DC2626')}
                     {st.barattolo?pill(S.tagBarattoloOk,'rgba(161,98,7,0.12)','#A16207'):pill(S.tagBarattolo+' —','rgba(0,0,0,0.04)','rgba(0,0,0,0.25)')}
                     {st.copertura&&pill(S.tagCopertura,'rgba(124,58,237,0.12)','#6D28D9')}
                     {st.hex&&pill(S.tagHex,'rgba(8,145,178,0.12)','#0E7490')}
@@ -4586,7 +4587,7 @@ function TransferPanel(){
     return map;
   },[matchMap,allRicette.length,allComponenti.length]);
 
-  const{confirmed,todo,problems}=React.useMemo(()=>{
+  const{confirmed,todo,problems,orphanIds}=React.useMemo(()=>{
     const confirmed=[],todo=[],problems=[];
     const _vnNorm2=s=>s.trim().toLowerCase().replace(/^ex\.?\s*/,'').replace(/\s+u$/,'').trim();
     for(const mf of MONDAY_FORMULAS){
@@ -4620,6 +4621,7 @@ function TransferPanel(){
     });
     // Deduplica: se due righe Monday puntano allo stesso codice app, tieni solo la prima (già ordinata: diretta > Vecchio_Nome)
     const seenAppCodes=new Set();
+    const orphanIds=new Set();
     const confirmedFinal=confirmed.filter(mf=>{
       const{newCode:c}=txParseName(mf.name);
       if(!c)return true;
@@ -4632,9 +4634,10 @@ function TransferPanel(){
       if(mr){const key=(mr.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
       const fm=matchMap[mf.id];
       if(fm?.score>=99&&fm?.r?.Pantone_ID){const key=(fm.r.Pantone_ID||'').trim().toUpperCase().replace(/\s+/g,' ');if(seenAppCodes.has(key))return false;seenAppCodes.add(key);return true;}
+      orphanIds.add(mf.id);
       return true;
     });
-    return{confirmed:confirmedFinal,todo,problems};
+    return{confirmed:confirmedFinal,todo,problems,orphanIds};
   },[done,allRicette.length,matchMap]);
 
   const filterFn=React.useCallback(mf=>{
@@ -4741,7 +4744,7 @@ function TransferPanel(){
           </div>
           {/* Groups */}
           <div style={{flex:1,overflowY:'auto'}}>
-            <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} conflictMap={conflictMap} S={S} txState={txState}/>
+            <TransferGroup label={'✅ '+S.groupConfirmed} color="#16A34A" items={confirmed.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} conflictMap={conflictMap} S={S} txState={txState} orphanIds={orphanIds}/>
             <TransferGroup label={'🔶 '+S.groupTodo} color="#D97706" items={todo.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} conflictMap={conflictMap} S={S} txState={txState}/>
             <TransferGroup label={'⚠️ '+S.groupProblems} color="#EF4444" items={problems.filter(filterFn)} selected={selected} onSelect={setSelected} matchMap={matchMap} done={done} conflictMap={conflictMap} S={S} txState={txState}/>
           </div>
