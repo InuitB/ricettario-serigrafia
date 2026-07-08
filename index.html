@@ -4146,12 +4146,12 @@ function TransferGroup({label,color,items,selected,onSelect,matchMap,done,confli
                 const appVN=(matchedAppRecipe?.Vecchio_Nome||'').replace(/^ex\.?\s*/i,'').trim();
                 const exLabel=mondayDiffers?mfCode:(appVN||null);
                 return(
-                  <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'flex-start',gap:10,minWidth:0}}>
                     <div style={{minWidth:0,flexShrink:1}}>
                       <div style={{fontFamily:'Nebulica',fontSize:28,fontWeight:700,color:'#0B0B0B',lineHeight:1.15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayCode}</div>
                       {exLabel&&<div style={{fontFamily:'Nebulica',fontSize:12,color:'rgba(0,0,0,0.35)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>ex {exLabel}</div>}
                     </div>
-                    {inApp&&<IcoCheckSeal size={28} color="#16A34A"/>}
+                    {inApp&&<div style={{display:'flex',alignItems:'center',height:32,flexShrink:0}}><IcoCheckSeal size={28} color="#16A34A"/></div>}
                   </div>
                 );
               })()}
