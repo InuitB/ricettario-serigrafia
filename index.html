@@ -3959,12 +3959,15 @@ const MONDAY_BACKFILL = {
   '309 U':16,'2132 U':39,'2123 U':37,'2388 U':14,'3595 U':40,'330 U':49,'2339 U':67,
   '284 U':27,
 };
+// Mappa normalizzata (spazi collassati + maiuscolo) per tollerare doppi spazi / nbsp nel foglio.
+const _txNormPid=s=>(s||'').trim().replace(/\s+/g,' ').toUpperCase();
+const MONDAY_BACKFILL_NORM=Object.fromEntries(Object.entries(MONDAY_BACKFILL).map(([k,v])=>[_txNormPid(k),v]));
 // Restituisce l'id Monday di una ricetta: dal foglio se presente, altrimenti dalla mappa.
 function getMondayId(r){
   if(!r)return null;
   const raw=r.Monday_ID;
   if(raw!=null&&String(raw).trim()!==''){const n=parseInt(raw,10);if(!isNaN(n))return n;}
-  const bf=MONDAY_BACKFILL[(r.Pantone_ID||'').trim()];
+  const bf=MONDAY_BACKFILL_NORM[_txNormPid(r.Pantone_ID)];
   return bf!=null?bf:null;
 }
 
