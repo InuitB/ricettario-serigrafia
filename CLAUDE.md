@@ -23,6 +23,28 @@ Monday ⇄ ricetta è **esplicito e memorizzato**:
   `backfillMondayIds({map})` scrive i 34 collegamenti storici nel foglio (bottone "⛓ COLLEGA
   FOGLIO" nell'header del pannello — una tantum, opzionale: l'app funziona già con la mappa).
 
+### Stato operativo (fine sessione 2026-07-09)
+- **Code.gs È GIÀ STATO DEPLOYATO dall'utente** (con `backfillMondayIds` + Monday_ID in addRicetta).
+  `clasp` è rotto (`invalid_grant`): deploy manuale obbligatorio da script.google.com.
+- **Base storica = 34 ricette** nel foglio, tutte da Monday, mappate in `MONDAY_BACKFILL`
+  (35 chiavi: incluso alias `'Pantone Reflex Blue U':15` oltre a `'Pantone Reflex Blue':15`).
+  `getMondayId` normalizza spazi/maiuscolo (`_txNormPid`) per tollerare doppi spazi/nbsp.
+- **`confirmed` è ordinato come il wallet** (indice in `allRicette` = ordine di approvazione),
+  non più per id Monday.
+- **Regola chiave wallet vs trasferimento**: il wallet conta TUTTE le ricette; il trasferimento
+  conta SOLO quelle con Monday_ID (nate da una formula Monday). Un colore aggiunto via "Nuova
+  formula" (flussi righe ~1333 e ~2562 — NON passano Monday_ID) o senza origine Monday sta nel
+  wallet ma NON nel trasferimento. **Wallet > trasferimento è NORMALE e CORRETTO.**
+  (Es. sessione: wallet 49 vs trasferimento 47 = 2 colori non-Monday nel wallet.)
+- **3 colori mancanti** che l'utente credeva salvati (37 attesi, 34 reali): **7606, 2418, 3305**
+  — mai arrivati nel foglio (vecchio bug di persistenza). `2418`→Monday id 43, `3305`→id 50
+  (entrambi in "DA IMPORTARE"); `7606` non ha formula Monday corrispondente.
+- Se wallet e trasferimento divergono più del previsto: i colori "extra" nel wallet sono quelli
+  che NON compaiono in "GIÀ IN APP / FATTO" → o sono non-Monday (ok) o doppioni dello stesso
+  Monday_ID importato due volte (da cancellare).
+- Bug residuo innocuo: `salvaVerifica` (Code.gs) azzera la colonna `Done` quando il POST non manda
+  `done` — ma il concetto `done` è stato RIMOSSO dal frontend, quindi è ininfluente.
+
 ## Panoramica
 
 App web mobile-first per la gestione delle formule di inchiostri serigrafia (SICO · Pantone).
