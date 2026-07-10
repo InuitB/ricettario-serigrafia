@@ -1,0 +1,2289 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Ricettario Pantone — Desktop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  @font-face { font-family: 'Nebulica'; src: url('fonts/Nebulica-Regular.otf') format('opentype'); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Nebulica'; src: url('fonts/Nebulica-Bold.otf') format('opentype'); font-weight: 700; font-style: normal; font-display: swap; }
+  html, body { margin: 0; padding: 0; font-family: 'Nebulica', -apple-system, system-ui, sans-serif; background: #f0eee9; overscroll-behavior: none; }
+  * { box-sizing: border-box; }
+  #app { width: 100vw; height: 100vh; }
+  button { font: inherit; transition: transform .42s cubic-bezier(.34,1.56,.64,1), filter .25s ease, background-color .22s ease, color .22s ease, box-shadow .25s ease, border-color .2s ease; }
+  button:active:not(:disabled) { transform: scale(1.07); filter: brightness(1.08); transition: transform .09s ease-out, filter .09s ease-out; }
+  input::placeholder { color: rgba(11,11,11,0.4); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.10/babel.min.js"></script>
+<script type="text/babel" data-presets="react">
+
+// ============================================================
+// desktop-shared.jsx
+// ============================================================
+// desktop-shared.jsx — Ricettario Pantone · DESKTOP · sistema "iOS 26 / liquid glass"
+// Dati + note, theme tokens (cream↔grey · accento · font · grana · bordi neri),
+// easings fluide bouncy, grana/blob, icone, e componenti-ricetta a PILL.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dataset
+// ─────────────────────────────────────────────────────────────────────────────
+const DESK_PANTONES = [
+  { code: '072 U',  name: 'Pantone Blue',  hex: '#10069F', family: 'blu',     ink: 2, page: 51,  coherence: 92 },
+  { code: '286 U',  name: 'Cobalt',        hex: '#0033A0', family: 'blu',     ink: 2, page: 52,  coherence: 93 },
+  { code: '3405 U', name: 'Vivid Teal',    hex: '#A2D9E7', family: 'azzurro', ink: 3, page: 112, coherence: 78 },
+  { code: '320 U',  name: 'Aqua',          hex: '#009CA6', family: 'azzurro', ink: 4, page: 124, coherence: 79 },
+  { code: '802 U',  name: 'Neon Green',    hex: '#44D62C', family: 'verde',   ink: 2, page: 162, coherence: 94 },
+  { code: '376 U',  name: 'Lime',          hex: '#84BD00', family: 'verde',   ink: 3, page: 160, coherence: 83 },
+  { code: '366 U',  name: 'Citron',        hex: '#C1DE92', family: 'verde',   ink: 4, page: 158, coherence: 86 },
+  { code: '116 U',  name: 'Amber',         hex: '#FFCD00', family: 'giallo',  ink: 4, page: 29,  coherence: 95 },
+  { code: '109 U',  name: 'Sunflower',     hex: '#FFD100', family: 'giallo',  ink: 2, page: 30,  coherence: 91 },
+  { code: '115 U',  name: 'Cream Gold',    hex: '#FCD757', family: 'giallo',  ink: 3, page: 28,  coherence: 88 },
+  { code: '7406 U', name: 'Mustard',       hex: '#F1B434', family: 'giallo',  ink: 3, page: 33,  coherence: 87 },
+  { code: '021 U',  name: 'Orange',        hex: '#FE5000', family: 'arancio', ink: 2, page: 70,  coherence: 89 },
+  { code: '7626 U', name: 'Terracotta',    hex: '#A6431B', family: 'arancio', ink: 4, page: 74,  coherence: 80 },
+  { code: '16-1546','tcx': true, name: 'Living Coral', hex: '#F66257', family: 'arancio', ink: 3, page: 76, coherence: 85 },
+  { code: '185 U',  name: 'Red',           hex: '#E4002B', family: 'rosso',   ink: 2, page: 84,  coherence: 90 },
+  { code: '485 U',  name: 'Brick',         hex: '#DA291C', family: 'rosso',   ink: 3, page: 92,  coherence: 87 },
+  { code: '202 U',  name: 'Garnet',        hex: '#862633', family: 'rosso',   ink: 3, page: 95,  coherence: 88 },
+  { code: '699 U',  name: 'Pink Pastel',   hex: '#F5D0D3', family: 'rosa',    ink: 3, page: 51,  coherence: 81 },
+  { code: '1925 U', name: 'Magenta',       hex: '#E10098', family: 'rosa',    ink: 3, page: 88,  coherence: 84 },
+  { code: '266 U',  name: 'Violet',        hex: '#753BBD', family: 'viola',   ink: 3, page: 78,  coherence: 85 },
+  { code: '512 U',  name: 'Plum',          hex: '#7D2248', family: 'viola',   ink: 4, page: 81,  coherence: 76 },
+  { code: '7499 U', name: 'Bone',          hex: '#F1E6B2', family: 'neutro',  ink: 2, page: 22,  coherence: 92 },
+  { code: '7527 U', name: 'Sand',          hex: '#D6D2C4', family: 'neutro',  ink: 2, page: 24,  coherence: 90 },
+  { code: '447 U',  name: 'Graphite',      hex: '#3F4444', family: 'neutro',  ink: 2, page: 18,  coherence: 96 },
+];
+
+const FAMILIES = ['tutti', 'blu', 'azzurro', 'verde', 'giallo', 'arancio', 'rosso', 'rosa', 'viola', 'neutro'];
+const PROJECTS = ['Risanamento 23', 'Catalogo Primavera', 'Brand Aurora', 'Packaging Olio', 'Manifesto Teatro', 'Rivista N.12'];
+
+// note di lavorazione (campo NOTE) — solo per alcuni Pantone
+const NOTES = {
+  '699 U':  'Aggiungere la base bianca per ultima e mescolare lentamente. Tende a virare al caldo dopo 48h: tenere il barattolo coperto e al riparo dalla luce.',
+  '072 U':  'Inchiostro molto coprente: stendere uno strato sottile. Resa migliore su carta patinata.',
+  '116 U':  'Pulire bene la spatola prima di dosare il magenta, altrimenti il giallo si sporca.',
+  '185 U':  'Verificare il rosso su prova-colore: la carta riciclata lo spegne di circa il 6%.',
+  '7626 U': 'Formula sensibile all’umidità. Richiudere subito i barattoli AS 12 e AS 70.',
+  '266 U':  'Cliente Brand Aurora: tolleranza ΔE ≤ 1,5. Confrontare sempre con la guida fisica.',
+};
+
+// ─── recipe pool + generatore deterministico ────────────────────────────────
+const INK_POOL = [
+  { name: 'AS 90',  label: 'Base bianca' },
+  { name: 'AS 65',  label: 'Giallo' },
+  { name: 'AS 150', label: 'Magenta' },
+  { name: 'AS 320', label: 'Cyan' },
+  { name: 'AS 47',  label: 'Nero' },
+  { name: 'AS 12',  label: 'Rosso' },
+  { name: 'AS 88',  label: 'Blu' },
+  { name: 'AS 33',  label: 'Verde' },
+  { name: 'AS 70',  label: 'Arancio' },
+];
+
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return Math.abs(h);
+}
+
+function makeRecipe(p) {
+  const note = NOTES[p.code] || null;
+  if (p.code === '699 U') {
+    return { inks: [
+      { name: 'AS 90',  label: 'Base bianca', pct: 75.0 },
+      { name: 'AS 65',  label: 'Giallo',      pct: 6.25 },
+      { name: 'AS 150', label: 'Magenta',     pct: 18.75 },
+    ], project: 'Risanamento 23', note };
+  }
+  const h = hashStr(p.code);
+  const n = Math.max(1, Math.min(p.ink, 4));
+  const light = textOnDesk(p.hex) === '#0B0B0B';
+  const idxs = [];
+  if (light) idxs.push(0);
+  let cursor = 1 + (h % 6);
+  while (idxs.length < n) {
+    const i = cursor % INK_POOL.length;
+    if (!idxs.includes(i)) idxs.push(i);
+    cursor += 1 + ((h >> idxs.length) % 4);
+  }
+  let weights = idxs.map((_, k) => {
+    const seed = (h >> (k * 3)) % 100;
+    if (k === 0) return light ? 55 + (seed % 30) : 40 + (seed % 30);
+    return 6 + (seed % 26);
+  });
+  const sum = weights.reduce((a, b) => a + b, 0);
+  let pcts = weights.map(w => Math.round((w / sum) * 10000) / 100);
+  const diff = Math.round((100 - pcts.reduce((a, b) => a + b, 0)) * 100) / 100;
+  pcts[pcts.length - 1] = Math.round((pcts[pcts.length - 1] + diff) * 100) / 100;
+  const inks = idxs.map((i, k) => ({ name: INK_POOL[i].name, label: INK_POOL[i].label, pct: pcts[k] }))
+    .sort((a, b) => b.pct - a.pct);
+  return { inks, project: PROJECTS[h % PROJECTS.length], note };
+}
+
+// altezza stimata della card Wallet APERTA: si adatta al contenuto (no bianco sotto)
+function walletOpenHeight(pantone, headerH = 150) {
+  const r = makeRecipe(pantone);
+  const rows = r.inks.length;
+  const body = 20 + 23 + 40 + 20 + 24 + rows * 47 + (r.note ? 76 : 0) + 20 + 48 + 14 + 18 + 26;
+  return Math.round(headerH + body);
+}
+
+const QUANTITIES = [
+  { label: '100 g', grams: 100 }, { label: '300 g', grams: 300 },
+  { label: '500 g', grams: 500 }, { label: '1 kg',  grams: 1000 },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Color helpers + easings iOS 26
+// ─────────────────────────────────────────────────────────────────────────────
+function textOnDesk(hex) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? '#0B0B0B' : '#fff';
+}
+function rgba(hex, a) {
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+const SPRING      = 'cubic-bezier(.34,1.56,.64,1)';     // bouncy
+const SPRING_SOFT = 'cubic-bezier(.22,1.2,.36,1)';      // morbido con piccolo overshoot
+const FLUID       = 'cubic-bezier(.4,1.25,.45,1)';      // fluido
+const FLUID_SOFT  = 'cubic-bezier(.25,.9,.3,1)';        // fluido senza overshoot
+const QUICK       = 'cubic-bezier(.4,0,.2,1)';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Theme tokens
+// ─────────────────────────────────────────────────────────────────────────────
+// Toni di sfondo neutri (opzionali): il colore Pantone resta un bagliore dietro
+// la scheda e NON invade l'interfaccia. bianco = quasi bianco caldo.
+const NEUTRAL_TONES = {
+  neutro: { bg: '#E9E9E7', bgDeep: '#DFDFDC', panelAlt: '#F3F3F1', label: 'Grigio neutro' },
+  caldo:  { bg: '#E8E4DF', bgDeep: '#DDD8D0', panelAlt: '#F3EFEA', label: 'Grigio caldo' },
+  beige:  { bg: '#ECE6D9', bgDeep: '#E2DAC8', panelAlt: '#F7F2E7', label: 'Beige' },
+  bianco: { bg: '#F6F5F3', bgDeep: '#ECEBE8', panelAlt: '#FCFCFB', label: 'Bianco' },
+  puro:   { bg: '#FFFFFF', bgDeep: '#F2F2F2', panelAlt: '#FFFFFF', label: 'Bianco puro' },
+};
+function deriveTheme(t) {  const grey = t.theme === 'grey';
+  return {
+    grey,
+    bg:      (NEUTRAL_TONES[t.bgTone] || {}).bg      || (grey ? '#E6E4DE' : '#F4EFE2'),
+    bgDeep:  (NEUTRAL_TONES[t.bgTone] || {}).bgDeep  || (grey ? '#DBD9D2' : '#EDE7D7'),
+    panel:   '#FFFFFF',
+    panelAlt: (NEUTRAL_TONES[t.bgTone] || {}).panelAlt || (grey ? '#F3F1EC' : '#FBF7EE'),
+    bgTone:  t.bgTone || null,
+    colorGlow: !!t.colorGlow,   // colore confinato a bagliore dietro la scheda
+    ink:     '#0B0B0B',
+    sub:     'rgba(11,11,11,0.52)',
+    faint:   'rgba(11,11,11,0.34)',
+    line:    'rgba(11,11,11,0.10)',
+    line2:   'rgba(11,11,11,0.16)',
+    accent:  t.accent,
+    onAccent: textOnDesk(t.accent),
+    display: t.display,
+    displayWeight: t.display === 'Instrument Serif' ? 400 : 700,
+    isSerif: t.display === 'Instrument Serif',
+    grain:   t.grain,
+    borders: t.borders,   // bordi neri attorno ai controlli
+    borderWidth: t.borderWidth != null ? t.borderWidth : 2,
+    cardSurface: t.cardSurface || 'opaco',   // opaco | frosted | trasparente
+    btnStyle: t.btnStyle || 'B',             // B contorno (default) · A accento pieno · C tinta tenue · D inchiostro pieno
+    blobShape: t.blobShape || 'morbide',
+    blobSpeed: t.blobSpeed != null ? t.blobSpeed : 1,
+    blobAnim:  t.blobAnim != null ? t.blobAnim : true,
+  };
+}
+const TweakCtx = React.createContext(null);
+function useTheme() { return React.useContext(TweakCtx); }
+
+// glass(): pill bianca con bordo nero quando NON selezionata · piena quando attiva.
+// active+accent → fondo accento. Lo spessore del bordo è regolabile (borderWidth).
+function glass(theme, { active = false, accent = false, strong = false } = {}) {
+  const bw = theme.borderWidth != null ? theme.borderWidth : 2;
+  if (active) {
+    if (accent) return { background: theme.accent, color: theme.onAccent, border: `${bw}px solid ${theme.accent}`, boxShadow: 'none' };
+    return { background: theme.ink, color: '#fff', border: `${bw}px solid ${theme.ink}`, boxShadow: 'none' };
+  }
+  return {
+    background: theme.panel,
+    border: theme.borders ? `${bw}px solid ${theme.ink}` : `1px solid ${rgba('#000', 0.14)}`,
+    boxShadow: `0 5px 14px ${rgba('#000', 0.05)}`,
+  };
+}
+
+// actionStyle(): stile dei pulsanti d'AZIONE secondo il tema (btnStyle: A/B/C/D).
+// role: 'primary' (Nuova) · 'secondary' (Stampa/Modifica) · 'icon' (pulsante-icona).
+// Per 'icon' lo stile include anche `color` = colore del glifo.
+function actionStyle(theme, role = 'primary') {
+  const { accent, onAccent, ink, panel } = theme;
+  const s = theme.btnStyle || 'A';
+  const inkT = (a) => rgba('#000', a), tint = (a) => rgba(accent, a);
+  const P = {
+    A: { background: accent, color: onAccent, border: 'none', boxShadow: `0 6px 18px ${tint(0.32)}` },
+    B: { background: accent, color: onAccent, border: `${theme.borderWidth || 2}px solid ${ink}`, boxShadow: 'none' },
+    C: { background: tint(0.16), color: accent, border: 'none', boxShadow: 'none' },
+    D: { background: ink, color: '#fff', border: 'none', boxShadow: `0 6px 18px ${inkT(0.22)}` },
+  };
+  const S = {
+    A: { background: panel, color: ink, border: `1px solid ${inkT(0.14)}`, boxShadow: `0 5px 14px ${inkT(0.05)}` },
+    B: { background: panel, color: ink, border: `${theme.borderWidth || 2}px solid ${ink}`, boxShadow: 'none' },
+    C: { background: inkT(0.05), color: ink, border: 'none', boxShadow: 'none' },
+    D: { background: panel, color: ink, border: `1.5px solid ${ink}`, boxShadow: 'none' },
+  };
+  const I = {
+    A: { background: panel, border: `1px solid ${inkT(0.14)}`, boxShadow: `0 5px 14px ${inkT(0.05)}`, color: accent },
+    B: { background: panel, border: `${theme.borderWidth || 2}px solid ${ink}`, boxShadow: 'none', color: ink },
+    C: { background: tint(0.16), border: 'none', boxShadow: 'none', color: accent },
+    D: { background: ink, border: 'none', boxShadow: `0 6px 18px ${inkT(0.22)}`, color: '#fff' },
+  };
+  return ({ primary: P, secondary: S, icon: I }[role] || P)[s];
+}
+
+// surface(): fondo configurabile delle schede ricetta (opaco / frosted / trasparente)
+function surface(theme) {
+  const s = theme.cardSurface;
+  if (s === 'frosted') return { background: rgba('#fff', theme.grey ? 0.56 : 0.62), backdropFilter: 'blur(22px) saturate(160%)', WebkitBackdropFilter: 'blur(22px) saturate(160%)' };
+  if (s === 'trasparente') return { background: rgba('#fff', theme.grey ? 0.3 : 0.34), backdropFilter: 'blur(10px) saturate(140%)', WebkitBackdropFilter: 'blur(10px) saturate(140%)' };
+  return { background: theme.panel };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grana + blob (parametrici: forma · velocità · animazione · grana)
+// ─────────────────────────────────────────────────────────────────────────────
+const BLOB_SHAPES = {
+  morbide: { size: 540, blur: 95,  op: 0.32, label: 'Morbide' },
+  tonde:   { size: 380, blur: 46,  op: 0.40, label: 'Tonde' },
+  ampie:   { size: 760, blur: 150, op: 0.26, label: 'Ampie' },
+  nessuna: { size: 0,   blur: 0,   op: 0,    label: 'Nessuna' },
+};
+let _grainSeq = 0;
+function GrainBlobs({ theme, blobHex }) {
+  const id = React.useMemo(() => 'dk-grain-' + (_grainSeq++), []);
+  ensureDeskBlobKf();
+  const sh = BLOB_SHAPES[theme.blobShape] || BLOB_SHAPES.morbide;
+  const showBlobs = theme.blobShape !== 'nessuna' && blobHex && !theme.colorGlow;
+  if (!theme.grain && !showBlobs) return null;
+  const spd = Math.max(0.25, theme.blobSpeed || 1);
+  const d1 = (22 / spd).toFixed(1), d2 = (28 / spd).toFixed(1), d3 = (34 / spd).toFixed(1);
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
+      {showBlobs && (
+        <React.Fragment>
+          <div style={{ position: 'absolute', top: '-12%', left: '-8%', width: sh.size, height: sh.size, borderRadius: '50%', background: blobHex, filter: `blur(${sh.blur}px)`, opacity: theme.grey ? sh.op * 0.82 : sh.op, transition: 'background .6s, opacity .4s', animation: theme.blobAnim ? `dkblob1 ${d1}s ease-in-out infinite` : 'none' }}/>
+          <div style={{ position: 'absolute', bottom: '-16%', right: '-6%', width: sh.size * 1.06, height: sh.size * 1.06, borderRadius: '50%', background: blobHex, filter: `blur(${sh.blur + 10}px)`, opacity: theme.grey ? sh.op * 0.66 : sh.op * 0.86, transition: 'background .6s, opacity .4s', animation: theme.blobAnim ? `dkblob2 ${d2}s ease-in-out infinite` : 'none' }}/>
+          <div style={{ position: 'absolute', top: '30%', left: '38%', width: sh.size * 0.86, height: sh.size * 0.86, borderRadius: '50%', background: blobHex, filter: `blur(${sh.blur + 4}px)`, opacity: theme.grey ? sh.op * 0.5 : sh.op * 0.62, transition: 'background .6s, opacity .4s', animation: theme.blobAnim ? `dkblob3 ${d3}s ease-in-out infinite` : 'none' }}/>
+        </React.Fragment>
+      )}
+      {theme.grain && (
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.08, mixBlendMode: 'multiply' }}>
+          <filter id={id}><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0.30  0 0 0 0 0.26  0 0 0 0 0.20  0 0 0 0.55 0"/></filter>
+          <rect width="100%" height="100%" filter={`url(#${id})`}/>
+        </svg>
+      )}
+    </div>
+  );
+}
+function ensureDeskBlobKf() {
+  if (document.getElementById('dk-blob-kf')) return;
+  const s = document.createElement('style');
+  s.id = 'dk-blob-kf';
+  s.textContent = `
+    @keyframes dkblob1 { 0%{transform:translate(0,0) scale(1);} 50%{transform:translate(160px,90px) scale(1.18);} 100%{transform:translate(0,0) scale(1);} }
+    @keyframes dkblob2 { 0%{transform:translate(0,0) scale(1.05);} 50%{transform:translate(-150px,-70px) scale(1);} 100%{transform:translate(0,0) scale(1.05);} }
+    @keyframes dkblob3 { 0%{transform:translate(0,0) scale(.95);} 50%{transform:translate(-120px,110px) scale(1.12);} 100%{transform:translate(0,0) scale(.95);} }
+    @keyframes dkpop { 0%{opacity:0; transform:translateY(10px) scale(.96);} 100%{opacity:1; transform:translateY(0) scale(1);} }
+  `;
+  document.head.appendChild(s);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Icone
+// ─────────────────────────────────────────────────────────────────────────────
+function Ico({ d, size = 24, color = 'currentColor', sw = 1.7, fill = 'none', children }) {
+  return (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
+    {d && <path d={d} stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" fill={fill}/>}
+    {children}
+  </svg>);
+}
+// SFIcon: icona SF Symbols (glifo pieno) resa via CSS mask — colore pilotabile.
+function SFIcon({ src, size = 22, color = 'currentColor' }) {
+  return <span style={{ display: 'inline-block', width: size, height: size, background: color, flexShrink: 0,
+    WebkitMaskImage: `url(${src})`, maskImage: `url(${src})`, WebkitMaskSize: 'contain', maskSize: 'contain',
+    WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskPosition: 'center', maskPosition: 'center' }}/>;
+}
+const IcoBeaker  = (p) => <Ico {...p} d="M9 3h6M10 3v6L5.6 18.8A2 2 0 0 0 7.4 21.7h9.2a2 2 0 0 0 1.8-2.9L14 9V3M8 15.5c1.7.5 3-.7 5-.3s2.6 1 4.6.5"/>;
+const IcoFolder  = (p) => <Ico {...p} d="M3 7a2 2 0 0 1 2-2h3.6c.5 0 1 .2 1.4.6L11 7h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>;
+const IcoClock   = (p) => <Ico {...p}><circle cx="12" cy="12" r="8.4" stroke={p.color || 'currentColor'} strokeWidth={p.sw || 1.7}/><path d="M12 7.4V12l3.2 1.9" stroke={p.color || 'currentColor'} strokeWidth={p.sw || 1.7} strokeLinecap="round" strokeLinejoin="round"/></Ico>;
+const IcoSearch  = (p) => <Ico {...p}><circle cx="11" cy="11" r="7" stroke={p.color || 'currentColor'} strokeWidth={p.sw || 1.7}/><path d="m16.2 16.2 3.8 3.8" stroke={p.color || 'currentColor'} strokeWidth={p.sw || 1.7} strokeLinecap="round"/></Ico>;
+const IcoFilter  = (p) => <Ico {...p} d="M4 6h16M7 12h10M10 18h4"/>;
+const IcoBack    = (p) => <Ico {...p} d="M14 5l-7 7 7 7"/>;
+const IcoPrinter = (p) => <SFIcon src="icons/printer.svg" size={p.size || 22} color={p.color || 'currentColor'}/>;
+const IcoEdit    = (p) => <SFIcon src="icons/edit.svg" size={p.size || 22} color={p.color || 'currentColor'}/>;
+const IcoPlus    = (p) => <Ico {...p} d="M12 5v14M5 12h14"/>;
+const IcoClose   = (p) => <Ico {...p} d="M6 6l12 12M18 6 6 18"/>;
+const IcoStar    = (p) => <SFIcon src={p.fill ? 'icons/star.fill.svg' : 'icons/star.svg'} size={p.size || 22} color={p.color || 'currentColor'}/>;
+const IcoFilterDecrease = (p) => <SFIcon src="icons/filter.svg" size={p.size || 22} color={p.color || 'currentColor'}/>;
+const IcoGear    = (p) => <Ico {...p}><circle cx="12" cy="12" r="3.1" stroke={p.color || 'currentColor'} strokeWidth={p.sw || 1.7}/><path d="M12 3.2v2.1M12 18.7v2.1M20.8 12h-2.1M5.3 12H3.2M18.2 5.8l-1.5 1.5M7.3 16.7l-1.5 1.5M18.2 18.2l-1.5-1.5M7.3 7.3 5.8 5.8" stroke={p.color || 'currentColor'} strokeWidth={p.sw || 1.7} strokeLinecap="round"/></Ico>;
+const IcoNote    = (p) => <Ico {...p} d="M5 4h11l3 3v13H5V4zM15 4v4h4M8 12h8M8 16h5"/>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Componenti-ricetta (a PILL)
+// ─────────────────────────────────────────────────────────────────────────────
+function QuantityPicker({ value, onChange, theme }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+      {QUANTITIES.map((q) => {
+        const on = q.grams === value;
+        return (
+          <button key={q.grams} onClick={() => onChange(q.grams)} style={{
+            padding: '12px 0', textAlign: 'center', borderRadius: 99, cursor: 'pointer',
+            fontFamily: 'Nebulica', fontWeight: 700, fontSize: 15, letterSpacing: -0.2,
+            color: on ? '#fff' : theme.ink,
+            ...glass(theme, { active: on }),
+          }}>{q.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+function InkFormula({ pantone, recipe, qty, theme, big = false, anim = 'none', play = true }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+        fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: theme.sub, marginBottom: 4 }}>
+        <span>FORMULA · {recipe.inks.length} INK</span>
+        <span style={{ fontFamily: '"JetBrains Mono", monospace', letterSpacing: 0.3 }}>Σ {qty.toFixed(0)} g</span>
+      </div>
+      <div>
+        {recipe.inks.map((ink, idx) => {
+          const grams = (ink.pct / 100) * qty;
+          const delay = anim === 'stagger' ? idx * 90 : 0;
+          return (
+            <div key={ink.name} style={{
+              display: 'flex', alignItems: 'center', gap: 16, padding: big ? '10px 0' : '12px 0',
+              borderTop: `1px solid ${theme.line}`,
+              animation: (play && anim === 'stagger') ? `dkpop .5s ${SPRING_SOFT} ${delay}ms both` : 'none',
+            }}>
+              <div style={{ minWidth: big ? 132 : 116 }}>
+                <span style={{ padding: '7px 14px', borderRadius: 99, background: theme.ink, color: '#fff',
+                  fontFamily: 'Nebulica', fontWeight: 700, fontSize: big ? 14 : 12.5, whiteSpace: 'nowrap', display: 'inline-block' }}>{ink.name}</span>
+                <div style={{ fontFamily: 'Nebulica', fontSize: 11, color: theme.faint, marginTop: 5, paddingLeft: 3 }}>{ink.label}</div>
+              </div>
+              <div style={{ flex: 1, height: 8, borderRadius: 99, background: theme.line, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: play ? `${ink.pct}%` : '0%', background: pantone.hex, borderRadius: 99,
+                  boxShadow: `inset 0 0 0 1px ${rgba('#000', 0.05)}`,
+                  transition: `width .65s ${SPRING_SOFT} ${delay + 60}ms` }}/>
+              </div>
+              <div style={{ textAlign: 'right', minWidth: big ? 116 : 96 }}>
+                <span style={{ fontFamily: 'Nebulica', fontWeight: 700, fontSize: big ? 24 : 20, color: theme.ink, letterSpacing: -0.6 }}>
+                  {grams.toFixed(grams >= 100 ? 1 : 2)}</span>
+                <span style={{ fontFamily: 'Nebulica', fontSize: 12, color: theme.faint, marginLeft: 3 }}>g</span>
+                <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, color: theme.faint, marginTop: 3, letterSpacing: 0.3 }}>{ink.pct.toFixed(2)}%</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Campo NOTE — blocco frosted con affordance di modifica
+function NotesBlock({ note, theme }) {
+  if (!note) return null;
+  return (
+    <div style={{ marginTop: 14, padding: '13px 16px', borderRadius: 20,
+      ...glass(theme, { strong: true }) }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.4, fontWeight: 700, color: theme.sub }}>
+          <IcoNote size={15} color={theme.accent}/> NOTE</span>
+        <IcoEdit size={15} color={theme.accent}/>
+      </div>
+      <p style={{ margin: 0, fontFamily: 'Nebulica', fontSize: 13, lineHeight: 1.42, color: theme.ink, opacity: 0.82, textWrap: 'pretty' }}>{note}</p>
+    </div>
+  );
+}
+
+function PrintButton({ theme, full = true, label = 'Stampa etichetta' }) {
+  const st = actionStyle(theme, 'secondary');
+  return (
+    <button style={{ height: 52, borderRadius: 99, cursor: 'pointer', ...st,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: full ? '100%' : 'auto', padding: full ? 0 : '0 26px',
+      fontFamily: 'Nebulica', fontWeight: 700, fontSize: 15, letterSpacing: -0.2 }}>
+      <IcoPrinter size={19} color={st.color}/> {label}
+    </button>
+  );
+}
+
+function PantoneCode({ code, tcx, fg, size, theme, weight }) {
+  const isU = code.includes(' U');
+  const base = code.replace(' U', '').replace('Black', 'BLACK');
+  return (
+    <span style={{ fontFamily: theme.display, fontWeight: weight != null ? weight : theme.displayWeight,
+      fontSize: size, lineHeight: 0.85, letterSpacing: theme.isSerif ? -0.5 : -size * 0.035,
+      color: fg, whiteSpace: 'nowrap', fontStyle: theme.isSerif ? 'italic' : 'normal' }}>
+      {base}
+      {isU && <span style={{ fontWeight: 400, opacity: 0.62, marginLeft: 2, fontStyle: 'normal', fontFamily: theme.display }}> U</span>}
+      {tcx && <span style={{ fontWeight: 400, opacity: 0.62, marginLeft: 6, fontStyle: 'normal', fontSize: size * 0.42, fontFamily: theme.display }}>TCX</span>}
+    </span>
+  );
+}
+
+function Swatch({ hex, size = 44, radius = 14, ring = true }) {
+  return <div style={{ width: size, height: size, borderRadius: radius, background: hex, flexShrink: 0,
+    boxShadow: ring ? `inset 0 0 0 1px ${rgba('#000', 0.08)}` : 'none' }}/>;
+}
+
+function FamilyChips({ value, onChange, theme }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+      {FAMILIES.map((f) => {
+        const on = f === value;
+        return (
+          <button key={f} onClick={() => onChange(f)} style={{
+            padding: '8px 14px', borderRadius: 99, cursor: 'pointer',
+            color: on ? theme.onAccent : theme.sub,
+            fontFamily: 'Nebulica', fontWeight: 600, fontSize: 12.5, letterSpacing: -0.1, textTransform: 'capitalize',
+            ...glass(theme, { active: on, accent: true }),
+          }}>{f}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+Object.assign(window, {
+  DESK_PANTONES, FAMILIES, PROJECTS, QUANTITIES, INK_POOL, NOTES,
+  makeRecipe, hashStr, textOnDesk, rgba, walletOpenHeight, SPRING, SPRING_SOFT, FLUID, FLUID_SOFT, QUICK,
+  deriveTheme, TweakCtx, useTheme, glass, surface, actionStyle, GrainBlobs, BLOB_SHAPES, NEUTRAL_TONES,
+  Ico, SFIcon, IcoBeaker, IcoFolder, IcoClock, IcoSearch, IcoFilter, IcoBack, IcoPrinter, IcoEdit, IcoPlus, IcoClose, IcoStar, IcoFilterDecrease, IcoGear, IcoNote,
+  QuantityPicker, InkFormula, NotesBlock, PrintButton, PantoneCode, Swatch, FamilyChips,
+});
+
+// ============================================================
+// desktop-chrome.jsx
+// ============================================================
+// desktop-chrome.jsx — chrome condiviso iOS 26: logo, switcher modalità,
+// search pill, pulsanti pill, gear + pannello Impostazioni in-app, toggle iOS.
+
+const MODES = [
+  { key: 'master',  label: 'Master',  Icon: IcoBeaker },
+  { key: 'wallet',  label: 'Wallet',  Icon: IcoFolder },
+  { key: 'gallery', label: 'Gallery', Icon: IcoFilter },
+];
+
+function Logo({ theme, sub = true, onSettings }) {
+  const stIcon = actionStyle(theme, 'icon');
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <button onClick={onSettings} title="Impostazioni" style={{ width: 46, height: 46, borderRadius: 99, cursor: 'pointer', padding: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', background: stIcon.background,
+        border: stIcon.border, boxShadow: stIcon.boxShadow }}>
+        <span style={{ width: 22, height: 22, background: stIcon.color, display: 'block',
+          WebkitMaskImage: 'url(gear.svg)', maskImage: 'url(gear.svg)', WebkitMaskSize: 'contain', maskSize: 'contain',
+          WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskPosition: 'center', maskPosition: 'center' }}/>
+      </button>
+      <div>
+        <div style={{ fontFamily: theme.display, fontWeight: theme.displayWeight, fontSize: 20, letterSpacing: -0.6, color: theme.ink,
+          fontStyle: theme.isSerif ? 'italic' : 'normal', lineHeight: 1 }}>Ricettario</div>
+        {sub && <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 9.5, letterSpacing: 1, color: theme.faint, marginTop: 2 }}>SICO · {DESK_PANTONES.length} PANTONE</div>}
+      </div>
+    </div>
+  );
+}
+
+// Switcher segmentato con thumb scorrevole (spring)
+function ModeSwitcher({ mode, onChange, theme }) {
+  const idx = Math.max(0, MODES.findIndex(m => m.key === mode));
+  return (
+    <div style={{ position: 'relative', display: 'flex', padding: 5, borderRadius: 99, ...glass(theme, { strong: true }) }}>
+      <div style={{ position: 'absolute', top: 5, bottom: 5, left: 5, width: `calc((100% - 10px) / ${MODES.length})`,
+        transform: `translateX(${idx * 100}%)`, background: theme.accent, borderRadius: 99, zIndex: 0,
+        boxShadow: `0 4px 12px ${rgba(theme.accent, 0.35)}`,
+        transition: `transform .5s ${SPRING}, background .25s` }}/>
+      {MODES.map((m) => {
+        const on = m.key === mode;
+        return (
+          <button key={m.key} onClick={() => onChange(m.key)} style={{
+            position: 'relative', zIndex: 1, border: 'none', background: 'transparent', cursor: 'pointer',
+            padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: 7,
+            fontFamily: 'Nebulica', fontWeight: 700, fontSize: 14, letterSpacing: -0.2,
+            color: on ? theme.onAccent : theme.sub }}>
+            <m.Icon size={18} color={on ? theme.onAccent : theme.accent} sw={1.8}/> {m.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Switcher a ORB: cerchio col modo corrente; premuto MORPHA in un'unica forma
+// lunga (segmented control) che si ritrae di nuovo in cerchio. Stessa posizione
+// in tutte le viste: il wrapper lo ancora a destra, la forma cresce verso sinistra.
+function ModeOrb({ mode, onChange, theme, size = 54 }) {
+  const [openM, setOpenM] = React.useState(false);
+  const ref = React.useRef(null);
+  const idx = Math.max(0, MODES.findIndex(m => m.key === mode));
+  const cur = MODES[idx] || MODES[0];
+  const FULL = 372;
+  React.useEffect(() => {
+    if (!openM) return;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpenM(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [openM]);
+  return (
+    <div ref={ref} style={{ position: 'relative', height: size, width: openM ? FULL : size, marginLeft: 'auto',
+      borderRadius: 99, overflow: 'hidden', ...glass(theme, { strong: true }),
+      transition: `width .54s ${SPRING}` }}>
+      {/* forma lunga: segmented control con thumb scorrevole */}
+      <div style={{ position: 'absolute', top: 0, right: 0, height: '100%', width: FULL, display: 'flex', padding: 5,
+        opacity: openM ? 1 : 0, pointerEvents: openM ? 'auto' : 'none', transition: `opacity .3s ${QUICK}`, transitionDelay: openM ? '.1s' : '0s' }}>
+        <div style={{ position: 'absolute', top: 5, bottom: 5, left: 5, width: `calc((100% - 10px) / ${MODES.length})`,
+          transform: `translateX(${idx * 100}%)`, background: theme.accent, borderRadius: 99, zIndex: 0,
+          boxShadow: `0 4px 12px ${rgba(theme.accent, 0.34)}`, transition: `transform .5s ${SPRING}` }}/>
+        {MODES.map((m) => {
+          const on = m.key === mode;
+          return (
+            <button key={m.key} onClick={() => { onChange(m.key); setOpenM(false); }} style={{
+              position: 'relative', zIndex: 1, flex: 1, border: 'none', background: 'transparent', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, whiteSpace: 'nowrap',
+              fontFamily: 'Nebulica', fontWeight: 700, fontSize: 14, letterSpacing: -0.2, color: on ? theme.onAccent : theme.sub }}>
+              <m.Icon size={18} color={on ? theme.onAccent : theme.accent} sw={1.8}/> {m.label}
+            </button>
+          );
+        })}
+      </div>
+      {/* cerchio collassato: solo l'icona del modo scelto */}
+      <button onClick={() => setOpenM(true)} title={cur.label} style={{ position: 'absolute', top: 0, right: 0, width: size, height: size,
+        borderRadius: 99, cursor: 'pointer', border: 'none', background: theme.accent,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        opacity: openM ? 0 : 1, pointerEvents: openM ? 'none' : 'auto', transition: `opacity .26s ${QUICK}` }}>
+        <cur.Icon size={23} color={theme.onAccent} sw={1.9}/>
+      </button>
+    </div>
+  );
+}
+
+function SearchPill({ value, onChange, theme, w, placeholder = 'cerca pantone, nome, inchiostro…' }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 11, height: 50, padding: '0 18px', borderRadius: 99,
+      width: w, ...glass(theme, { strong: true }) }}>
+      <IcoSearch size={19} color={theme.sub}/>
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Nebulica', fontSize: 14.5, color: theme.ink }}/>
+    </div>
+  );
+}
+
+function IconPill({ Icon, onClick, theme, active = false, title, size = 50 }) {
+  return (
+    <button title={title} onClick={onClick} style={{ width: size, height: size, borderRadius: 99, cursor: 'pointer',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', border: theme.borders ? `1.6px solid ${theme.ink}` : 'none',
+      background: active ? theme.ink : rgba(theme.accent, theme.grey ? 0.16 : 0.14), boxShadow: `0 4px 12px ${rgba('#000', 0.05)}` }}>
+      <Icon size={22} color={active ? '#fff' : theme.accent}/>
+    </button>
+  );
+}
+
+function NuovaPill({ theme, compact = false, full = false }) {
+  const st = actionStyle(theme, 'primary');
+  return (
+    <button style={{ height: full ? 54 : 50, width: full ? '100%' : 'auto', padding: full ? 0 : (compact ? '0 18px' : '0 22px'), borderRadius: 99, cursor: 'pointer',
+      display: full ? 'flex' : 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Nebulica', fontWeight: 700, fontSize: 14.5, ...st }}>
+      <IcoPlus size={19} color={st.color} sw={2}/> {compact && !full ? 'Nuova' : 'Nuova ricetta'}
+    </button>
+  );
+}
+
+// Pulsante filtro con popover (famiglia colore + n° inchiostri) — iOS 26 frosted
+function FilterButton({ family, setFamily, ink, setInk, theme, align = 'left', size = 50 }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  const active = (family && family !== 'tutti') || !!ink;
+  React.useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  const lit = open || active;
+  const stIcon = actionStyle(theme, 'icon');
+  return (
+    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+      <button onClick={() => setOpen(o => !o)} title="Filtri" style={{ width: size, height: size, borderRadius: 99, cursor: 'pointer', position: 'relative',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: lit ? theme.accent : stIcon.background, border: lit ? 'none' : stIcon.border, boxShadow: lit ? 'none' : stIcon.boxShadow }}>
+        <IcoFilterDecrease size={22} color={lit ? theme.onAccent : stIcon.color}/>
+        {active && !open && <span style={{ position: 'absolute', top: 7, right: 7, width: 9, height: 9, borderRadius: 99, background: theme.accent, boxShadow: `0 0 0 2px ${theme.panel}` }}/>}
+      </button>
+      <div style={{ position: 'absolute', top: size + 10, [align]: 0, width: 304, zIndex: 300,
+        transformOrigin: align === 'right' ? '100% 0%' : '0% 0%',
+        transform: open ? 'scale(1)' : 'scale(.92)', opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none',
+        transition: `transform .4s ${SPRING}, opacity .25s`,
+        borderRadius: 26, padding: '17px 19px', background: theme.panel, border: `1px solid ${theme.line}`, boxShadow: `0 26px 64px ${rgba('#000', 0.24)}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <span style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.3, fontWeight: 700, color: theme.faint }}>FAMIGLIA COLORE</span>
+          {active && <button onClick={() => { setFamily('tutti'); if (setInk) setInk(0); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer',
+            fontFamily: 'Nebulica', fontSize: 12, fontWeight: 700, color: theme.accent }}>Azzera</button>}
+        </div>
+        <FamilyChips value={family} onChange={setFamily} theme={theme}/>
+        {setInk && (
+          <React.Fragment>
+            <div style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.3, fontWeight: 700, color: theme.faint, margin: '15px 0 9px' }}>N° INCHIOSTRI</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[1, 2, 3, 4].map(n => { const on = ink === n; return (
+                <button key={n} onClick={() => setInk(on ? 0 : n)} style={{ width: 40, height: 40, borderRadius: 99, cursor: 'pointer',
+                  fontFamily: 'Nebulica', fontWeight: 700, fontSize: 13.5, color: on ? '#fff' : theme.sub, ...glass(theme, { active: on }) }}>{n}</button>
+              ); })}
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Toggle iOS
+function IToggle({ value, onChange, theme }) {
+  return (
+    <button onClick={() => onChange(!value)} style={{ width: 50, height: 30, borderRadius: 99, border: 'none', cursor: 'pointer',
+      background: value ? theme.accent : rgba('#000', 0.16), position: 'relative', transition: `background .3s ${QUICK}`, flexShrink: 0 }}>
+      <span style={{ position: 'absolute', top: 3, left: 3, width: 24, height: 24, borderRadius: 99, background: '#fff',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.25)', transform: value ? 'translateX(20px)' : 'translateX(0)', transition: `transform .34s ${SPRING}` }}/>
+    </button>
+  );
+}
+
+// Slider iOS
+function ISlider({ value, min, max, step, onChange, theme, unit = '' }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ flex: 1, accentColor: theme.accent, cursor: 'pointer' }}/>
+      <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 12, color: theme.sub, minWidth: 38, textAlign: 'right' }}>{value}{unit}</span>
+    </div>
+  );
+}
+
+// Pannello Impostazioni in-app (popover glass, pop bouncy)
+function SettingsPanel({ open, onClose, settings, setSetting, theme }) {
+  // Palette iOS 26 — system colors (più morbidi dell'elettrico)
+  const accents = ['#5856D6', '#0A84FF', '#30B0C7', '#34C759', '#FF9F0A', '#0B0B0B'];
+  const fonts = ['Nebulica', 'Bricolage Grotesque', 'Instrument Serif'];
+  const shapes = [{ k: 'morbide', l: 'Morbide' }, { k: 'tonde', l: 'Tonde' }, { k: 'ampie', l: 'Ampie' }, { k: 'nessuna', l: 'Nessuna' }];
+  const wallets = [{ k: 'row', l: 'Fila orizzontale' }, { k: 'stack', l: 'Pila verticale' }];
+  const Row = ({ label, children }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 0', borderTop: `1px solid ${theme.line}` }}>
+      <span style={{ fontFamily: 'Nebulica', fontSize: 14, fontWeight: 600, color: theme.ink, whiteSpace: 'nowrap' }}>{label}</span>
+      {children}
+    </div>
+  );
+  const Block = ({ label, children }) => (
+    <div style={{ padding: '12px 0', borderTop: `1px solid ${theme.line}` }}>
+      <div style={{ fontFamily: 'Nebulica', fontSize: 14, fontWeight: 600, color: theme.ink, marginBottom: 9 }}>{label}</div>
+      {children}
+    </div>
+  );
+  const Pills = ({ value, options, onChange }) => (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {options.map(o => {
+        const on = value === o.k;
+        return <button key={o.k} onClick={() => onChange(o.k)} style={{ padding: '7px 13px', borderRadius: 99, cursor: 'pointer',
+          fontFamily: 'Nebulica', fontWeight: 600, fontSize: 12.5, color: on ? '#fff' : theme.sub, ...glass(theme, { active: on }) }}>{o.l}</button>;
+      })}
+    </div>
+  );
+  const Head = (t) => <div style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.3, fontWeight: 700, color: theme.faint, margin: '14px 0 2px' }}>{t}</div>;
+  return (
+    <React.Fragment>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 800, background: rgba('#000', open ? 0.12 : 0),
+        opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none', transition: 'background .35s, opacity .35s' }}/>
+      <div style={{ position: 'absolute', top: 88, left: 28, width: 348, maxHeight: 'calc(100% - 116px)', overflowY: 'auto', zIndex: 810, transformOrigin: '0% 0%',
+        transform: open ? 'scale(1)' : 'scale(.9)', opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none',
+        transition: `transform .42s ${SPRING}, opacity .3s`,
+        borderRadius: 28, padding: '20px 22px 22px', background: theme.panel, border: `1px solid ${theme.line}`,
+        boxShadow: `0 30px 70px ${rgba('#000', 0.22)}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, position: 'sticky', top: 0 }}>
+          <span style={{ fontFamily: theme.display, fontWeight: theme.displayWeight, fontSize: 22, letterSpacing: -0.5, color: theme.ink, fontStyle: theme.isSerif ? 'italic' : 'normal' }}>Impostazioni</span>
+          <IconPill Icon={IcoClose} theme={theme} size={36} onClick={onClose} title="Chiudi"/>
+        </div>
+
+        {Head('GRAFICA')}
+        <Row label="Sfondo">
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[{ k: 'cream', c: '#F4EFE2' }, { k: 'grey', c: '#E6E4DE' }].map(o => {
+              const on = settings.theme === o.k;
+              return <button key={o.k} onClick={() => setSetting('theme', o.k)} title={o.k} style={{ width: 34, height: 34, borderRadius: 99, cursor: 'pointer',
+                background: o.c, border: on ? `2.5px solid ${theme.ink}` : `1px solid ${theme.line2}`, boxShadow: on ? `0 0 0 2px ${theme.panel}, 0 0 0 3.5px ${theme.ink}` : 'none' }}/>;
+            })}
+          </div>
+        </Row>
+        <Block label="Tono neutro"><Pills value={settings.bgTone || 'none'} options={[{ k: 'none', l: 'Nessuno' }, { k: 'neutro', l: 'Grigio neutro' }, { k: 'caldo', l: 'Grigio caldo' }, { k: 'beige', l: 'Beige' }, { k: 'bianco', l: 'Bianco' }, { k: 'puro', l: 'Bianco puro' }]} onChange={(v) => setSetting('bgTone', v === 'none' ? null : v)}/></Block>
+        <Row label="Bagliore dietro la scheda"><IToggle value={!!settings.colorGlow} onChange={(v) => setSetting('colorGlow', v)} theme={theme}/></Row>
+        <Row label="Accento">
+          <div style={{ display: 'flex', gap: 8 }}>
+            {accents.map(c => {
+              const on = settings.accent === c;
+              return <button key={c} onClick={() => setSetting('accent', c)} style={{ width: 30, height: 30, borderRadius: 99, cursor: 'pointer',
+                background: c, border: 'none', boxShadow: on ? `0 0 0 2px ${theme.panel}, 0 0 0 4px ${theme.ink}` : `inset 0 0 0 1px ${rgba('#000', 0.1)}` }}/>;
+            })}
+          </div>
+        </Row>
+        <Row label="Bordi neri"><IToggle value={settings.borders} onChange={(v) => setSetting('borders', v)} theme={theme}/></Row>
+        <Row label="Spessore bordo"><ISlider value={settings.borderWidth} min={0.5} max={4} step={0.5} unit="px" onChange={(v) => setSetting('borderWidth', v)} theme={theme}/></Row>
+        <Block label="Superficie scheda formula"><Pills value={settings.cardSurface} options={[{ k: 'opaco', l: 'Opaca' }, { k: 'frosted', l: 'Frosted' }, { k: 'trasparente', l: 'Trasparente' }]} onChange={(v) => setSetting('cardSurface', v)}/></Block>
+        <Block label="Stile pulsanti d'azione"><Pills value={settings.btnStyle || 'A'} options={[{ k: 'A', l: 'A · Pieno' }, { k: 'B', l: 'B · Contorno' }, { k: 'C', l: 'C · Tenue' }, { k: 'D', l: 'D · Nero' }]} onChange={(v) => setSetting('btnStyle', v)}/></Block>
+
+        {Head('SFONDO · BLOB')}
+        <Block label="Tipologia forme"><Pills value={settings.blobShape} options={shapes} onChange={(v) => setSetting('blobShape', v)}/></Block>
+        <Row label="Grana"><IToggle value={settings.grain} onChange={(v) => setSetting('grain', v)} theme={theme}/></Row>
+        <Row label="Animazione"><IToggle value={settings.blobAnim} onChange={(v) => setSetting('blobAnim', v)} theme={theme}/></Row>
+        <Row label="Velocità"><ISlider value={settings.blobSpeed} min={0.25} max={2.5} step={0.25} unit="×" onChange={(v) => setSetting('blobSpeed', v)} theme={theme}/></Row>
+
+        {Head('MASTER · ANIMAZIONE PANNELLO')}
+        <Block label="Comparsa del dettaglio"><Pills value={settings.masterAnim || 'rise'} options={[{ k: 'rise', l: 'A · Slide-up' }, { k: 'morph', l: 'B · Liquid + stagger' }]} onChange={(v) => setSetting('masterAnim', v)}/></Block>
+        <Block label="Movimento scheda"><Pills value={settings.cardEnter || 'deck'} options={[{ k: 'slide', l: 'Slide' }, { k: 'spring', l: 'Spring' }, { k: 'deck', l: 'Deck' }, { k: 'deckGlide', l: 'Glide' }, { k: 'deckSettle', l: 'Settle' }, { k: 'deckFeather', l: 'Feather' }]} onChange={(v) => setSetting('cardEnter', v)}/></Block>
+
+        {Head('WALLET')}
+        <Block label="Disposizione carte"><Pills value={settings.walletVariant} options={wallets} onChange={(v) => setSetting('walletVariant', v)}/></Block>
+
+        {Head('TRANSIZIONE MODALITÀ')}
+        <Block label="Animazione cambio vista"><Pills value={settings.modeTransition || 'liquido'} options={[{ k: 'liquido', l: 'Liquido' }, { k: 'scorrimento', l: 'Scorrimento' }, { k: 'dissolvenza', l: 'Dissolvenza' }]} onChange={(v) => setSetting('modeTransition', v)}/></Block>
+
+        {Head('FONT TITOLI')}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 6 }}>
+          {fonts.map(f => {
+            const on = settings.display === f;
+            return (
+              <button key={f} onClick={() => setSetting('display', f)} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+                padding: '10px 15px', borderRadius: 99, ...glass(theme, { active: on }),
+                fontFamily: f, fontSize: 16, fontWeight: f === 'Instrument Serif' ? 400 : 700, color: on ? '#fff' : theme.ink,
+                fontStyle: f === 'Instrument Serif' ? 'italic' : 'normal' }}>
+                <span>{f}</span>
+                <span style={{ fontFamily: f, fontStyle: f === 'Instrument Serif' ? 'italic' : 'normal' }}>699 U</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+
+Object.assign(window, { MODES, Logo, ModeSwitcher, ModeOrb, SearchPill, IconPill, NuovaPill, FilterButton, IToggle, ISlider, SettingsPanel });
+
+// ============================================================
+// desktop-master.jsx
+// ============================================================
+// desktop-master.jsx — MODE "Master Detail"
+// Rail+lista+dettaglio. Prop `anim`:
+//   'rise'  → il dettaglio entra con slide-up + fade (morbido)
+//   'morph' → l'header colore si "apre" (scaleY bouncy) e la formula entra in stagger
+
+// Trattamento visivo della scheda dettaglio:
+//  'border'       → originale: bordo nero (o line sottile), radius 34, ombra leggera
+//  'shadowDiffuse' → nessun bordo, radius squircle, ombra nera diffusa e morbida
+//  'shadowColor'   → nessun bordo, radius squircle, fondo neutro, l'ombra prende il colore della card
+// `tilt` inclina leggermente la scheda (usato con shadowColor nella variante "inclinata").
+// N.B. il rotate del tilt NON va qui dentro: questo stile finisce su un nodo che
+// gira anche la mBreath keyframe-animation (transform: scaleY(...) both) — il
+// 100% della keyframe sovrascriverebbe qualsiasi transform inline. Il tilt va
+// applicato su un wrapper ESTERNO, separato dal nodo animato.
+function cardTreatmentStyle(theme, hex, treatment) {
+  const SQ = 44; // radius più "squircle"
+  if (treatment === 'shadowDiffuse') {
+    return {
+      borderRadius: SQ, border: 'none',
+      boxShadow: `0 10px 24px ${rgba('#000', 0.06)}, 0 34px 70px ${rgba('#000', 0.14)}, 0 70px 120px ${rgba('#000', 0.10)}`,
+    };
+  }
+  if (treatment === 'shadowColor') {
+    return {
+      borderRadius: SQ, border: 'none',
+      boxShadow: `0 8px 20px ${rgba('#000', 0.05)}, 0 30px 60px ${rgba(hex, 0.38)}, 0 64px 110px ${rgba(hex, 0.30)}`,
+    };
+  }
+  return {
+    borderRadius: 34,
+    border: theme.borders ? `${theme.borderWidth}px solid ${theme.ink}` : `1px solid ${theme.line}`,
+    boxShadow: `0 20px 50px ${rgba('#000', 0.10)}`,
+  };
+}
+
+// Animazione di comparsa dell'INTERA scheda, direzionale rispetto allo scorrimento
+// dell'elenco: se ci si muove VERSO IL BASSO nella lista la scheda entra dal basso,
+// se VERSO L'ALTO entra dall'alto. 3 flavour:
+//   'slide'  → slittamento pulito + fade
+//   'spring' → slittamento con overshoot elastico + micro-scale
+//   'deck'   → la scheda viene "posata" (slitta + leggera rotazione che si assesta)
+function cardEnterAnim(variant, dir) {
+  const D = dir === 'fromTop' ? 'Down' : 'Up';
+  if (variant === 'spring') return `cardSpring${D} .66s ${SPRING_SOFT} both`;
+  if (variant === 'deck')   return `cardDeck${D} .62s ${FLUID_SOFT} both`;
+  // varianti "C" più morbide sull'assestamento finale della scheda
+  if (variant === 'deckGlide')  return `cardDeckGlide${D} .66s cubic-bezier(.22,.68,.24,1) both`;   // rotazione BEN visibile (~4°), plana veloce
+  if (variant === 'deckSettle') return `cardDeckSettle${D} .9s cubic-bezier(.16,.72,.2,1.01) both`;  // micro-oscillazione lenta che si spegne
+  if (variant === 'deckFeather')return `cardDeckFeather${D} 1.15s cubic-bezier(.2,.6,.12,1) both`;   // quasi verticale (~0.6°), atterraggio lentissimo
+  if (variant === 'slide')  return `cardSlide${D} .52s ${FLUID_SOFT} both`;
+  return `mBreath .6s cubic-bezier(.32,1.12,.4,1) both`;
+}
+
+function MasterMode({ theme, mode, setMode, query, setQuery, onSettings, anim = 'rise', cardTreatment = 'border', tilt = false, cardEnter = 'none' }) {
+  const [family, setFamily] = React.useState('tutti');
+  const [inkFilter, setInkFilter] = React.useState(0);
+  const [selCode, setSelCode] = React.useState('699 U');
+  const [qty, setQty] = React.useState(100);
+  ensureMasterKf();
+
+  const filtered = DESK_PANTONES.filter(p => {
+    if (family !== 'tutti' && p.family !== family) return false;
+    if (inkFilter && p.ink !== inkFilter) return false;
+    if (query) { const q = query.toLowerCase(); if (!`${p.code} ${p.name} ${p.family}`.toLowerCase().includes(q)) return false; }
+    return true;
+  });
+  const selected = DESK_PANTONES.find(p => p.code === selCode) || filtered[0] || DESK_PANTONES[0];
+  const hiIdx = filtered.findIndex(p => p.code === selected.code);
+
+  // direzione dello scorrimento nell'elenco → verso di ingresso della scheda.
+  // Leggo il valore precedente durante il render (ref non ancora aggiornato),
+  // poi lo aggiorno in un effect DOPO il commit.
+  const prevHiRef = React.useRef(hiIdx);
+  let enterDir = 'fromTop';
+  if (hiIdx < prevHiRef.current) enterDir = 'fromBottom';   // salito nella lista (es. 115→109) → entra dal basso
+  else if (hiIdx > prevHiRef.current) enterDir = 'fromTop'; // sceso nella lista (es. 802→376) → entra dall'alto
+  React.useEffect(() => { prevHiRef.current = hiIdx; }, [hiIdx]);
+
+  const recipe = React.useMemo(() => makeRecipe(selected), [selected.code]);
+  const fg = textOnDesk(selected.hex);
+  const stagger = anim === 'morph';
+
+  // altezza organica: misura header + contenuto e anima l'altezza della scheda,
+  // con cap sull'altezza realmente disponibile e scroll interno di sicurezza
+  const colRef = React.useRef(null);
+  const searchRowRef = React.useRef(null);
+  const headerRef = React.useRef(null);
+  const bodyInnerRef = React.useRef(null);
+  const bodyWrapRef = React.useRef(null);
+  const [cardH, setCardH] = React.useState(null);
+  React.useLayoutEffect(() => {
+    const col = colRef.current, hd = headerRef.current, bw0 = bodyWrapRef.current;
+    if (!col || !hd || !bw0) return;
+    const bw = theme.borders ? theme.borderWidth * 2 : 2;
+    const avail = col.clientHeight - bw;
+    const natural = hd.offsetHeight + bw0.scrollHeight + bw;
+    setCardH(Math.min(natural, Math.max(280, avail)));
+  }, [selected.code, anim, qty, theme.cardSurface, theme.display, theme.borders, theme.borderWidth]);
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <GrainBlobs theme={theme} blobHex={selected.hex}/>
+
+      {/* TOP BAR — Layout A: brand a sx · impostazioni + selettore vista a dx sulla stessa riga */}
+      <div style={{ position: 'relative', zIndex: 60, height: 88, display: 'flex', alignItems: 'center', gap: 14, padding: '0 28px' }}>
+        <Logo theme={theme} onSettings={onSettings}/>
+        <div style={{ flex: 1, minWidth: 12 }}/>
+      </div>
+      {/* Vista (ModeOrb) — ancorata a destra, si espande verso sinistra */}
+      <div style={{ position: 'absolute', top: 17, right: 28, zIndex: 70 }}>
+        <ModeOrb mode={mode} onChange={setMode} theme={theme}/>
+      </div>
+
+      <div style={{ position: 'relative', zIndex: 10, display: 'flex', height: 'calc(100% - 88px)' }}>
+        {/* LISTA — Layout A: ricerca + filtro in alto · elenco · Nuova ricetta in basso */}
+        <div style={{ width: 380, flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '2px 0 0 28px' }}>
+          <div style={{ paddingRight: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca pantone…"/></div>
+              <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="left"/>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 14 }}>
+              <span style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.4, fontWeight: 700, color: theme.sub }}>{filtered.length} / {DESK_PANTONES.length} PANTONE</span>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 22px 10px', marginTop: 8,
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)',
+            maskImage: 'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)' }}>
+            <div style={{ position: 'relative' }}>
+              {/* highlight scorrevole — corsa che decelera fluida + leggero respiro (grow/shrink) */}
+              <div style={{ position: 'absolute', left: 0, right: 0, height: 64, top: hiIdx * 70, zIndex: 0,
+                opacity: hiIdx >= 0 ? 1 : 0, transition: `top .5s cubic-bezier(.2,.66,.24,1), opacity .25s` }}>
+                <div key={hiIdx} style={{ position: 'absolute', inset: 0, borderRadius: 99,
+                  background: rgba('#fff', theme.grey ? 0.5 : 0.58), backdropFilter: 'blur(14px) saturate(150%)', WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+                  boxShadow: `0 8px 22px ${rgba('#000', 0.08)}, inset 0 0 0 1px ${rgba('#fff', 0.6)}`,
+                  animation: `mPulse .5s ${FLUID_SOFT} both` }}/>
+              </div>
+              {filtered.map(p => {
+                const on = p.code === selected.code;
+                return (
+                  <button key={p.code} onClick={() => setSelCode(p.code)} style={{
+                    position: 'relative', zIndex: 1, width: '100%', height: 64, marginBottom: 6,
+                    display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer',
+                    padding: '0 22px 0 14px', borderRadius: 99, border: 'none', background: 'transparent' }}>
+                    <Swatch hex={p.hex} size={44} radius={99}/>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontFamily: theme.display, fontWeight: theme.isSerif ? 400 : 700, fontSize: 19, letterSpacing: -0.5, color: theme.ink, fontStyle: theme.isSerif ? 'italic' : 'normal' }}>
+                        {p.code.replace(' U', '')}{p.code.includes(' U') && <span style={{ opacity: 0.5, fontWeight: 400, fontStyle: 'normal' }}> U</span>}</span>
+                      <div style={{ fontFamily: 'Nebulica', fontSize: 13, color: theme.sub, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: 3, justifyContent: 'flex-end' }}>
+                        {Array.from({ length: p.ink }).map((_, i) => <span key={i} style={{ width: 6, height: 6, borderRadius: 99, background: on ? theme.accent : theme.faint }}/>)}
+                      </div>
+                      <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10, color: theme.faint, marginTop: 5 }}>{p.coherence}%</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {/* Nuova ricetta — ancorata in basso al menu (Layout A) */}
+          <div style={{ flexShrink: 0, padding: '12px 18px 16px 0', borderTop: `1px solid ${theme.line}`, marginTop: 4 }}>
+            <NuovaPill theme={theme} full/>
+          </div>
+        </div>
+
+        {/* DETTAGLIO — colonna scheda a larghezza contenuta + spazio vuoto a destra */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', padding: '4px 28px 26px 16px' }}>
+          <div ref={colRef} style={{ width: 600, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
+            {theme.colorGlow && (
+              <div aria-hidden style={{ position: 'absolute', top: '50%', left: '50%', width: 780, height: 620,
+                transform: 'translate(-50%,-50%)', borderRadius: '50%', pointerEvents: 'none', zIndex: 0,
+                background: `radial-gradient(closest-side, ${rgba(selected.hex, 0.5)}, ${rgba(selected.hex, 0.22)} 46%, transparent 72%)`,
+                filter: 'blur(46px)', transition: 'background .5s ease' }}/>
+            )}
+            <div style={{ height: cardH != null ? cardH : 'auto', maxHeight: '100%', position: 'relative', zIndex: 1, transform: tilt ? 'rotate(-2.2deg)' : 'none', transition: 'transform .3s ease' }}>
+            <div key={'card-' + selected.code} style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', position: 'relative',
+            ...surface(theme), ...cardTreatmentStyle(theme, selected.hex, cardTreatment), display: 'flex', flexDirection: 'column',
+            transition: `height .55s cubic-bezier(.32,1.12,.4,1), box-shadow .3s ease`,
+            animation: cardEnterAnim(cardEnter, enterDir), transformOrigin: 'center center' }}>
+            {/* header colore */}
+            <div ref={headerRef} key={'h-' + selected.code + anim} style={{ background: selected.hex, padding: '18px 32px 14px', flexShrink: 0,
+              transformOrigin: 'top center',
+              animation: anim === 'morph' ? `mMorph .62s ${FLUID_SOFT} both` : `mFade .4s ${QUICK} both` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <span style={{ fontFamily: 'Nebulica', fontSize: 12, letterSpacing: 1.6, fontWeight: 700, color: fg, opacity: 0.72 }}>{selected.family.toUpperCase()} · PANTONE</span>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {[IcoStar, IcoEdit].map((Ic, i) => (
+                    <button key={i} style={{ width: 40, height: 40, borderRadius: 99, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: rgba(fg === '#fff' ? '#fff' : '#000', 0.12), border: `1.4px solid ${rgba(fg === '#fff' ? '#fff' : '#000', 0.3)}` }}>
+                      <Ic size={i ? 18 : 19} color={fg}/></button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, marginTop: 8 }}>
+                <PantoneCode code={selected.code} fg={fg} size={80} theme={theme}/>
+                <div style={{ textAlign: 'right', paddingBottom: 6 }}>
+                  <div style={{ fontFamily: 'Nebulica', fontSize: 20, fontWeight: 500, color: fg, letterSpacing: -0.6 }}>{selected.name}</div>
+                  <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 11.5, color: fg, opacity: 0.7, marginTop: 4, letterSpacing: 0.4 }}>{selected.hex.toUpperCase()} · PAG.{selected.page} · COER {selected.coherence}%</div>
+                </div>
+              </div>
+            </div>
+
+            {/* corpo */}
+            <div ref={bodyWrapRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '18px 32px 22px',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 10px)', maskImage: 'linear-gradient(to bottom, transparent 0, #000 10px)' }}>
+              <div ref={bodyInnerRef} key={'b-' + selected.code + anim} style={{ animation: anim === 'morph' ? 'none' : `mRise .5s ${SPRING_SOFT} both` }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8,
+                  animation: stagger ? `dkpop .5s ${SPRING_SOFT} .05s both` : 'none' }}>
+                  <span style={{ fontFamily: 'Nebulica', fontSize: 12, letterSpacing: 1.6, fontWeight: 700, color: theme.sub }}>QUANTITÀ DA PRODURRE</span>
+                  <span style={{ fontFamily: 'Nebulica', fontSize: 13, color: theme.faint }}>scala la formula</span>
+                </div>
+                <div style={{ animation: stagger ? `dkpop .5s ${SPRING_SOFT} .1s both` : 'none' }}>
+                  <QuantityPicker value={qty} onChange={setQty} theme={theme}/>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <InkFormula key={'f-' + selected.code + anim} pantone={selected} recipe={recipe} qty={qty} theme={theme} big anim={stagger ? 'stagger' : 'none'} play/>
+                </div>
+                <NotesBlock note={recipe.note} theme={theme}/>
+                <div style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}><PrintButton theme={theme}/></div>
+                  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '0 22px', height: 52, borderRadius: 99, cursor: 'pointer',
+                    fontFamily: 'Nebulica', fontWeight: 600, fontSize: 14, ...actionStyle(theme, 'secondary') }}>
+                    <IcoEdit size={17} color={actionStyle(theme, 'secondary').color}/> Modifica</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+          </div>
+          <div style={{ flex: 1 }}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ensureMasterKf() {
+  if (document.getElementById('master-kf')) return;
+  const s = document.createElement('style');
+  s.id = 'master-kf';
+  s.textContent = `
+    @keyframes mFade { from{opacity:.4;} to{opacity:1;} }
+    @keyframes mRise { from{opacity:0; transform:translateY(18px);} to{opacity:1; transform:translateY(0);} }
+    @keyframes mMorph { from{opacity:0; transform:translateY(-10px) scaleY(.9);} to{opacity:1; transform:translateY(0) scaleY(1);} }
+    @keyframes mPulse { 0%{transform:scale(1);} 45%{transform:scale(1.025);} 100%{transform:scale(1);} }
+    @keyframes mBreath { 0%{transform:scaleY(.984);} 60%{transform:scaleY(1.006);} 100%{transform:scaleY(1);} }
+    /* ingresso intera scheda — direzionale */
+    @keyframes cardSlideUp   { from{opacity:0; transform:translateY(74px);}  to{opacity:1; transform:translateY(0);} }
+    @keyframes cardSlideDown { from{opacity:0; transform:translateY(-74px);} to{opacity:1; transform:translateY(0);} }
+    @keyframes cardSpringUp   { 0%{opacity:0; transform:translateY(96px) scale(.94);}  60%{opacity:1; transform:translateY(-8px) scale(1.008);} 100%{opacity:1; transform:translateY(0) scale(1);} }
+    @keyframes cardSpringDown { 0%{opacity:0; transform:translateY(-96px) scale(.94);} 60%{opacity:1; transform:translateY(8px) scale(1.008);}  100%{opacity:1; transform:translateY(0) scale(1);} }
+    @keyframes cardDeckUp   { 0%{opacity:0; transform:translateY(88px) rotate(3deg);}  70%{opacity:1; transform:translateY(0) rotate(-.8deg);} 100%{opacity:1; transform:translateY(0) rotate(0);} }
+    @keyframes cardDeckDown { 0%{opacity:0; transform:translateY(-88px) rotate(-3deg);} 70%{opacity:1; transform:translateY(0) rotate(.8deg);}  100%{opacity:1; transform:translateY(0) rotate(0);} }
+    /* C morbida — 'glide': rotazione ben visibile (~4°) che si scioglie planando */
+    @keyframes cardDeckGlideUp   { 0%{opacity:0; transform:translateY(96px) rotate(4deg);}  55%{opacity:1;} 100%{opacity:1; transform:translateY(0) rotate(0);} }
+    @keyframes cardDeckGlideDown { 0%{opacity:0; transform:translateY(-96px) rotate(-4deg);} 55%{opacity:1;} 100%{opacity:1; transform:translateY(0) rotate(0);} }
+    /* C morbida — 'settle': micro-oscillazione lenta che si smorza */
+    @keyframes cardDeckSettleUp   { 0%{opacity:0; transform:translateY(84px) rotate(2.4deg);} 60%{opacity:1; transform:translateY(0) rotate(-.5deg);} 82%{transform:translateY(0) rotate(.2deg);} 100%{opacity:1; transform:translateY(0) rotate(0);} }
+    @keyframes cardDeckSettleDown { 0%{opacity:0; transform:translateY(-84px) rotate(-2.4deg);} 60%{opacity:1; transform:translateY(0) rotate(.5deg);} 82%{transform:translateY(0) rotate(-.2deg);} 100%{opacity:1; transform:translateY(0) rotate(0);} }
+    /* C morbida — 'feather': quasi verticale (~0.6°), atterraggio lentissimo */
+    @keyframes cardDeckFeatherUp   { 0%{opacity:0; transform:translateY(64px) rotate(.6deg);}  100%{opacity:1; transform:translateY(0) rotate(0);} }
+    @keyframes cardDeckFeatherDown { 0%{opacity:0; transform:translateY(-64px) rotate(-.6deg);} 100%{opacity:1; transform:translateY(0) rotate(0);} }
+  `;
+  document.head.appendChild(s);
+}
+
+Object.assign(window, { MasterMode });
+
+// ============================================================
+// desktop-wallet.jsx
+// ============================================================
+// desktop-wallet.jsx — MODE "Wallet"
+// variant 'row'   → fila orizzontale scrollabile. La card si SOLLEVA e si apre
+//                   SENZA passare sopra le altre: i vicini si SCOSTANO. Scroll
+//                   con rotella o trascinamento.
+// variant 'stack' → pila verticale stile Apple Wallet (codici che fanno capolino),
+//                   si scorre nella pila; la card scelta si solleva in cima e si apre.
+
+// Card unificata: header colore (sempre) + pannello ricetta bianco (quando aperta)
+function WalletUnified({ pantone, open, qty, setQty, theme, headerH = 176, codeSize = 46, onMeasure }) {
+  const fg = textOnDesk(pantone.hex);
+  const recipe = React.useMemo(() => makeRecipe(pantone), [pantone.code]);
+  const panelRef = React.useRef(null);
+  React.useLayoutEffect(() => {
+    if (!open || !onMeasure || !panelRef.current) return;
+    onMeasure(headerH + panelRef.current.scrollHeight);
+  }, [open, pantone.code, headerH, theme.cardSurface, theme.display]);
+  return (
+    <div style={{ width: '100%', height: '100%', borderRadius: 34, background: pantone.hex, position: 'relative', overflow: 'hidden',
+      border: theme.borders ? `${theme.borderWidth}px solid ${theme.ink}` : 'none' }}>
+      <div style={{ padding: open ? '24px 26px' : '20px 22px', height: open ? headerH : '100%',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: `padding .45s ${SPRING_SOFT}` }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+          <PantoneCode code={pantone.code} tcx={pantone.tcx} fg={fg} size={open ? 64 : codeSize} theme={theme}/>
+          <span style={{ fontFamily: 'Nebulica', fontSize: 12, fontWeight: 600, color: fg, opacity: 0.78,
+            display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', paddingTop: 5 }}>
+            <span style={{ width: 5, height: 5, borderRadius: 99, background: fg, opacity: 0.5 }}/>{pantone.ink} ink</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <span style={{ fontFamily: 'Nebulica', fontSize: open ? 17 : 14, fontWeight: 500, color: fg, opacity: 0.92 }}>{pantone.name}</span>
+          <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, color: fg, opacity: 0.6, letterSpacing: 0.4 }}>PAG.{pantone.page} · {pantone.coherence}%</span>
+        </div>
+      </div>
+      <div ref={panelRef} style={{ position: 'absolute', left: 0, right: 0, top: headerH, bottom: 0, ...surface(theme),
+        opacity: open ? 1 : 0, transform: open ? 'translateY(0)' : 'translateY(22px)',
+        transition: `opacity .34s ease, transform .5s ${SPRING_SOFT}`, transitionDelay: open ? '.12s' : '0s',
+        overflowY: 'auto', padding: '20px 26px 24px' }}>
+        <div style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: theme.sub, marginBottom: 9 }}>QUANTITÀ</div>
+        <QuantityPicker value={qty} onChange={setQty} theme={theme}/>
+        <div style={{ marginTop: 20 }}><InkFormula pantone={pantone} recipe={recipe} qty={qty} theme={theme} play={open} anim="stagger"/></div>
+        <NotesBlock note={recipe.note} theme={theme}/>
+        <div style={{ marginTop: 20 }}><PrintButton theme={theme}/></div>
+        <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.3, fontWeight: 700, color: theme.sub }}>
+          <span>PROGETTO</span><span style={{ color: theme.accent }}>→ {recipe.project}</span></div>
+      </div>
+    </div>
+  );
+}
+
+function WalletTopBar({ theme, mode, setMode, open, onBack, onSettings, query, setQuery, family, setFamily, ink, setInk }) {
+  return (
+    <div style={{ position: 'relative', zIndex: 60, height: 88, display: 'flex', alignItems: 'center', gap: 14, padding: '0 28px' }}>
+      <Logo theme={theme} onSettings={onSettings}/>
+      {/* back: compare accanto al logo quando una scheda è aperta */}
+      <button onClick={onBack} style={{ height: 50, borderRadius: 99, cursor: 'pointer', flexShrink: 0,
+        display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'Nebulica', fontWeight: 700, fontSize: 14, color: theme.ink,
+        width: open ? 'auto' : 0, paddingLeft: open ? 16 : 0, paddingRight: open ? 20 : 0, marginLeft: open ? 2 : 0, overflow: 'hidden',
+        opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none',
+        transition: `opacity .35s, width .45s ${SPRING}, padding .45s ${SPRING}`, ...glass(theme, { strong: true }) }}>
+        <IcoBack size={18} color={theme.ink}/> Ricette</button>
+      <div style={{ flex: 1, minWidth: 12 }}/>
+      {/* destra: ricerca + filtro sulla stessa linea del selettore vista + impostazioni */}
+      <div style={{ flex: '0 1 340px', minWidth: 150 }}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca pantone…"/></div>
+      {setFamily && <FilterButton family={family} setFamily={setFamily} ink={ink} setInk={setInk} theme={theme} align="right"/>}
+      <div style={{ width: 66, flexShrink: 0 }}/>{/* spazio per l'orb ancorato a destra */}
+      {/* destra: ModeOrb (selettore vista) — stessa posizione delle altre viste */}
+      <div style={{ position: 'absolute', top: 17, right: 28, zIndex: 70 }}><ModeOrb mode={mode} onChange={setMode} theme={theme}/></div>
+    </div>
+  );
+}
+
+// Sidebar condivisa: elenco scrollabile (come in Master) per navigare le carte.
+// Ricerca e filtro ora vivono nella top-bar; qui resta il menu + "+ Nuova" in basso.
+function WalletSideList({ list, query, selCode, onPick, theme }) {
+  const q = (query || '').toLowerCase();
+  const filtered = list.filter(p => !q || `${p.code} ${p.name} ${p.family}`.toLowerCase().includes(q));
+  const ROW = 60, STEP = 66;
+  const hiIdx = filtered.findIndex(p => p.code === selCode);
+  return (
+    <div style={{ position: 'absolute', top: 88, left: 0, bottom: 0, width: 300, zIndex: 30,
+      borderRight: `1px solid ${theme.line}`, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '2px 22px 10px' }}>
+        <div style={{ fontFamily: 'Nebulica', fontSize: 10.5, letterSpacing: 1.3, fontWeight: 700, color: theme.sub }}>{filtered.length} PANTONE</div>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 22px',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 14px), transparent 100%)',
+        maskImage: 'linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 14px), transparent 100%)' }}>
+        <div style={{ position: 'relative' }}>
+          <div style={{ position: 'absolute', left: 0, right: 0, height: ROW, top: hiIdx * STEP, borderRadius: 99, zIndex: 0,
+            background: rgba('#fff', theme.grey ? 0.5 : 0.58), backdropFilter: 'blur(14px) saturate(150%)', WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+            boxShadow: `0 8px 20px ${rgba('#000', 0.08)}, inset 0 0 0 1px ${rgba('#fff', 0.6)}`,
+            opacity: hiIdx >= 0 ? 1 : 0, transition: `top .5s ${SPRING}, opacity .25s` }}/>
+          {filtered.map(p => {
+            const on = p.code === selCode;
+            return (
+              <button key={p.code} onClick={() => onPick(list.indexOf(p))} style={{
+                position: 'relative', zIndex: 1, width: '100%', height: ROW, marginBottom: STEP - ROW,
+                display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', cursor: 'pointer',
+                padding: '0 16px 0 12px', borderRadius: 99, border: 'none', background: 'transparent' }}>
+                <Swatch hex={p.hex} size={40} radius={99}/>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontFamily: theme.display, fontWeight: theme.isSerif ? 400 : 700, fontSize: 17, letterSpacing: -0.4, color: theme.ink, fontStyle: theme.isSerif ? 'italic' : 'normal' }}>
+                    {p.code.replace(' U', '')}{p.code.includes(' U') && <span style={{ opacity: 0.5, fontWeight: 400, fontStyle: 'normal' }}> U</span>}</span>
+                  <div style={{ fontFamily: 'Nebulica', fontSize: 12, color: theme.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {Array.from({ length: p.ink }).map((_, i) => <span key={i} style={{ width: 5, height: 5, borderRadius: 99, background: on ? theme.accent : theme.faint }}/>)}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {/* + Nuova ricetta — ancorata in basso al menu */}
+      <div style={{ flexShrink: 0, padding: '14px 18px 18px', borderTop: `1px solid ${theme.line}` }}>
+        <NuovaPill theme={theme} full/>
+      </div>
+    </div>
+  );
+}
+
+function WalletMode({ theme, mode, setMode, query, setQuery, onSettings, variant = 'row', initialOpen = 17 }) {
+  if (variant === 'stack') return <WalletStack theme={theme} mode={mode} setMode={setMode} query={query} setQuery={setQuery} onSettings={onSettings} initialOpen={initialOpen}/>;
+  return <WalletRow theme={theme} mode={mode} setMode={setMode} query={query} setQuery={setQuery} onSettings={onSettings} initialOpen={initialOpen}/>;
+}
+
+// ── VARIANTE ROW ────────────────────────────────────────────────────────────
+function WalletRow({ theme, mode, setMode, query, setQuery, onSettings, initialOpen = null }) {
+  const [family, setFamily] = React.useState('tutti');
+  const [ink, setInk] = React.useState(0);
+  const list = React.useMemo(() => DESK_PANTONES.filter(p =>
+    (family === 'tutti' || p.family === family) && (!ink || p.ink === ink) &&
+    (!query || `${p.code} ${p.name} ${p.family}`.toLowerCase().includes(query.toLowerCase()))
+  ), [family, ink, query]);
+  const [sel, setSel] = React.useState(null);
+  const [qty, setQty] = React.useState(100);
+  const [scroll, setScroll] = React.useState(() => initialOpen != null ? Math.max(0, initialOpen * 236 + 105 - 500) : 0);
+  const [hover, setHover] = React.useState(null);
+  const drag = React.useRef({ on: false, x0: 0, s0: 0, moved: false });
+  const viewRef = React.useRef(null);
+
+  const CARD_W = 210, CARD_H = 300, GAP = 26, STEP = CARD_W + GAP, VIEW = 1140, SB = 300;
+  const GROW_W = 384, GROW_H = 624, PART = (GROW_W - CARD_W) / 2 + 34;
+  const open = sel !== null && sel < list.length;
+  const selP = open ? list[sel] : null;
+  const [measuredH, setMeasuredH] = React.useState(null);
+  React.useEffect(() => { setMeasuredH(null); }, [sel]);
+  const growH = open ? (measuredH ? Math.max(360, Math.min(760, measuredH)) : Math.max(430, Math.min(720, walletOpenHeight(selP, 150)))) : 624;
+  const blobHex = open ? selP.hex : (list[3] || list[0] || DESK_PANTONES[3]).hex;
+
+  // filtro cambia → chiudi eventuale card aperta
+  React.useEffect(() => { setSel(null); }, [family, ink, query]);
+
+  const maxScroll = Math.max(0, list.length * STEP - VIEW);
+  const clampS = (v) => Math.max(-40, Math.min(maxScroll + 40, v));
+
+  const onWheel = (e) => { if (open) return; setScroll(s => clampS(s + (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY))); };
+  const onDown = (e) => { if (open) return; drag.current = { on: true, x0: e.clientX, s0: scroll, moved: false }; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {} };
+  const onMove = (e) => { if (!drag.current.on) return; const dx = e.clientX - drag.current.x0; if (Math.abs(dx) > 4) drag.current.moved = true; setScroll(clampS(drag.current.s0 - dx)); };
+  const onUp = () => { drag.current.on = false; };
+
+  const openCard = (i) => {
+    setSel(i); setQty(100);
+    // centra la card selezionata nello stage (a destra della sidebar)
+    const target = i * STEP + CARD_W / 2 - (VIEW / 2 - 70);
+    setScroll(Math.max(0, target));
+  };
+
+  // auto-play: mostra una volta l'animazione carta→formula
+  React.useEffect(() => {
+    if (initialOpen == null) return;
+    const id = setTimeout(() => openCard(initialOpen), 950);
+    return () => clearTimeout(id);
+  }, []);
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <GrainBlobs theme={theme} blobHex={blobHex}/>
+      <WalletTopBar theme={theme} mode={mode} setMode={setMode} onSettings={onSettings} open={open} onBack={() => setSel(null)} query={query} setQuery={setQuery} family={family} setFamily={setFamily} ink={ink} setInk={setInk}/>
+      <WalletSideList list={list} query={query} selCode={open ? selP.code : null} onPick={openCard} theme={theme}/>
+
+      {/* STAGE */}
+      <div ref={viewRef} onWheel={onWheel} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        style={{ position: 'absolute', top: 88, left: SB, right: 0, bottom: 0, zIndex: 10, overflow: 'hidden',
+          cursor: open ? 'default' : (drag.current.on ? 'grabbing' : 'grab'), touchAction: 'none' }}>
+        <div style={{ position: 'absolute', left: 70, top: '50%', height: 1, width: 1 }}>
+          {list.map((p, i) => {
+            const isSel = i === sel;
+            let x = i * STEP - scroll;
+            let y = -CARD_H / 2;
+            let w = CARD_W, h = CARD_H, z = 10, op = 1, lift = 0, scale = 1;
+            if (open) {
+              if (isSel) { w = GROW_W; h = growH; x = x - (GROW_W - CARD_W) / 2; y = -growH / 2 - 6; z = 100; }
+              else { x += i < sel ? -PART : PART; op = 0.32; scale = 0.96; }
+            } else if (hover === i) { lift = -30; scale = 1.05; z = 50; }
+            return (
+              <div key={p.code} data-i={i}
+                onMouseEnter={() => !open && setHover(i)} onMouseLeave={() => !open && setHover(null)}
+                onClick={() => { if (open) return; if (!drag.current.moved) openCard(i); }}
+                style={{ position: 'absolute', left: 0, top: 0, width: w, height: h,
+                  transform: `translate(${x}px, ${y + lift}px) scale(${scale})`, transformOrigin: '50% 50%',
+                  zIndex: z, opacity: op, cursor: open ? 'default' : 'pointer',
+                  transition: `transform .55s ${FLUID_SOFT}, width .55s ${FLUID_SOFT}, height .55s ${FLUID_SOFT}, opacity .4s`,
+                  filter: isSel && open ? 'drop-shadow(0 38px 64px rgba(0,0,0,0.28))' : (hover === i ? 'drop-shadow(0 26px 46px rgba(0,0,0,0.22))' : 'drop-shadow(0 16px 32px rgba(0,0,0,0.16))') }}>
+                <WalletUnified pantone={p} open={isSel} qty={qty} setQty={setQty} theme={theme} codeSize={42} headerH={150} onMeasure={isSel ? setMeasuredH : undefined}/>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ position: 'absolute', bottom: 34, left: SB, right: 0, textAlign: 'center', zIndex: 30,
+        opacity: open ? 0 : 1, transition: 'opacity .3s', pointerEvents: 'none',
+        fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: theme.faint }}>
+        ROTELLA O TRASCINA PER SCORRERE · CLICCA UNA CARTA — SI SOLLEVA E I VICINI SI SCOSTANO
+      </div>
+
+      {/* frecce ◀ ▶ — orizzontali, in basso a sinistra (cerchi iOS meno trasparenti); con la formula aperta passano alla card prec./succ. */}
+      <div style={{ position: 'absolute', left: SB + 30, bottom: 30, display: 'flex', flexDirection: 'row', gap: 12, zIndex: 45 }}>
+        {[{ left: true, d: 'M14 6l-6 6 6 6', can: open ? sel > 0 : scroll > 2 }, { left: false, d: 'M10 6l6 6-6 6', can: open ? sel < list.length - 1 : scroll < maxScroll - 2 }].map((b, i) => (
+          <button key={i} disabled={!b.can}
+            onClick={() => { if (open) { const ni = Math.max(0, Math.min(list.length - 1, sel + (b.left ? -1 : 1))); openCard(ni); } else setScroll(s => clampS(s + (b.left ? -STEP * 3 : STEP * 3))); }}
+            title={b.left ? (open ? 'Card precedente' : 'Indietro') : (open ? 'Card successiva' : 'Avanti')}
+            style={{ width: 54, height: 54, borderRadius: 99, cursor: b.can ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: theme.borders ? `${theme.borderWidth}px solid ${theme.ink}` : 'none', background: rgba('#fff', theme.grey ? 0.82 : 0.88),
+              backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+              boxShadow: `0 6px 16px ${rgba('#000', 0.08)}`, opacity: b.can ? 1 : 0.4 }}>
+            <Ico d={b.d} size={25} color={theme.accent} sw={2}/>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── VARIANTE STACK (Apple Wallet · v38) ───────────────────────────────────────
+// Le carte scorrono dal basso verso l'alto e svaniscono all'indietro
+// rimpicciolendosi. La carta scelta emerge da dietro la pila e scivola sul lato
+// DESTRO dello schermo, aprendosi sulla formula.
+function WalletStack({ theme, mode, setMode, query, setQuery, onSettings, initialOpen = null }) {
+  const [family, setFamily] = React.useState('tutti');
+  const [ink, setInk] = React.useState(0);
+  const list = React.useMemo(() => DESK_PANTONES.filter(p =>
+    (family === 'tutti' || p.family === family) && (!ink || p.ink === ink) &&
+    (!query || `${p.code} ${p.name} ${p.family}`.toLowerCase().includes(query.toLowerCase()))
+  ), [family, ink, query]);
+  const [sel, setSel] = React.useState(null);
+  const [qty, setQty] = React.useState(100);
+  const [scroll, setScroll] = React.useState(() => initialOpen != null ? Math.max(0, (initialOpen - 2) * 70) : 0);
+  const drag = React.useRef({ on: false, y0: 0, s0: 0, moved: false });
+  const stageRef = React.useRef(null);
+  const [sw, setSw] = React.useState(1140);
+  const [sh, setSh] = React.useState(812);
+
+  React.useLayoutEffect(() => {
+    if (!stageRef.current) return;
+    const m = () => { const r = stageRef.current.getBoundingClientRect(); setSw(r.width); setSh(r.height); };
+    m();
+    const ro = new ResizeObserver(m); ro.observe(stageRef.current); return () => ro.disconnect();
+  }, []);
+
+  const SB = 300, CARD_W = 372, PEEK = 70, PEEK_H = 252;
+  const OPEN_W = 408, OPEN_H = 620;
+  const open = sel !== null && sel < list.length;
+  const selP = open ? list[sel] : null;
+  const [measuredH, setMeasuredH] = React.useState(null);
+  React.useEffect(() => { setMeasuredH(null); }, [sel]);
+  const openH = open ? (measuredH ? Math.max(360, Math.min(760, measuredH)) : Math.max(430, Math.min(720, walletOpenHeight(selP, 152)))) : OPEN_H;
+  const blobHex = open ? selP.hex : (list[5] || list[0] || DESK_PANTONES[5]).hex;
+  React.useEffect(() => { setSel(null); }, [family, ink, query]);
+  const maxScroll = Math.max(0, (list.length - 3) * PEEK);
+  const clampS = (v) => Math.max(0, Math.min(maxScroll, v));
+  const onWheel = (e) => { if (open) return; setScroll(s => clampS(s + e.deltaY)); };
+  const onDown = (e) => { if (open) return; drag.current = { on: true, y0: e.clientY, s0: scroll, moved: false }; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {} };
+  const onMove = (e) => { if (!drag.current.on) return; const dy = e.clientY - drag.current.y0; if (Math.abs(dy) > 4) drag.current.moved = true; setScroll(clampS(drag.current.s0 - dy)); };
+  const onUp = () => { drag.current.on = false; };
+
+  React.useEffect(() => {
+    if (initialOpen == null) return;
+    const id = setTimeout(() => { setSel(initialOpen); setQty(100); }, 950);
+    return () => clearTimeout(id);
+  }, []);
+
+  // ancoraggi orizzontali
+  const closedX = (sw - CARD_W) / 2;
+  const pileOpenX = sw * 0.045;
+  const rightX = sw - OPEN_W - sw * 0.07;
+  const frontY = sh * 0.30;
+
+  // posizione carta nella pila (chiusa)
+  const pilePos = (i) => {
+    const r = i - scroll / PEEK;          // 0 = carta a fuoco
+    if (r >= 0) {                          // in arrivo, impilate sotto e leggermente più piccole
+      const y = frontY + r * PEEK;
+      return { y, scale: Math.max(0.82, 1 - r * 0.05), op: r > 6 ? 0 : 1, z: 400 - Math.round(r * 10) };
+    }
+    const a = -r;                          // passate: recedono verso l'alto rimpicciolendo e svanendo
+    const y = frontY - (24 + (a - 1) * 16);
+    return { y, scale: Math.max(0.66, 1 - a * 0.085), op: Math.max(0, 1 - a * 0.42), z: 400 - Math.round(a * 12) };
+  };
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <GrainBlobs theme={theme} blobHex={blobHex}/>
+      <WalletTopBar theme={theme} mode={mode} setMode={setMode} onSettings={onSettings} open={open} onBack={() => setSel(null)} query={query} setQuery={setQuery} family={family} setFamily={setFamily} ink={ink} setInk={setInk}/>
+      <WalletSideList list={list} query={query} selCode={open ? selP.code : null} onPick={(i) => { setSel(i); setQty(100); }} theme={theme}/>
+
+      <div ref={stageRef} onWheel={onWheel} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        style={{ position: 'absolute', top: 88, left: SB, right: 0, bottom: 0, zIndex: 10, overflow: 'hidden',
+          cursor: open ? 'default' : (drag.current.on ? 'grabbing' : 'grab'), touchAction: 'none' }}>
+        {list.map((p, i) => {
+          const isSel = i === sel;
+          const P = pilePos(i);
+          let x, y, scale, op, z, h;
+          if (open) {
+            if (isSel) { x = rightX; y = (sh - openH) / 2; scale = 1; op = 1; z = 9999; h = openH; }
+            else { x = pileOpenX; y = P.y; scale = P.scale * 0.9; op = P.op * 0.45; z = P.z; h = PEEK_H; }
+          } else { x = closedX; y = P.y; scale = P.scale; op = P.op; z = P.z; h = PEEK_H; }
+          return (
+            <div key={p.code}
+              onClick={() => { if (open) return; if (!drag.current.moved) { setSel(i); setQty(100); } }}
+              style={{ position: 'absolute', left: 0, top: 0, width: isSel && open ? OPEN_W : CARD_W, height: h,
+                transform: `translate(${x}px, ${y}px) scale(${scale})`, transformOrigin: '50% 0%', zIndex: z, opacity: op,
+                cursor: open ? 'default' : 'pointer',
+                transition: `transform .6s ${FLUID_SOFT}, width .6s ${FLUID_SOFT}, height .6s ${FLUID_SOFT}, opacity .45s ease`,
+                filter: isSel && open ? 'drop-shadow(0 42px 72px rgba(0,0,0,0.30))' : 'drop-shadow(0 16px 34px rgba(0,0,0,0.18))' }}>
+              <WalletUnified pantone={p} open={isSel} qty={qty} setQty={setQty} theme={theme} codeSize={46} headerH={152} onMeasure={isSel ? setMeasuredH : undefined}/>
+            </div>
+          );
+        })}
+
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 36, pointerEvents: 'none', zIndex: 8000,
+          background: `linear-gradient(to bottom, ${theme.bg}, ${rgba(theme.bg, 0)})`, opacity: open ? 0 : 1, transition: 'opacity .3s' }}/>
+      </div>
+
+      {/* frecce su/giù per scorrere la pila */}
+      <div style={{ position: 'absolute', right: 30, bottom: 96, zIndex: 45, display: 'flex', flexDirection: 'column', gap: 12,
+        opacity: open ? 0 : 1, pointerEvents: open ? 'none' : 'auto', transition: 'opacity .3s' }}>
+        {[{ up: true, d: 'M6 14l6-6 6 6', can: scroll > 2 }, { up: false, d: 'M6 10l6 6 6-6', can: scroll < maxScroll - 2 }].map((b, i) => (
+          <button key={i} onClick={() => setScroll(s => clampS(s + (b.up ? -PEEK * 3 : PEEK * 3)))} title={b.up ? 'Su' : 'Giù'}
+            style={{ width: 52, height: 52, borderRadius: 99, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: theme.borders ? `${theme.borderWidth}px solid ${theme.ink}` : 'none', background: rgba('#fff', theme.grey ? 0.55 : 0.64),
+              backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+              boxShadow: `0 5px 14px ${rgba('#000', 0.05)}`, opacity: b.can ? 1 : 0.4 }}>
+            <Ico d={b.d} size={24} color={theme.accent} sw={2}/>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ position: 'absolute', bottom: 34, left: SB, right: 0, textAlign: 'center', zIndex: 30,
+        opacity: open ? 0 : 1, transition: 'opacity .3s', pointerEvents: 'none',
+        fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: theme.faint }}>
+        ROTELLA, TRASCINA O FRECCE PER SCORRERE LA PILA · CLICCA UNA CARTA — EMERGE E SI APRE A DESTRA
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { WalletMode, WalletRow, WalletStack, WalletUnified });
+
+// ============================================================
+// desktop-gallery.jsx
+// ============================================================
+// desktop-gallery.jsx — MODE "Gallery"
+// Card = CAMPIONE Pantone (quadrato colore sopra, info sotto su bianco).
+// Clic → inspector formula entra da destra. La barra di ricerca e la griglia NON
+// vengono coperte: si SPOSTANO a sinistra (le card non si comprimono, riflusso a
+// colonne con card a larghezza fissa) con animazione fluida bouncy.
+// `formulaAnim`: 'slide' (pannello scorre, barre crescono) · 'stagger' (righe pop)
+
+const CARD_W = 196;
+
+function SwatchCard({ p, theme, active, onClick }) {
+  const [hover, setHover] = React.useState(false);
+  const fg = textOnDesk(p.hex);
+  return (
+    <button onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ width: CARD_W, textAlign: 'left', cursor: 'pointer', padding: 11, border: 'none', borderRadius: 30,
+        background: theme.panel, overflow: 'hidden',
+        boxShadow: active ? `0 0 0 2.5px ${theme.accent}, 0 22px 44px ${rgba('#000', 0.16)}`
+          : (hover ? `0 20px 40px ${rgba('#000', 0.18)}` : `0 8px 22px ${rgba('#000', 0.10)}`),
+        outline: theme.borders ? `1.6px solid ${theme.ink}` : 'none', outlineOffset: -1,
+        transform: hover && !active ? 'translateY(-6px)' : 'none',
+        transition: `transform .28s ${SPRING}, box-shadow .28s` }}>
+      <div style={{ width: '100%', height: 172, borderRadius: 16, background: p.hex, position: 'relative', overflow: 'hidden',
+        boxShadow: `inset 0 0 0 1px ${rgba('#000', 0.07)}` }}>
+        <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 3.5 }}>
+          {Array.from({ length: p.ink }).map((_, i) => <span key={i} style={{ width: 6, height: 6, borderRadius: 99, background: fg, opacity: 0.72 }}/>)}
+        </div>
+      </div>
+      <div style={{ padding: '13px 7px 6px' }}>
+        <div style={{ fontFamily: theme.display, fontWeight: theme.isSerif ? 400 : 700, fontSize: 22, letterSpacing: -0.6, color: theme.ink,
+          fontStyle: theme.isSerif ? 'italic' : 'normal', lineHeight: 1 }}>
+          {p.code.replace(' U', '')}{p.code.includes(' U') && <span style={{ opacity: 0.5, fontWeight: 400, fontStyle: 'normal' }}> U</span>}{p.tcx && <span style={{ opacity: 0.5, fontWeight: 400, fontSize: 13, marginLeft: 4 }}>TCX</span>}
+        </div>
+        <div style={{ fontFamily: 'Nebulica', fontSize: 14, fontWeight: 500, color: theme.ink, opacity: 0.82, marginTop: 5 }}>{p.name}</div>
+        <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10, color: theme.faint, marginTop: 6, letterSpacing: 0.3, textTransform: 'uppercase' }}>{p.family} · {p.hex.toUpperCase()}</div>
+      </div>
+    </button>
+  );
+}
+
+function GalleryMode({ theme, mode, setMode, query, setQuery, onSettings, formulaAnim = 'slide' }) {
+  const [family, setFamily] = React.useState('tutti');
+  const [inkFilter, setInkFilter] = React.useState(0);
+  const [selCode, setSelCode] = React.useState(null);
+  const [qty, setQty] = React.useState(100);
+  const rootRef = React.useRef(null);
+  const [fullW, setFullW] = React.useState(1440);
+  ensureGalleryKf();
+  React.useLayoutEffect(() => {
+    const measure = () => { if (rootRef.current) setFullW(rootRef.current.clientWidth); };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  const filtered = DESK_PANTONES.filter(p => {
+    if (family !== 'tutti' && p.family !== family) return false;
+    if (inkFilter && p.ink !== inkFilter) return false;
+    if (query) { const q = query.toLowerCase(); if (!`${p.code} ${p.name} ${p.family}`.toLowerCase().includes(q)) return false; }
+    return true;
+  });
+  const open = selCode !== null;
+  const sel = open ? DESK_PANTONES.find(p => p.code === selCode) : null;
+  const recipe = sel ? makeRecipe(sel) : null;
+  const fg = sel ? textOnDesk(sel.hex) : '#000';
+  const INSPECTOR_W = 460;
+  // layout a colonne calcolato: le card si ricompongono verso sinistra con stagger
+  const PAD = 36, GAP = 22, STEPX = CARD_W + GAP, CARD_H = 268, STEPY = CARD_H + GAP;
+  const availW = (open ? fullW - INSPECTOR_W : fullW) - PAD * 2;
+  const cols = Math.max(1, Math.floor((availW + GAP) / STEPX));
+  const rows = Math.ceil(filtered.length / cols);
+
+  return (
+    <div ref={rootRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+      <GrainBlobs theme={theme} blobHex={sel ? sel.hex : DESK_PANTONES[7].hex}/>
+
+      {/* TOP BAR — non si sposta, non viene coperta */}
+      <div style={{ position: 'relative', zIndex: 40, height: 88, display: 'flex', alignItems: 'center', padding: '0 28px' }}>
+        <Logo theme={theme} onSettings={onSettings}/>
+        <div style={{ position: 'absolute', top: 17, right: 28, zIndex: 70 }}><ModeOrb mode={mode} onChange={setMode} theme={theme}/></div>
+      </div>
+
+      {/* CONTENUTO che si SPINGE a sinistra (search + griglia) */}
+      <div style={{ position: 'absolute', top: 88, left: 0, bottom: 0,
+        right: open ? INSPECTOR_W : 0,
+        transform: open ? 'translateX(-14px)' : 'translateX(0)',
+        transition: `right .55s ${SPRING_SOFT}, transform .55s ${SPRING_SOFT}`, zIndex: 10, display: 'flex', flexDirection: 'column' }}>
+        {/* sub-header: search + chips */}
+        <div style={{ padding: '4px 36px 14px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ width: 380, maxWidth: '46%' }}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%"/></div>
+          <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="left"/>
+          <NuovaPill theme={theme} compact/>
+          <div style={{ flex: 1, minWidth: 0 }}/>
+          <span style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.4, fontWeight: 700, color: theme.sub, whiteSpace: 'nowrap' }}>{filtered.length} PANTONE</span>
+        </div>
+        {/* GRIGLIA — card posizionate in assoluto: reflow fluido e leggermente scomposto */}
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: `14px ${PAD}px 48px`,
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 22px), transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 22px), transparent 100%)' }}>
+          <div style={{ position: 'relative', height: rows * STEPY }}>
+            {filtered.map((p, i) => {
+              const col = i % cols, row = Math.floor(i / cols);
+              return (
+                <div key={p.code} style={{ position: 'absolute', left: 0, top: 0, width: CARD_W,
+                  transform: `translate(${col * STEPX}px, ${row * STEPY}px)`,
+                  transition: `transform .6s ${FLUID_SOFT} ${col * 28 + row * 16}ms`, willChange: 'transform' }}>
+                  <SwatchCard p={p} theme={theme} active={p.code === selCode} onClick={() => { setSelCode(p.code); setQty(100); }}/>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* INSPECTOR formula (destra) — sopra la top-bar così la ✕ è sempre cliccabile */}
+      <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: INSPECTOR_W, zIndex: 60,
+        transform: open ? 'translateX(0)' : `translateX(${INSPECTOR_W + 30}px)`,
+        transition: `transform .55s ${formulaAnim === 'stagger' ? SPRING : SPRING_SOFT}`,
+        ...surface(theme), borderLeft: theme.borders ? `${theme.borderWidth}px solid ${theme.ink}` : `1px solid ${theme.line}`,
+        boxShadow: `-30px 0 70px ${rgba('#000', 0.14)}`, display: 'flex', flexDirection: 'column' }}>
+        {sel && (
+          <React.Fragment>
+            <div key={'gh-' + sel.code} style={{ background: sel.hex, padding: '30px 32px 26px', position: 'relative',
+              animation: `gFade .4s ${QUICK} both` }}>
+              <button onClick={() => setSelCode(null)} style={{ position: 'absolute', top: 24, right: 24, width: 42, height: 42, borderRadius: 99, cursor: 'pointer',
+                background: rgba(fg === '#fff' ? '#fff' : '#000', 0.14), border: `1.4px solid ${rgba(fg === '#fff' ? '#fff' : '#000', 0.3)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IcoClose size={18} color={fg}/></button>
+              <div style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.6, fontWeight: 700, color: fg, opacity: 0.72 }}>{sel.family.toUpperCase()} · PANTONE</div>
+              <div style={{ marginTop: 18 }}><PantoneCode code={sel.code} tcx={sel.tcx} fg={fg} size={84} theme={theme}/></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14 }}>
+                <span style={{ fontFamily: 'Nebulica', fontSize: 19, fontWeight: 500, color: fg }}>{sel.name}</span>
+                <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 11, color: fg, opacity: 0.7, letterSpacing: 0.4 }}>{sel.hex.toUpperCase()} · {sel.coherence}%</span>
+              </div>
+            </div>
+            <div key={'gb-' + sel.code + formulaAnim} style={{ flex: 1, overflowY: 'auto', padding: '26px 32px 32px',
+              animation: `${formulaAnim === 'stagger' ? 'gPop' : 'gRise'} .5s ${SPRING_SOFT} both` }}>
+              <div style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: theme.sub, marginBottom: 9 }}>QUANTITÀ</div>
+              <QuantityPicker value={qty} onChange={setQty} theme={theme}/>
+              <div style={{ marginTop: 24 }}>
+                <InkFormula key={'gf-' + sel.code + formulaAnim} pantone={sel} recipe={recipe} qty={qty} theme={theme} big play anim={formulaAnim === 'stagger' ? 'stagger' : 'none'}/>
+              </div>
+              <NotesBlock note={recipe.note} theme={theme}/>
+              <div style={{ marginTop: 22 }}><PrintButton theme={theme}/></div>
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${theme.line}`, display: 'flex', justifyContent: 'space-between',
+                fontFamily: 'Nebulica', fontSize: 11.5, letterSpacing: 1.3, fontWeight: 700, color: theme.sub }}>
+                <span>PROGETTO</span><span style={{ color: theme.accent, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IcoFolder size={15} color={theme.accent}/> {recipe.project}</span>
+              </div>
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ensureGalleryKf() {
+  if (document.getElementById('gallery-kf')) return;
+  const s = document.createElement('style');
+  s.id = 'gallery-kf';
+  s.textContent = `
+    @keyframes gFade { from{opacity:.4;} to{opacity:1;} }
+    @keyframes gRise { from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);} }
+    @keyframes gPop  { from{opacity:0; transform:scale(.96);} to{opacity:1; transform:scale(1);} }
+  `;
+  document.head.appendChild(s);
+}
+
+Object.assign(window, { GalleryMode, SwatchCard });
+
+// ============================================================
+// desktop-nuova.jsx
+// ============================================================
+// desktop-nuova.jsx — "Nuova formula" su DESKTOP · 2 proposte
+// Riusa il sistema grafico desktop (glass pill, accento, bordi neri, grana/blob,
+// superfici, font display) e tutti i campi della schermata mobile:
+//   Ricetta/Sperimentazione · Pantone ID · Hex(+swatch) · Temperatura · Copertura
+//   · Categoria · Note · Pagina mazzetta · Progetti(tag) · Inchiostri (base 40g)
+//
+// A · NuovaModal  → composer come foglio centrato sull'app (2 colonne)
+// B · NuovaEditor → editor a schermo intero: form a sinistra, ANTEPRIMA live a destra
+
+const NF_CATS = ['Giallo', 'Arancio', 'Rosso', 'Rosa', 'Viola', 'Blu', 'Azzurro', 'Verde', 'Marrone', 'Beige', 'Neutro', 'Nero', 'Bianco', 'Metallizzato', 'Fluo'];
+const NF_TEMPS = [
+  { k: 'caldo',  l: 'Caldo',  dot: '#FFAB8C' },
+  { k: 'neutro', l: 'Neutro', dot: '#D6D4CC' },
+  { k: 'freddo', l: 'Freddo', dot: '#9FC6EE' },
+];
+const NF_COVERS = [
+  { k: 'coprente', l: 'Coprente', lvl: 3 },
+  { k: 'semi',     l: 'Semi',     lvl: 2 },
+  { k: 'trasp',    l: 'Trasp.',   lvl: 1 },
+];
+const NF_BASE = 40;
+
+// pallino temperatura: tinta tenue, pieno e morbido
+function TempDot({ hex }) {
+  return <span style={{ width: 14, height: 14, borderRadius: 99, flexShrink: 0, background: hex, boxShadow: `inset 0 0 0 1px ${rgba('#000', 0.1)}` }}/>;
+}
+
+// ── squircle iOS 26 (superellisse) reso con clip-path: path() ───────────────
+// corner-shape CSS non è supportato qui: disegniamo la silhouette a mano.
+// clip-path per il riempimento + un path SVG (sopra, NON ritagliato) per il
+// bordo continuo, leggermente rientrato così la linea non si spezza agli angoli.
+function squirclePath(w, h, r, n = 5, pad = 0) {
+  const x0 = pad, y0 = pad, W = w - pad * 2, H = h - pad * 2;
+  r = Math.max(1, Math.min(r - pad, W / 2, H / 2));
+  const k = 2 / n, seg = 18, pts = [];
+  const corner = (cx, cy, a0, a1) => {
+    for (let i = 0; i <= seg; i++) {
+      const a = a0 + (a1 - a0) * (i / seg);
+      const c = Math.cos(a), s = Math.sin(a);
+      pts.push([
+        cx + r * Math.sign(c) * Math.pow(Math.abs(c), k),
+        cy + r * Math.sign(s) * Math.pow(Math.abs(s), k),
+      ]);
+    }
+  };
+  corner(x0 + W - r, y0 + r,     -Math.PI / 2, 0);          // alto-destra
+  corner(x0 + W - r, y0 + H - r, 0, Math.PI / 2);           // basso-destra
+  corner(x0 + r,     y0 + H - r, Math.PI / 2, Math.PI);     // basso-sinistra
+  corner(x0 + r,     y0 + r,     Math.PI, Math.PI * 1.5);   // alto-sinistra
+  return 'M' + pts.map(p => p[0].toFixed(2) + ' ' + p[1].toFixed(2)).join(' L') + ' Z';
+}
+
+function Squircle({ radius = 28, n = 5, border, borderWidth = 1.5, shadow, anim, outerStyle, style, className, children }) {
+  const ref = React.useRef(null);
+  const [d, setD] = React.useState('');
+  const [size, setSize] = React.useState([0, 0]);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const update = () => {
+      const w = el.offsetWidth, h = el.offsetHeight;
+      if (w && h) { setSize([w, h]); setD(squirclePath(w, h, radius, n)); }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [radius, n]);
+  const clip = d ? `path("${d}")` : 'none';
+  return (
+    <div style={{ position: 'relative', filter: shadow ? `drop-shadow(${shadow})` : 'none', animation: anim || 'none', ...outerStyle }}>
+      <div ref={ref} className={className}
+        style={{ position: 'relative', borderRadius: radius, clipPath: clip, WebkitClipPath: clip, ...style }}>
+        {children}
+      </div>
+      {/* il bordo è lo STESSO tracciato della maschera (non ritagliato): segue esattamente la curva */}
+      {d && border && (
+        <svg width={size[0]} height={size[1]} viewBox={`0 0 ${size[0]} ${size[1]}`}
+          style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 5 }}>
+          <path d={d} fill="none" stroke={border} strokeWidth={borderWidth} strokeLinejoin="round"/>
+        </svg>
+      )}
+    </div>
+  );
+}
+
+function ensureNuovaKf() {
+  if (document.getElementById('nf-kf')) return;
+  const s = document.createElement('style');
+  s.id = 'nf-kf';
+  s.textContent = `
+    @keyframes nfPop { from{opacity:0; transform:translateY(16px) scale(.985);} to{opacity:1; transform:none;} }
+    @keyframes nfRowIn { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+    .nf-scroll::-webkit-scrollbar{ width:10px; } .nf-scroll::-webkit-scrollbar-thumb{ background:rgba(0,0,0,.14); border-radius:99px; border:3px solid transparent; background-clip:padding-box; }
+    .nf-num::-webkit-outer-spin-button,.nf-num::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; } .nf-num{ -moz-appearance:textfield; }
+  `;
+  document.head.appendChild(s);
+}
+
+const IcoChevron = (p) => <Ico {...p} d="M6 9l6 6 6-6"/>;
+const IcoCheck   = (p) => <Ico {...p} d="M5 12.5l4.2 4.2L19 7"/>;
+
+// ── stato form ────────────────────────────────────────────────────────────
+function useFormulaState() {
+  const [tab, setTab] = React.useState('ricetta');
+  const [pantoneId, setPantoneId] = React.useState('');
+  const [hex, setHex] = React.useState('');
+  const [temp, setTemp] = React.useState(null);
+  const [cover, setCover] = React.useState(null);
+  const [cat, setCat] = React.useState(null);
+  const [note, setNote] = React.useState('');
+  const [page, setPage] = React.useState('');
+  const [projects, setProjects] = React.useState([]);
+  const [projInput, setProjInput] = React.useState('');
+  const [inks, setInks] = React.useState([
+    { id: 1, name: '', g: '' }, { id: 2, name: '', g: '' },
+  ]);
+  const idRef = React.useRef(3);
+  const addInk = () => setInks(a => [...a, { id: idRef.current++, name: '', g: '' }]);
+  const setInk = (id, patch) => setInks(a => a.map(r => r.id === id ? { ...r, ...patch } : r));
+  const delInk = (id) => setInks(a => a.length > 1 ? a.filter(r => r.id !== id) : a);
+  return { tab, setTab, pantoneId, setPantoneId, hex, setHex, temp, setTemp, cover, setCover, cat, setCat,
+    note, setNote, page, setPage, projects, setProjects, projInput, setProjInput, inks, addInk, setInk, delInk };
+}
+
+function nfLookup(code) {
+  if (!code) return null;
+  const k = code.toLowerCase().replace(/\s/g, '');
+  return DESK_PANTONES.find(p => p.code.toLowerCase().replace(/\s/g, '') === k) || null;
+}
+function nfEffHex(state) {
+  const h = state.hex.replace('#', '');
+  if (/^[0-9a-f]{6}$/i.test(h)) return '#' + h;
+  if (/^[0-9a-f]{3}$/i.test(h)) return '#' + h.split('').map(c => c + c).join('');
+  const known = nfLookup(state.pantoneId);
+  return known ? known.hex : null;
+}
+function nfTotalG(state) {
+  return state.inks.reduce((s, r) => s + (parseFloat(r.g) || 0), 0);
+}
+
+// ── atomi di campo ──────────────────────────────────────────────────────────
+function FLabel({ children, optional, theme, style }) {
+  return (
+    <div style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.4, fontWeight: 700, color: theme.sub, marginBottom: 9, ...style }}>
+      {children}{optional && <span style={{ color: theme.faint }}> (OPZIONALE)</span>}
+    </div>
+  );
+}
+function fieldBox(theme, { tall, radius } = {}) {
+  return {
+    width: '100%', height: tall ? 'auto' : 54, borderRadius: radius != null ? radius : 18, padding: tall ? '14px 18px' : '0 18px',
+    background: theme.panel, color: theme.ink, outline: 'none',
+    border: theme.borders ? `${theme.borderWidth}px solid ${theme.ink}` : `1.5px solid ${theme.line2}`,
+    fontFamily: 'Nebulica', fontSize: 16, boxShadow: `0 4px 12px ${rgba('#000', 0.04)}`,
+  };
+}
+function FInput({ value, onChange, placeholder, theme, mono, pill }) {
+  return (
+    <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+      style={{ ...fieldBox(theme, { radius: pill ? 99 : undefined }), padding: pill ? '0 22px' : '0 18px', fontFamily: mono ? '"JetBrains Mono", monospace' : 'Nebulica', fontSize: mono ? 15 : 16, letterSpacing: mono ? 0.4 : 0 }}/>
+  );
+}
+
+function SegTabs({ tab, setTab, theme }) {
+  const opts = [{ k: 'ricetta', l: 'Ricetta Pantone' }, { k: 'sperim', l: 'Sperimentazione' }];
+  const idx = opts.findIndex(o => o.k === tab);
+  return (
+    <div style={{ position: 'relative', display: 'flex', padding: 5, borderRadius: 99, width: '100%', ...glass(theme, { strong: true }) }}>
+      <div style={{ position: 'absolute', top: 5, bottom: 5, left: 5, width: 'calc((100% - 10px) / 2)',
+        transform: `translateX(${idx * 100}%)`, background: theme.accent, borderRadius: 99, zIndex: 0,
+        boxShadow: `0 4px 12px ${rgba(theme.accent, 0.32)}`, transition: `transform .5s ${SPRING}` }}/>
+      {opts.map(o => {
+        const on = o.k === tab;
+        return (
+          <button key={o.k} onClick={() => setTab(o.k)} style={{ position: 'relative', zIndex: 1, flex: 1, border: 'none', background: 'transparent',
+            cursor: 'pointer', padding: '10px 0', fontFamily: 'Nebulica', fontWeight: 700, fontSize: 14.5, letterSpacing: -0.2,
+            color: on ? theme.onAccent : theme.sub }}>{o.l}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChoicePill({ on, onClick, theme, children }) {
+  return (
+    <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '11px 18px', borderRadius: 99, cursor: 'pointer',
+      fontFamily: 'Nebulica', fontWeight: 700, fontSize: 14.5, letterSpacing: -0.2, color: on ? '#fff' : theme.ink, ...glass(theme, { active: on }) }}>
+      {children}
+    </button>
+  );
+}
+
+function TempPicker({ value, onChange, theme }) {
+  return (
+    <div style={{ display: 'flex', gap: 10 }}>
+      {NF_TEMPS.map(t => {
+        const on = value === t.k;
+        return (
+          <ChoicePill key={t.k} on={on} onClick={() => onChange(on ? null : t.k)} theme={theme}>
+            <TempDot hex={t.dot}/>
+            {t.l}
+          </ChoicePill>
+        );
+      })}
+    </div>
+  );
+}
+
+function CoverDots({ lvl, color }) {
+  return (
+    <span style={{ display: 'inline-flex', gap: 3 }}>
+      {[0, 1, 2].map(i => (
+        <span key={i} style={{ width: 7, height: 7, borderRadius: 99,
+          background: i < lvl ? color : 'transparent', boxShadow: `inset 0 0 0 1.4px ${color}` }}/>
+      ))}
+    </span>
+  );
+}
+function CoverPicker({ value, onChange, theme }) {
+  return (
+    <div style={{ display: 'flex', gap: 10 }}>
+      {NF_COVERS.map(c => {
+        const on = value === c.k;
+        return (
+          <ChoicePill key={c.k} on={on} onClick={() => onChange(on ? null : c.k)} theme={theme}>
+            <CoverDots lvl={c.lvl} color={on ? '#fff' : theme.ink}/>{c.l}
+          </ChoicePill>
+        );
+      })}
+    </div>
+  );
+}
+
+function CatChips({ value, onChange, theme }) {
+  const [open, setOpen] = React.useState(false);
+  const VISIBLE = 7;
+  let shown = open ? NF_CATS : NF_CATS.slice(0, VISIBLE);
+  if (!open && value && !shown.includes(value)) shown = [...shown, value];
+  const hidden = NF_CATS.length - VISIBLE;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {shown.map(c => {
+        const on = value === c;
+        return (
+          <button key={c} onClick={() => onChange(on ? null : c)} style={{ padding: '9px 16px', borderRadius: 99, cursor: 'pointer',
+            fontFamily: 'Nebulica', fontWeight: 700, fontSize: 13.5, letterSpacing: -0.1, color: on ? '#fff' : theme.ink, ...glass(theme, { active: on }) }}>{c}</button>
+        );
+      })}
+      {hidden > 0 && (
+        <button onClick={() => setOpen(o => !o)} style={{ padding: '9px 15px', borderRadius: 99, cursor: 'pointer',
+          fontFamily: 'Nebulica', fontWeight: 700, fontSize: 13.5, letterSpacing: -0.1, color: theme.sub, background: 'transparent',
+          border: `1.5px dashed ${theme.borders ? rgba(theme.ink, 0.4) : theme.line2}`,
+          display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {open ? 'Comprimi' : `+${hidden} altre`}
+          <span style={{ display: 'inline-flex', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .3s' }}><IcoChevron size={14} color={theme.sub}/></span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ProjTags({ tags, setTags, input, setInput, theme }) {
+  const add = () => { const v = input.trim(); if (v && !tags.includes(v)) setTags([...tags, v]); setInput(''); };
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', ...fieldBox(theme), height: 'auto', minHeight: 54, padding: tags.length ? '9px 14px' : '0 18px' }}>
+        {tags.map(t => (
+          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 8px 6px 14px', borderRadius: 99,
+            background: rgba(theme.accent, theme.grey ? 0.16 : 0.13), color: theme.ink, fontFamily: 'Nebulica', fontWeight: 700, fontSize: 13.5 }}>
+            {t}
+            <button onClick={() => setTags(tags.filter(x => x !== t))} style={{ width: 20, height: 20, borderRadius: 99, border: 'none', cursor: 'pointer',
+              background: rgba('#000', 0.08), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+              <IcoClose size={12} color={theme.ink}/></button>
+          </span>
+        ))}
+        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+          placeholder={tags.length ? '' : 'es. Risanamento 25'} style={{ flex: 1, minWidth: 120, border: 'none', outline: 'none', background: 'transparent',
+            fontFamily: 'Nebulica', fontSize: 16, color: theme.ink, height: 36 }}/>
+      </div>
+      <div style={{ fontFamily: 'Nebulica', fontSize: 12.5, fontStyle: 'italic', color: theme.faint, marginTop: 8 }}>scrivi il nome e premi Invio per aggiungere</div>
+    </div>
+  );
+}
+
+// ── editor inchiostri (righe + aggiungi) ────────────────────────────────────
+function InkEditor({ state, theme }) {
+  const total = nfTotalG(state);
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11 }}>
+        <FLabel theme={theme} style={{ marginBottom: 0 }}>INCHIOSTRI <span style={{ color: theme.faint }}>(BASE {NF_BASE} G)</span></FLabel>
+        <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 12.5, fontWeight: 600, color: total > 0 ? theme.ink : theme.faint }}>Σ {total.toFixed(2)} g</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {state.inks.map((row, i) => {
+          const known = INK_POOL.find(k => k.name === row.name);
+          const pct = total > 0 ? ((parseFloat(row.g) || 0) / total) * 100 : 0;
+          return (
+            <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 10, ...fieldBox(theme, { radius: 99 }), padding: '0 10px 0 18px', animation: `nfRowIn .34s ${SPRING_SOFT} both` }}>
+              {/* select inchiostro */}
+              <div style={{ position: 'relative', flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                {row.name
+                  ? <span style={{ width: 12, height: 12, borderRadius: 99, background: theme.accent, flexShrink: 0 }}/>
+                  : <span style={{ width: 12, height: 12, borderRadius: 99, boxShadow: `inset 0 0 0 1.5px ${theme.line2}`, flexShrink: 0 }}/>}
+                <select value={row.name} onChange={e => state.setInk(row.id, { name: e.target.value })}
+                  style={{ appearance: 'none', WebkitAppearance: 'none', border: 'none', outline: 'none', background: 'transparent', cursor: 'pointer',
+                    flex: 1, minWidth: 0, fontFamily: 'Nebulica', fontWeight: 700, fontSize: 15, color: row.name ? theme.ink : theme.faint, paddingRight: 18 }}>
+                  <option value="">Scegli inchiostro</option>
+                  {INK_POOL.map(k => <option key={k.name} value={k.name}>{k.name} · {k.label}</option>)}
+                </select>
+                <span style={{ position: 'absolute', right: 0, pointerEvents: 'none' }}><IcoChevron size={16} color={theme.faint}/></span>
+              </div>
+              {known && <span style={{ fontFamily: 'Nebulica', fontSize: 12, color: theme.faint, flexShrink: 0 }}>{Math.round(pct)}%</span>}
+              {/* grammi */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexShrink: 0 }}>
+                <input className="nf-num" type="number" min="0" step="0.01" value={row.g} placeholder="0.00"
+                  onChange={e => state.setInk(row.id, { g: e.target.value })}
+                  style={{ width: 64, border: 'none', outline: 'none', background: 'transparent', textAlign: 'right',
+                    fontFamily: 'Nebulica', fontWeight: 700, fontSize: 18, color: theme.ink }}/>
+                <span style={{ fontFamily: 'Nebulica', fontSize: 13, color: theme.faint }}>g</span>
+              </div>
+              <button onClick={() => state.delInk(row.id)} title="Rimuovi" style={{ width: 34, height: 34, borderRadius: 99, flexShrink: 0,
+                border: `1.5px solid ${theme.line2}`, background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IcoClose size={14} color={theme.sub}/></button>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={state.addInk} style={{ width: '100%', marginTop: 10, height: 52, borderRadius: 99, cursor: 'pointer',
+        border: `2px dashed ${theme.borders ? rgba(theme.ink, 0.4) : theme.line2}`, background: 'transparent', color: theme.ink,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontFamily: 'Nebulica', fontWeight: 700, fontSize: 15 }}>
+        <IcoPlus size={18} color={theme.ink} sw={2}/> aggiungi inchiostro
+      </button>
+    </div>
+  );
+}
+
+// ── blocchi di campi riusati dai due layout ─────────────────────────────────
+function IdentityFields({ state, theme }) {
+  const eff = nfEffHex(state);
+  const known = nfLookup(state.pantoneId);
+  return (
+    <React.Fragment>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <FLabel theme={theme}>PANTONE ID</FLabel>
+          <FInput value={state.pantoneId} onChange={state.setPantoneId} placeholder="es. 072 U" theme={theme} mono pill/>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <FLabel theme={theme} optional>PAG. MAZZETTA</FLabel>
+          <FInput value={state.page} onChange={state.setPage} placeholder="es. 142" theme={theme} mono pill/>
+        </div>
+      </div>
+      <div>
+        <FLabel theme={theme}>COLORE HEX</FLabel>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <FInput value={state.hex} onChange={state.setHex} placeholder={known ? known.hex.toUpperCase() : 'automatico dal Pantone ID'} theme={theme} mono pill/>
+          </div>
+          <div style={{ width: 54, height: 54, borderRadius: 99, flexShrink: 0,
+            background: eff || 'transparent',
+            backgroundImage: eff ? 'none' : `repeating-linear-gradient(45deg, ${theme.line} 0 6px, transparent 6px 12px)`,
+            border: theme.borders ? `${theme.borderWidth}px solid ${theme.ink}` : `1.5px solid ${theme.line2}`,
+            boxShadow: `0 4px 12px ${rgba('#000', 0.05)}` }}/>
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+
+function AttributeFields({ state, theme }) {
+  return (
+    <React.Fragment>
+      <div><FLabel theme={theme}>TEMPERATURA</FLabel><TempPicker value={state.temp} onChange={state.setTemp} theme={theme}/></div>
+      <div><FLabel theme={theme}>COPERTURA</FLabel><CoverPicker value={state.cover} onChange={state.setCover} theme={theme}/></div>
+      <div><FLabel theme={theme}>CATEGORIA</FLabel><CatChips value={state.cat} onChange={state.setCat} theme={theme}/></div>
+    </React.Fragment>
+  );
+}
+
+function MetaFields({ state, theme }) {
+  return (
+    <React.Fragment>
+      <div>
+        <FLabel theme={theme} optional>NOTE</FLabel>
+        <Squircle radius={18} border={theme.borders ? theme.ink : theme.line2} borderWidth={theme.borders ? theme.borderWidth : 1.5}
+          shadow={`0 4px 12px ${rgba('#000', 0.04)}`} outerStyle={{ width: '100%' }}
+          style={{ width: '100%', background: theme.panel }}>
+          <textarea value={state.note} onChange={e => state.setNote(e.target.value)} placeholder="es. Formula custom" rows={2}
+            style={{ width: '100%', display: 'block', boxSizing: 'border-box', border: 'none', outline: 'none', background: 'transparent', color: theme.ink,
+              padding: '14px 20px', minHeight: 56, lineHeight: 1.4, fontFamily: 'Nebulica', fontSize: 16, resize: 'vertical' }}/>
+        </Squircle>
+      </div>
+      <div>
+        <FLabel theme={theme} optional>PROGETTI</FLabel>
+        <ProjTags tags={state.projects} setTags={state.setProjects} input={state.projInput} setInput={state.setProjInput} theme={theme}/>
+      </div>
+    </React.Fragment>
+  );
+}
+
+// ── anteprima colorata (header risultato) ───────────────────────────────────
+function PreviewHeader({ state, theme, size = 72, h = 150 }) {
+  const eff = nfEffHex(state);
+  const known = nfLookup(state.pantoneId);
+  const fg = eff ? textOnDesk(eff) : theme.ink;
+  const name = known ? known.name : (state.tab === 'sperim' ? 'Sperimentazione' : 'Nuova tinta');
+  const cover = NF_COVERS.find(c => c.k === state.cover);
+  return (
+    <div style={{ position: 'relative', padding: '20px 28px 16px', flexShrink: 0, overflow: 'hidden',
+      background: eff || theme.panelAlt,
+      backgroundImage: eff ? 'none' : `repeating-linear-gradient(45deg, ${theme.line} 0 10px, transparent 10px 20px)`,
+      transition: 'background .4s' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+        <span style={{ fontFamily: 'Nebulica', fontSize: 11.5, letterSpacing: 1.6, fontWeight: 700, color: fg, opacity: 0.72 }}>
+          {(state.cat || 'CATEGORIA').toUpperCase()} · {state.tab === 'sperim' ? 'SPERIM.' : 'PANTONE'}</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {state.temp && <Tag fg={fg}>{NF_TEMPS.find(t => t.k === state.temp).l}</Tag>}
+          {cover && <Tag fg={fg}>{cover.l}</Tag>}
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginTop: 10 }}>
+        {state.pantoneId
+          ? <PantoneCode code={state.pantoneId} fg={fg} size={size} theme={theme}/>
+          : <span style={{ fontFamily: theme.display, fontWeight: theme.displayWeight, fontSize: size, lineHeight: 0.85, color: fg, opacity: 0.5, fontStyle: theme.isSerif ? 'italic' : 'normal' }}>000&nbsp;U</span>}
+        <div style={{ textAlign: 'right', paddingBottom: 4 }}>
+          <div style={{ fontFamily: 'Nebulica', fontSize: 18, fontWeight: 500, color: fg, letterSpacing: -0.5 }}>{name}</div>
+          <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 11, color: fg, opacity: 0.72, marginTop: 4, letterSpacing: 0.4 }}>
+            {(eff || '#——————').toUpperCase()}{state.page ? ` · PAG.${state.page}` : ''}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function Tag({ fg, children }) {
+  return <span style={{ padding: '5px 11px', borderRadius: 99, fontFamily: 'Nebulica', fontWeight: 700, fontSize: 11.5, letterSpacing: 0.2,
+    color: fg, background: rgba(fg === '#fff' ? '#fff' : '#000', 0.14), border: `1.2px solid ${rgba(fg === '#fff' ? '#fff' : '#000', 0.28)}` }}>{children}</span>;
+}
+
+function liveRecipe(state) {
+  const inks = state.inks.filter(r => r.name && (parseFloat(r.g) || 0) > 0).map(r => {
+    const k = INK_POOL.find(x => x.name === r.name);
+    return { name: r.name, label: k ? k.label : '', g: parseFloat(r.g) || 0 };
+  });
+  const total = inks.reduce((s, r) => s + r.g, 0);
+  return { inks: inks.map(r => ({ name: r.name, label: r.label, pct: total > 0 ? (r.g / total) * 100 : 0 })), total };
+}
+
+function SaveBar({ theme, onClose, compact }) {
+  return (
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <button onClick={onClose} style={{ height: 52, padding: '0 22px', borderRadius: 99, cursor: 'pointer',
+        fontFamily: 'Nebulica', fontWeight: 700, fontSize: 14.5, color: theme.ink, ...glass(theme, { strong: true }) }}>Annulla</button>
+      <button style={{ flex: compact ? 'none' : 1, height: 52, padding: '0 26px', borderRadius: 99, cursor: 'pointer', border: 'none',
+        background: theme.accent, color: theme.onAccent, fontFamily: 'Nebulica', fontWeight: 700, fontSize: 15, letterSpacing: -0.2,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, boxShadow: `0 8px 22px ${rgba(theme.accent, 0.32)}` }}>
+        <IcoCheck size={19} color={theme.onAccent} sw={2.2}/> Salva ricetta
+      </button>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// A · MODAL — foglio composer centrato sull'app
+// ════════════════════════════════════════════════════════════════════════════
+function NuovaModal({ state, theme, dividers = true, onSettings, onClose }) {
+  const eff = nfEffHex(state);
+  const divider = dividers ? `1px solid ${theme.line}` : 'none';
+  return (
+    <React.Fragment>
+      {/* backdrop: l'app sfocata dietro */}
+      <GrainBlobs theme={theme} blobHex={eff || theme.accent}/>
+      <div style={{ position: 'absolute', top: 17, left: 28, zIndex: 30 }}><Logo theme={theme} onSettings={onSettings}/></div>
+      <div style={{ position: 'absolute', inset: 0, background: rgba('#000', 0.14), zIndex: 40 }}/>
+
+      <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Squircle radius={36} border={theme.borders ? theme.ink : theme.line} borderWidth={theme.borders ? theme.borderWidth : 1}
+          shadow={`0 40px 90px ${rgba('#000', 0.26)}`} anim={`nfPop .5s ${SPRING_SOFT} both`}
+          outerStyle={{ width: 1140, maxWidth: '100%', height: 800, maxHeight: '100%' }}
+          style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', ...surface(theme) }}>
+          {/* header del foglio */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '22px 28px 18px', borderBottom: divider, flexShrink: 0 }}>
+            <div style={{ flexShrink: 0 }}>
+              <div style={{ fontFamily: theme.display, fontWeight: theme.displayWeight, fontSize: 30, letterSpacing: -0.8, color: theme.ink, lineHeight: 1, fontStyle: theme.isSerif ? 'italic' : 'normal' }}>Nuova formula</div>
+              <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10, letterSpacing: 1, color: theme.faint, marginTop: 5 }}>AGGIUNGE AL GOOGLE SHEET</div>
+            </div>
+            <div style={{ flex: 1, maxWidth: 420, marginLeft: 'auto' }}><SegTabs tab={state.tab} setTab={state.setTab} theme={theme}/></div>
+            <IconPill Icon={IcoClose} theme={theme} size={46} onClick={onClose} title="Chiudi"/>
+          </div>
+
+          {/* corpo a 2 colonne */}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+            {/* SX — identità + attributi + meta */}
+            <div className="nf-scroll" style={{ width: 560, flexShrink: 0, overflowY: 'auto', padding: '24px 28px 28px',
+              display: 'flex', flexDirection: 'column', gap: 22, borderRight: divider,
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%)',
+              maskImage: 'linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%)' }}>
+              <IdentityFields state={state} theme={theme}/>
+              <AttributeFields state={state} theme={theme}/>
+              <MetaFields state={state} theme={theme}/>
+            </div>
+
+            {/* DX — anteprima colore + inchiostri + salva */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <Squircle radius={26} border={theme.borders ? theme.ink : theme.line} borderWidth={theme.borders ? theme.borderWidth : 1}
+                shadow={`0 14px 34px ${rgba('#000', 0.10)}`} outerStyle={{ margin: '24px 28px 0', flexShrink: 0 }}
+                style={{ overflow: 'hidden' }}>
+                <PreviewHeader state={state} theme={theme} size={64}/>
+              </Squircle>
+              <div className="nf-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 28px 8px' }}>
+                <InkEditor state={state} theme={theme}/>
+              </div>
+              <div style={{ padding: '14px 28px 24px', borderTop: divider, flexShrink: 0 }}>
+                <SaveBar theme={theme} onClose={onClose}/>
+              </div>
+            </div>
+          </div>
+        </Squircle>
+      </div>
+    </React.Fragment>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// B · EDITOR — schermo intero: form a sinistra, ANTEPRIMA live a destra
+// ════════════════════════════════════════════════════════════════════════════
+function NuovaEditor({ state, theme, onSettings, onClose }) {
+  const eff = nfEffHex(state);
+  const rec = liveRecipe(state);
+  const hasPreview = !!eff || rec.inks.length > 0;
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <GrainBlobs theme={theme} blobHex={eff || theme.accent}/>
+
+      {/* TOP BAR */}
+      <div style={{ position: 'relative', zIndex: 20, height: 88, display: 'flex', alignItems: 'center', padding: '0 28px' }}>
+        <Logo theme={theme} onSettings={onSettings}/>
+        <div style={{ marginLeft: 'auto' }}><SaveBar theme={theme} onClose={onClose} compact/></div>
+      </div>
+
+      <div style={{ position: 'relative', zIndex: 10, display: 'flex', height: 'calc(100% - 88px)' }}>
+        {/* RAIL form */}
+        <div className="nf-scroll" style={{ width: 460, flexShrink: 0, overflowY: 'auto', padding: '6px 26px 36px 28px',
+          display: 'flex', flexDirection: 'column', gap: 22,
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 16px), transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 16px), transparent 100%)' }}>
+          <div>
+            <div style={{ fontFamily: theme.display, fontWeight: theme.displayWeight, fontSize: 32, letterSpacing: -0.9, color: theme.ink, lineHeight: 1, fontStyle: theme.isSerif ? 'italic' : 'normal' }}>Nuova formula</div>
+            <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10, letterSpacing: 1, color: theme.faint, marginTop: 6 }}>AGGIUNGE AL GOOGLE SHEET</div>
+          </div>
+          <SegTabs tab={state.tab} setTab={state.setTab} theme={theme}/>
+          <IdentityFields state={state} theme={theme}/>
+          <AttributeFields state={state} theme={theme}/>
+          <InkEditor state={state} theme={theme}/>
+          <MetaFields state={state} theme={theme}/>
+        </div>
+
+        {/* ANTEPRIMA */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '4px 28px 30px 18px', minHeight: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12, flexShrink: 0 }}>
+            <span style={{ fontFamily: 'Nebulica', fontSize: 11, letterSpacing: 1.6, fontWeight: 700, color: theme.sub }}>ANTEPRIMA</span>
+            <span style={{ flex: 1, height: 1, background: theme.line }}/>
+            <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, color: theme.faint }}>come apparirà nel ricettario</span>
+          </div>
+
+          <div style={{ width: 600, maxWidth: '100%', borderRadius: 34, overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0,
+            ...surface(theme), border: theme.borders ? `${theme.borderWidth}px solid ${theme.ink}` : `1px solid ${theme.line}`,
+            boxShadow: `0 22px 54px ${rgba('#000', 0.12)}` }}>
+            <PreviewHeader state={state} theme={theme} size={80} h={160}/>
+            <div className="nf-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 32px 26px' }}>
+              {rec.inks.length > 0 ? (
+                <InkFormula pantone={{ hex: eff || theme.accent }} recipe={{ inks: rec.inks }} qty={rec.total} theme={theme} big play/>
+              ) : (
+                <div style={{ padding: '34px 0', textAlign: 'center', fontFamily: 'Nebulica', fontSize: 14.5, color: theme.faint }}>
+                  Scegli gli inchiostri e i grammi<br/>per comporre la formula.
+                </div>
+              )}
+              {state.note && <NotesBlock note={state.note} theme={theme}/>}
+              <div style={{ marginTop: 16 }}><PrintButton theme={theme}/></div>
+            </div>
+          </div>
+          <div style={{ flex: 1 }}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── wrapper: stato impostazioni (gear) + stato form, come DesktopApp ─────────
+function NuovaComposer({ defaults, layout = 'modal' }) {
+  ensureNuovaKf();
+  const [settings, setSettings] = React.useState(() => ({ ...defaults }));
+  React.useEffect(() => { setSettings(s => ({ ...s, ...defaults })); },
+    [defaults.theme, defaults.accent, defaults.display, defaults.grain, defaults.borders, defaults.borderWidth, defaults.cardSurface, defaults.blobShape, defaults.blobSpeed, defaults.blobAnim, defaults.dividers]);
+  const setSetting = (k, v) => setSettings(s => ({ ...s, [k]: v }));
+  const theme = React.useMemo(() => deriveTheme(settings), [settings.theme, settings.accent, settings.display, settings.grain, settings.borders, settings.borderWidth, settings.cardSurface, settings.blobShape, settings.blobSpeed, settings.blobAnim]);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const state = useFormulaState();
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: theme.bg, fontFamily: 'Nebulica, system-ui, sans-serif' }}>
+      {layout === 'modal'
+        ? <NuovaModal state={state} theme={theme} dividers={settings.dividers !== false} onSettings={() => setSettingsOpen(true)} onClose={() => {}}/>
+        : <NuovaEditor state={state} theme={theme} onSettings={() => setSettingsOpen(true)} onClose={() => {}}/>}
+      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} setSetting={setSetting} theme={theme}/>
+    </div>
+  );
+}
+
+Object.assign(window, { NuovaComposer });
+
+// ============================================================
+// desktop-shell.jsx
+// ============================================================
+// desktop-shell.jsx — DesktopApp: contenitore con stato Impostazioni (seed dai
+// Tweak globali), switcher di modalità e overlay Impostazioni in-app.
+// Ogni MODE component disegna la propria top-bar (per gestire la spinta della
+// search in Gallery) usando gli atomi del chrome.
+
+function DesktopApp({ defaults, initialMode = 'master', masterAnim = 'morph', walletVariant = 'row', galleryAnim = 'slide', cardTreatment = 'shadowColor', tilt = false, cardEnter = 'deckGlide' }) {
+  const [settings, setSettings] = React.useState(() => ({ ...defaults, walletVariant, masterAnim, cardEnter }));
+  // risincronizza quando l'utente cambia i Tweak globali
+  React.useEffect(() => { setSettings(s => ({ ...s, ...defaults })); },
+    [defaults.theme, defaults.accent, defaults.display, defaults.grain, defaults.borders, defaults.borderWidth, defaults.cardSurface, defaults.btnStyle, defaults.blobShape, defaults.blobSpeed, defaults.blobAnim, defaults.modeTransition]);
+  const setSetting = (k, v) => setSettings(s => ({ ...s, [k]: v }));
+  const theme = React.useMemo(() => deriveTheme(settings), [settings.theme, settings.accent, settings.display, settings.grain, settings.borders, settings.borderWidth, settings.cardSurface, settings.btnStyle, settings.blobShape, settings.blobSpeed, settings.blobAnim, settings.bgTone, settings.colorGlow]);
+
+  const [mode, setMode] = React.useState(initialMode);
+  const [query, setQuery] = React.useState('');
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  ensureModeKf();
+
+  // cambio modalità con direzione (per lo scorrimento)
+  const ORDER = ['master', 'wallet', 'gallery'];
+  const dirRef = React.useRef(1);
+  const changeMode = (m) => { if (m === mode) return; dirRef.current = ORDER.indexOf(m) >= ORDER.indexOf(mode) ? 1 : -1; setMode(m); };
+
+  const chrome = { theme, mode, setMode: changeMode, query, setQuery, onSettings: () => setSettingsOpen(true) };
+
+  let Body = null;
+  if (mode === 'master')  Body = <MasterMode  {...chrome} anim={settings.masterAnim || masterAnim} cardTreatment={cardTreatment} tilt={tilt} cardEnter={settings.cardEnter || cardEnter}/>;
+  if (mode === 'wallet')  Body = <WalletMode  {...chrome} variant={settings.walletVariant || walletVariant}/>;
+  if (mode === 'gallery') Body = <GalleryMode {...chrome} formulaAnim={galleryAnim}/>;
+
+  const trans = settings.modeTransition || 'liquido';
+  const animName = trans === 'dissolvenza' ? 'modeFade'
+    : trans === 'scorrimento' ? (dirRef.current > 0 ? 'modeSlideR' : 'modeSlideL')
+    : 'modeLiquid';
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: theme.bg,
+      fontFamily: 'Nebulica, system-ui, sans-serif' }}>
+      <div key={mode} style={{ width: '100%', height: '100%', animation: `${animName} .52s ${FLUID_SOFT} both` }}>
+        {Body}
+      </div>
+      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} setSetting={setSetting} theme={theme}/>
+    </div>
+  );
+}
+
+function ensureModeKf() {
+  if (document.getElementById('mode-kf')) return;
+  const s = document.createElement('style');
+  s.id = 'mode-kf';
+  s.textContent = `
+    @keyframes modeFade { from{opacity:0;} to{opacity:1;} }
+    @keyframes modeLiquid { from{opacity:0; transform:scale(.985) translateY(10px); filter:blur(7px);} to{opacity:1; transform:none; filter:blur(0);} }
+    @keyframes modeSlideR { from{opacity:0; transform:translateX(48px);} to{opacity:1; transform:translateX(0);} }
+    @keyframes modeSlideL { from{opacity:0; transform:translateX(-48px);} to{opacity:1; transform:translateX(0);} }
+  `;
+  document.head.appendChild(s);
+}
+
+Object.assign(window, { DesktopApp });
+
+// ============================================================
+// MOUNT — Ricettario Pantone · Desktop (default = README §"Default settings object")
+// ============================================================
+const DEFAULTS = {
+  theme: 'grey', accent: '#5856D6', display: 'Nebulica', grain: true,
+  borders: true, borderWidth: 2, cardSurface: 'opaco', btnStyle: 'B',
+  blobShape: 'morbide', blobSpeed: 1, blobAnim: true, modeTransition: 'liquido',
+  bgTone: null, colorGlow: false, walletVariant: 'row',
+};
+ReactDOM.createRoot(document.getElementById('app')).render(
+  <DesktopApp defaults={DEFAULTS} initialMode="master" masterAnim="rise" cardEnter="deck" cardTreatment="shadowColor" tilt={false}/>
+);
+
+</script>
+</body>
+</html>
