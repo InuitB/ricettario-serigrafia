@@ -15,6 +15,7 @@ function doGet(e) {
     if (action === 'getApprovati')       return getApprovati();
     if (action === 'getVerificati')      return getVerificati();
     if (action === 'getInventario')      return jsonResp(getInventario());
+    if (action === 'getBarcodeMap')      return jsonResp(getBarcodeMap());
     if (action === 'getVerifiche')       return jsonResp(getVerifiche());
     if (action === 'getHexAlternative')  return jsonResp(getHexAlternative(e.parameter.pantone_id || ''));
     return jsonResp({ error: 'Azione sconosciuta' });
@@ -74,6 +75,7 @@ function doPost(e) {
       case 'aggiungiCarico':          result = aggiungiCarico(data);          break;
       case 'registraMescola':         result = registraMescola(data);         break;
       case 'aggiornaStock':           result = aggiornaStock(data);           break;
+      case 'mapBarcode':              result = mapBarcode(data);              break;
       case 'salvaVerifica':           result = salvaVerifica(data);           break;
       case 'backfillMondayIds':       result = backfillMondayIds(data);       break;
       default: result = { error: 'Azione sconosciuta: ' + data.action };
@@ -644,6 +646,56 @@ function aggiornaStock(data) {
   }
 
   return { ok: true };
+}
+
+// ── BARCODE → INCHIOSTRO (mappatura condivisa, multipiattaforma) ───────────
+// Foglio 'Barcode': ogni codice a barre (EAN numerico o sigla) punta a un inchiostro.
+// La sigla "AS 40" si riconosce già da sola dal foglio Inchiostri; qui si memorizzano
+// soprattutto gli EAN, così un codice imparato una volta vale su TUTTI i dispositivi.
+function ensureBarcodeSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sh = ss.getSheetByName('Barcode');
+  if (!sh) {
+    sh = ss.insertSheet('Barcode');
+    sh.appendRow(['Barcode', 'Inchiostro', 'Timestamp']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function getBarcodeMap() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sh = ss.getSheetByName('Barcode');
+  if (!sh) return { ok: true, barcodes: [] };
+  const data = sh.getDataRange().getValues();
+  const headers = data[0];
+  const bCol = headers.indexOf('Barcode');
+  const iCol = headers.indexOf('Inchiostro');
+  const rows = data.slice(1).map(r => ({
+    barcode:    String(r[bCol] || '').trim(),
+    inchiostro: String(r[iCol] || '').trim(),
+  })).filter(r => r.barcode && r.inchiostro);
+  return { ok: true, barcodes: rows };
+}
+
+function mapBarcode(data) {
+  const barcode    = String(data.barcode || '').trim();
+  const inchiostro = String(data.inchiostro || '').trim();
+  if (!barcode || !inchiostro) return { error: 'barcode o inchiostro mancante' };
+  const sh = ensureBarcodeSheet();
+  const rows = sh.getDataRange().getValues();
+  const headers = rows[0];
+  const bCol = headers.indexOf('Barcode');
+  const iCol = headers.indexOf('Inchiostro');
+  const ts = new Date().toISOString();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][bCol]).trim() === barcode) {
+      sh.getRange(i + 1, iCol + 1).setValue(inchiostro);
+      return { ok: true, updated: true };
+    }
+  }
+  sh.appendRow([barcode, inchiostro, ts]);
+  return { ok: true, updated: false };
 }
 
 // ── VERIFICHE TRASFERIMENTO ───────────────────────────────────────────────

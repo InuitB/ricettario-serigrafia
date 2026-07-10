@@ -47,6 +47,7 @@ let allRicette = [];
 let allComponenti = [];
 let allInchiostri = [];
 let allInventario = []; // [{inchiostro, grammi, soglia, note}]
+let allBarcodes = [];   // [{barcode, inchiostro}] — mappatura condivisa codice→inchiostro
 let DESK_PANTONES = [];
 let favoritiSet  = new Set();
 let approvedSet  = new Set();
@@ -86,6 +87,14 @@ async function loadInventario() {
     const d = await resp.json();
     if (d.ok) allInventario = d.inventario || [];
   } catch(e) { /* Apps Script non ancora aggiornato — OK, allInventario rimane [] */ }
+}
+
+async function loadBarcodeMap() {
+  try {
+    const resp = await fetch(SCRIPT_URL + '?action=getBarcodeMap');
+    const d = await resp.json();
+    if (d.ok) allBarcodes = d.barcodes || [];
+  } catch(e) { /* Code.gs non ancora deployato con getBarcodeMap — OK, allBarcodes resta [] */ }
 }
 
 async function postGAS(payload) {
@@ -3803,12 +3812,29 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
   React.useEffect(()=>{ if(open){ setUnknown(null); setPickQ(''); setMode('camera'); } },[open]);
 
   const resolve=React.useCallback((raw)=>{
-    const norm=normInkCode(raw);
+    const rawTrim=String(raw).trim();
+    const norm=normInkCode(rawTrim);
     if(norm.length<2){ playBeep('warn'); doFlash('warn'); return; }
+    // 1) mappa condivisa (barcode → inchiostro): vale su tutti i dispositivi
+    const mapped=allBarcodes.find(b=>normInkCode(b.barcode)===norm);
+    if(mapped){ playBeep('ok'); doFlash('ok'); onPick(mapped.inchiostro); return; }
+    // 2) il codice È già la sigla inchiostro (es. "AS 40")
     const inkObj=allInchiostri.find(x=>normInkCode(x.Codice)===norm);
-    if(inkObj){ playBeep('ok'); doFlash('ok'); onPick(inkObj.Codice); }
-    else { playBeep('warn'); doFlash('warn'); setUnknown(String(raw).trim()); }
+    if(inkObj){ playBeep('ok'); doFlash('ok'); onPick(inkObj.Codice); return; }
+    // 3) sconosciuto → chiedi a quale inchiostro appartiene
+    playBeep('warn'); doFlash('warn'); setUnknown(rawTrim);
   },[onPick]);
+
+  // Assegna un codice sconosciuto a un inchiostro e LO SALVA nel foglio condiviso
+  const assignUnknown=React.useCallback((inkCode)=>{
+    const bc=unknown;
+    if(bc){
+      allBarcodes=allBarcodes.filter(b=>b.barcode!==bc).concat([{barcode:bc,inchiostro:inkCode}]);
+      postGAS({action:'mapBarcode',barcode:bc,inchiostro:inkCode}).then(()=>loadBarcodeMap()).catch(()=>{});
+      playBeep('saved');
+    }
+    onPick(inkCode);
+  },[unknown,onPick]);
 
   useHidScanner({enabled:open&&mode==='hid'&&!unknown, onScan:resolve});
   const {cameraLoading,cameraError}=useCameraScanner({enabled:open&&mode==='camera'&&!unknown, onScan:resolve, videoRef});
@@ -3837,12 +3863,12 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
         <div style={{flex:1,display:'flex',flexDirection:'column',background:'#F4EFE2',borderRadius:'22px 22px 0 0',overflow:'hidden'}}>
           <div style={{padding:'18px 18px 10px'}}>
             <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:16,color:ink}}>Codice non riconosciuto</div>
-            <div style={{fontFamily:'Nebulica',fontSize:13,color:'rgba(11,11,11,0.55)',marginTop:4}}>Ho letto <b style={{color:ink}}>{unknown}</b>, ma non è una sigla inchiostro. Scansiona il codice <b>AS…</b> del barattolo, oppure scegli qui l'inchiostro:</div>
+            <div style={{fontFamily:'Nebulica',fontSize:13,color:'rgba(11,11,11,0.55)',marginTop:4}}>Ho letto <b style={{color:ink}}>{unknown}</b>. Scegli l'inchiostro: lo <b>collego a questo codice</b> e da ora lo riconosce su <b>tutti i dispositivi</b>.</div>
             <input value={pickQ} onChange={e=>setPickQ(e.target.value)} placeholder="cerca inchiostro…" style={{width:'100%',boxSizing:'border-box',marginTop:12,border:'1.5px solid rgba(11,11,11,0.16)',borderRadius:12,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',outline:'none'}}/>
           </div>
           <div style={{flex:1,overflowY:'auto',padding:'0 14px 24px'}}>
             {pickList.map(x=>(
-              <div key={x.Codice} onClick={()=>onPick(x.Codice)} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',marginBottom:6,borderRadius:14,background:'#fff',border:'1px solid rgba(11,11,11,0.10)',cursor:'pointer'}}>
+              <div key={x.Codice} onClick={()=>assignUnknown(x.Codice)} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',marginBottom:6,borderRadius:14,background:'#fff',border:'1px solid rgba(11,11,11,0.10)',cursor:'pointer'}}>
                 <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,background:ink,color:'#fff',padding:'6px 10px',borderRadius:99,minWidth:52,textAlign:'center'}}>{x.Codice}</div>
                 <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{x.Nome_completo||x.Codice}</div>
               </div>
@@ -5094,6 +5120,7 @@ function App() {
       loadApprovati();
       loadVerificati();
       loadInventario();
+      loadBarcodeMap();
     }).catch(err=>{
       console.error('Errore caricamento:', err);
       setStatus('error');
