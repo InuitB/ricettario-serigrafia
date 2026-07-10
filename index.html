@@ -27,6 +27,7 @@ body{font-family:'Nebulica',system-ui,sans-serif;-webkit-font-smoothing:antialia
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.26.10/babel.min.js"></script>
 </head>
 <body>
@@ -3709,6 +3710,180 @@ function PaletteView({accent='#0033FF', bg='#F4EFE2', onTabChange, onNuova}) {
   );
 }
 
+/* ═══════════════════ SCANNER BARCODE (vedi docs/SCANNER_SPEC.md) ═══════════════════ */
+// Porting delle 3 REGOLE-chiave: beep HTMLAudio+WAV, dedup camera una-volta-per-codice, HID su document.
+const BEEP_TONES = {
+  ok:    [{ freq: 987.77, start: 0, dur: 0.08, vol: 0.34 }, { freq: 1318.51, start: 0.07, dur: 0.13, vol: 0.34 }],
+  warn:  [{ freq: 740, start: 0, dur: 0.11, vol: 0.32 }, { freq: 740, start: 0.15, dur: 0.14, vol: 0.32 }],
+  saved: [{ freq: 1046.50, start: 0, dur: 0.10, vol: 0.30 }, { freq: 783.99, start: 0.10, dur: 0.26, vol: 0.30 }],
+};
+function buildBeepWav(tones){
+  const sr=44100, total=Math.max.apply(null,tones.map(t=>t.start+t.dur))+0.02, n=Math.ceil(sr*total);
+  const samples=new Int16Array(n), attack=0.004;
+  for(let i=0;i<n;i++){ const t=i/sr; let s=0;
+    for(const seg of tones){ const lt=t-seg.start; if(lt<0||lt>=seg.dur) continue;
+      const phase=2*Math.PI*seg.freq*lt; const wave=seg.shape==='square'?(Math.sin(phase)>=0?1:-1):Math.sin(phase);
+      const a=lt<attack?lt/attack:1; const env=a*Math.pow(0.0008,lt/seg.dur); s+=seg.vol*wave*env; }
+    s=Math.max(-1,Math.min(1,s)); samples[i]=s<0?s*0x8000:s*0x7fff; }
+  const buf=new ArrayBuffer(44+samples.length*2), dv=new DataView(buf);
+  const ws=(off,str)=>{for(let i=0;i<str.length;i++)dv.setUint8(off+i,str.charCodeAt(i));};
+  ws(0,'RIFF');dv.setUint32(4,36+samples.length*2,true);ws(8,'WAVE');ws(12,'fmt ');dv.setUint32(16,16,true);
+  dv.setUint16(20,1,true);dv.setUint16(22,1,true);dv.setUint32(24,sr,true);dv.setUint32(28,sr*2,true);
+  dv.setUint16(32,2,true);dv.setUint16(34,16,true);ws(36,'data');dv.setUint32(40,samples.length*2,true);
+  for(let i=0;i<samples.length;i++)dv.setInt16(44+i*2,samples[i],true);
+  const bytes=new Uint8Array(buf); let bin=''; for(let i=0;i<bytes.length;i+=0x2000) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x2000));
+  return 'data:audio/wav;base64,'+btoa(bin);
+}
+const _beepEls={};
+function getBeepEl(type){ if(typeof Audio==='undefined')return null; let el=_beepEls[type]; if(!el){el=new Audio(buildBeepWav(BEEP_TONES[type]||BEEP_TONES.ok));el.preload='auto';_beepEls[type]=el;} return el; }
+(function(){ let unlocked=false; const unlock=()=>{ if(unlocked)return; unlocked=true;
+  ['ok','warn','saved'].forEach(type=>{ const el=getBeepEl(type); if(!el)return; const prev=el.volume; el.volume=0; const p=el.play(); if(p)p.then(()=>{el.pause();el.currentTime=0;el.volume=prev;}).catch(()=>{el.volume=prev;}); else el.volume=prev; });
+  window.removeEventListener('pointerdown',unlock);window.removeEventListener('keydown',unlock);window.removeEventListener('touchstart',unlock); };
+  window.addEventListener('pointerdown',unlock,{passive:true});window.addEventListener('keydown',unlock,{passive:true});window.addEventListener('touchstart',unlock,{passive:true});
+})();
+function playBeep(type){ const el=getBeepEl(type||'ok'); if(!el)return; try{el.currentTime=0;const p=el.play();if(p)p.catch(()=>{});}catch(e){} }
+
+function useHidScanner({enabled,onScan}){
+  const onScanRef=React.useRef(onScan); onScanRef.current=onScan;
+  React.useEffect(()=>{ if(!enabled)return; let buf=''; let timer=null;
+    const onKey=(e)=>{ const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable))return;
+      if(e.key==='Enter'){ if(buf.length>=3) onScanRef.current(buf); buf=''; if(timer)clearTimeout(timer); return; }
+      if(e.key.length===1){ buf+=e.key; if(timer)clearTimeout(timer); timer=setTimeout(()=>{buf='';},150); } };
+    document.addEventListener('keydown',onKey);
+    return ()=>{ document.removeEventListener('keydown',onKey); if(timer)clearTimeout(timer); };
+  },[enabled]);
+}
+function useCameraScanner({enabled,onScan,videoRef}){
+  const [cameraLoading,setCameraLoading]=React.useState(false);
+  const [cameraError,setCameraError]=React.useState('');
+  const onScanRef=React.useRef(onScan); onScanRef.current=onScan;
+  React.useEffect(()=>{
+    if(!enabled){ setCameraLoading(false); setCameraError(''); return; }
+    const Z=window.ZXing;
+    if(!Z||!Z.BrowserMultiFormatReader){ setCameraError('Libreria scanner non caricata.'); return; }
+    let stopped=false, lastCode=null, lastSeen=0; const LEAVE_GAP=900; let reader=null;
+    setCameraLoading(true); setCameraError('');
+    const timer=setTimeout(()=>{ if(stopped)return;
+      try{
+        const hints=new Map();
+        hints.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.CODE_128,Z.BarcodeFormat.CODE_39,Z.BarcodeFormat.CODE_93,Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E,Z.BarcodeFormat.ITF,Z.BarcodeFormat.CODABAR]);
+        hints.set(Z.DecodeHintType.TRY_HARDER,true);
+        reader=new Z.BrowserMultiFormatReader(hints);
+        if(stopped||!videoRef.current)return;
+        reader.decodeFromConstraints({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}},videoRef.current,(result,err)=>{
+          if(stopped)return; const now=Date.now();
+          if(result){ const code=result.getText(); lastSeen=now; if(code===lastCode)return; lastCode=code; onScanRef.current(code); }
+          else if(err&&Z.NotFoundException&&err instanceof Z.NotFoundException){ if(lastCode!==null&&now-lastSeen>LEAVE_GAP)lastCode=null; }
+        }).catch((e)=>{ if(stopped)return; const msg=(e&&e.message)?e.message:String(e);
+          setCameraError(/permission|notallowed|denied/i.test(msg)?'Accesso alla fotocamera negato — controlla i permessi Safari.':'Fotocamera non disponibile.'); setCameraLoading(false); });
+        setCameraLoading(false);
+      }catch(e){ if(!stopped){ setCameraError('Fotocamera non disponibile.'); setCameraLoading(false); } }
+    },120);
+    return ()=>{ stopped=true; clearTimeout(timer);
+      try{ if(reader&&reader.reset)reader.reset(); }catch(e){}
+      try{ const v=videoRef.current; if(v&&v.srcObject){ v.srcObject.getTracks().forEach(t=>t.stop()); v.srcObject=null; } }catch(e){}
+    };
+  },[enabled,videoRef]);
+  return {cameraLoading,cameraError};
+}
+// Normalizza un codice per il confronto con la sigla inchiostro: "AS  40" ⇒ "AS40"
+const normInkCode = s => String(s||'').toUpperCase().replace(/\s+/g,'');
+
+// Overlay scanner del magazzino: riconosce la sigla inchiostro (barcode "AS xx") dal foglio condiviso.
+function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
+  const [mode,setMode]=React.useState('camera');
+  const [flash,setFlash]=React.useState(null);
+  const [unknown,setUnknown]=React.useState(null); // codice non riconosciuto
+  const [pickQ,setPickQ]=React.useState('');
+  const videoRef=React.useRef(null);
+  const flashT=React.useRef(null);
+  const ink='#0B0B0B';
+  const doFlash=k=>{ setFlash(k); if(flashT.current)clearTimeout(flashT.current); flashT.current=setTimeout(()=>setFlash(null),600); };
+
+  React.useEffect(()=>{ if(open){ setUnknown(null); setPickQ(''); setMode('camera'); } },[open]);
+
+  const resolve=React.useCallback((raw)=>{
+    const norm=normInkCode(raw);
+    if(norm.length<2){ playBeep('warn'); doFlash('warn'); return; }
+    const inkObj=allInchiostri.find(x=>normInkCode(x.Codice)===norm);
+    if(inkObj){ playBeep('ok'); doFlash('ok'); onPick(inkObj.Codice); }
+    else { playBeep('warn'); doFlash('warn'); setUnknown(String(raw).trim()); }
+  },[onPick]);
+
+  useHidScanner({enabled:open&&mode==='hid'&&!unknown, onScan:resolve});
+  const {cameraLoading,cameraError}=useCameraScanner({enabled:open&&mode==='camera'&&!unknown, onScan:resolve, videoRef});
+
+  const pickList=React.useMemo(()=>{
+    const q=pickQ.toLowerCase();
+    return allInchiostri.filter(x=>{const c=(x.Codice||'').toLowerCase(),n=(x.Nome_completo||'').toLowerCase();return !q||c.includes(q)||n.includes(q);}).slice(0,40);
+  },[pickQ,unknown]);
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:2000,background:'#0B0B0B',display:open?'flex':'none',flexDirection:'column',fontFamily:'Nebulica,Arial,sans-serif'}}>
+      {/* header */}
+      <div style={{padding:'calc(env(safe-area-inset-top,44px) + 12px) 16px 10px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+        <button onClick={onClose} style={{width:44,height:44,borderRadius:99,border:'none',background:'rgba(255,255,255,0.14)',color:'#fff',fontSize:20,cursor:'pointer'}}>✕</button>
+        <div style={{color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:18}}>Scansiona barattolo</div>
+        <div style={{flex:1}}/>
+        <div style={{display:'flex',gap:6,background:'rgba(255,255,255,0.12)',borderRadius:99,padding:4}}>
+          {[['camera','📷'],['hid','⌨︎']].map(([k,l])=>(
+            <button key={k} onClick={()=>setMode(k)} style={{padding:'8px 14px',borderRadius:99,border:'none',cursor:'pointer',background:mode===k?'#fff':'transparent',color:mode===k?'#0B0B0B':'#fff',fontWeight:700,fontSize:14}}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {unknown ? (
+        /* codice non riconosciuto → scelta manuale (nessun dato salvato sul dispositivo) */
+        <div style={{flex:1,display:'flex',flexDirection:'column',background:'#F4EFE2',borderRadius:'22px 22px 0 0',overflow:'hidden'}}>
+          <div style={{padding:'18px 18px 10px'}}>
+            <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:16,color:ink}}>Codice non riconosciuto</div>
+            <div style={{fontFamily:'Nebulica',fontSize:13,color:'rgba(11,11,11,0.55)',marginTop:4}}>Ho letto <b style={{color:ink}}>{unknown}</b>, ma non è una sigla inchiostro. Scansiona il codice <b>AS…</b> del barattolo, oppure scegli qui l'inchiostro:</div>
+            <input value={pickQ} onChange={e=>setPickQ(e.target.value)} placeholder="cerca inchiostro…" style={{width:'100%',boxSizing:'border-box',marginTop:12,border:'1.5px solid rgba(11,11,11,0.16)',borderRadius:12,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',outline:'none'}}/>
+          </div>
+          <div style={{flex:1,overflowY:'auto',padding:'0 14px 24px'}}>
+            {pickList.map(x=>(
+              <div key={x.Codice} onClick={()=>onPick(x.Codice)} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',marginBottom:6,borderRadius:14,background:'#fff',border:'1px solid rgba(11,11,11,0.10)',cursor:'pointer'}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,background:ink,color:'#fff',padding:'6px 10px',borderRadius:99,minWidth:52,textAlign:'center'}}>{x.Codice}</div>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{x.Nome_completo||x.Codice}</div>
+              </div>
+            ))}
+            <button onClick={()=>setUnknown(null)} style={{width:'100%',height:46,marginTop:8,borderRadius:12,border:'1.5px solid rgba(11,11,11,0.2)',background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>↺ Riprova a scansionare</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{flex:1,display:'flex',flexDirection:'column',padding:'0 16px'}}>
+          {mode==='camera' ? (
+            <div style={{position:'relative',width:'100%',flex:1,maxHeight:'60vh',borderRadius:20,overflow:'hidden',background:'#000',border:`3px solid ${flash==='ok'?'#16A34A':flash==='warn'?'#E4A11B':'rgba(255,255,255,0.15)'}`,transition:'border-color .15s'}}>
+              <video ref={videoRef} playsInline muted autoPlay style={{width:'100%',height:'100%',objectFit:'cover'}}></video>
+              <div style={{position:'absolute',left:'10%',right:'10%',top:'42%',height:2,background:'#4ade80',boxShadow:'0 0 8px #4ade80'}}/>
+              {cameraLoading&&<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontFamily:'Nebulica',fontSize:14}}>Avvio fotocamera…</div>}
+              {cameraError&&<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',textAlign:'center',padding:24,color:'#fff',fontFamily:'Nebulica',fontSize:14}}>{cameraError}</div>}
+            </div>
+          ) : (
+            <div style={{flex:1,maxHeight:'60vh',display:'flex',alignItems:'center',justifyContent:'center',textAlign:'center',color:'rgba(255,255,255,0.85)',fontFamily:'Nebulica',fontSize:16,lineHeight:1.5,border:`3px solid ${flash==='ok'?'#16A34A':flash==='warn'?'#E4A11B':'rgba(255,255,255,0.15)'}`,borderRadius:20,padding:24}}>
+              Pronto per il lettore esterno.<br/>Scansiona il codice del barattolo.
+            </div>
+          )}
+          <div style={{color:'rgba(255,255,255,0.7)',fontFamily:'Nebulica',fontSize:13,textAlign:'center',padding:'16px 8px'}}>
+            Inquadra il codice <b style={{color:'#fff'}}>AS…</b> del barattolo. Al riconoscimento si apre la scheda inventario.
+          </div>
+          <ManualInkEntry onSubmit={resolve} accent={accent}/>
+        </div>
+      )}
+    </div>
+  );
+}
+function ManualInkEntry({onSubmit, accent}){
+  const ref=React.useRef(null);
+  const go=()=>{ const v=ref.current?ref.current.value:''; if(v){ onSubmit(v); if(ref.current)ref.current.value=''; } };
+  return (
+    <div style={{display:'flex',gap:8,padding:'0 0 calc(env(safe-area-inset-bottom,16px) + 16px)'}}>
+      <input ref={ref} placeholder="oppure scrivi la sigla (es. AS 40)" onKeyDown={e=>{if(e.key==='Enter')go();}} style={{flex:1,boxSizing:'border-box',border:'none',borderRadius:12,padding:'13px 14px',fontSize:16,fontFamily:'Nebulica',background:'rgba(255,255,255,0.14)',color:'#fff',outline:'none'}}/>
+      <button onClick={go} style={{border:'none',background:'#fff',color:'#0B0B0B',borderRadius:12,padding:'0 20px',fontFamily:'Nebulica',fontWeight:700,fontSize:15,cursor:'pointer'}}>OK</button>
+    </div>
+  );
+}
+
 /* ═══════════════════ MAGAZZINO MOBILE ═══════════════════ */
 // Modello: UN numero (grammi totali) per inchiostro. Da lì si deriva kg + "X pieni / Yg avviato".
 // Inventario = barattoli sigillati (stepper, 1 = 1kg) + barattolo aperto pesato (lordo − tara).
@@ -3717,6 +3892,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=106, alertThresho
   const [query,setQuery]=React.useState('');
   const [filterM,setFilterM]=React.useState('tutti');
   const [caricaInk,setCaricaInk]=React.useState(null);
+  const [scanOpen,setScanOpen]=React.useState(false);
   const ink='#0B0B0B', sub='rgba(11,11,11,0.5)', faint='rgba(11,11,11,0.35)', line='rgba(11,11,11,0.10)';
 
   const inks=React.useMemo(()=>allInchiostri.map(x=>{
@@ -3754,7 +3930,10 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=106, alertThresho
             {(totG/1000).toFixed(1)} KG · {inStock} INK
           </div>
         </div>
-        <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="cerca inchiostro…" style={{width:'100%',boxSizing:'border-box',border:'1.5px solid rgba(11,11,11,0.14)',borderRadius:14,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',color:ink,outline:'none'}}/>
+        <div style={{display:'flex',gap:10}}>
+          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="cerca inchiostro…" style={{flex:1,minWidth:0,boxSizing:'border-box',border:'1.5px solid rgba(11,11,11,0.14)',borderRadius:14,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',color:ink,outline:'none'}}/>
+          <button onClick={()=>setScanOpen(true)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'0 16px',borderRadius:14,border:'none',background:ink,color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>📷 Scansiona</button>
+        </div>
         <div style={{display:'flex',gap:7,padding:'12px 0'}}>
           {[['tutti','Tutti'],['in_mag','In magazzino'],['basso','Sotto soglia']].map(([k,l])=>{
             const on=filterM===k;
@@ -3793,6 +3972,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=106, alertThresho
         {filtered.length===0&&<div style={{padding:'48px 0',textAlign:'center',fontFamily:'Nebulica',color:faint,fontSize:14}}>{query||filterM!=='tutti'?'Nessun inchiostro corrisponde.':'Foglio Inchiostri vuoto o non caricato.'}</div>}
       </div>
       <CaricaMobileSheet code={caricaInk} onClose={()=>setCaricaInk(null)} tare={tare} accent={accent}/>
+      <ScannerOverlay open={scanOpen} accent={accent} onClose={()=>setScanOpen(false)} onPick={code=>{ setScanOpen(false); setCaricaInk(code); }}/>
       <BottomNav activeKey="magazzino" accent={accent} restColor="#0B0B0B" bg={bg} onNuova={onNuova} onTabChange={onTabChange}/>
     </div>
   );
