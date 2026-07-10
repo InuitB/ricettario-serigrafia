@@ -595,6 +595,7 @@ function deriveTheme(t) {
     borderWidth: t.borderWidth!=null ? t.borderWidth : 2,
     cardSurface: t.cardSurface||'opaco',
     btnStyle: t.btnStyle||'B',
+    menuStart: t.menuStart||'chiuso',   // 'chiuso' = orb collassabile · 'aperto' = liquid pill dock
     blobShape: t.blobShape||'morbide', blobSpeed: t.blobSpeed!=null?t.blobSpeed:1,
     blobAnim: t.blobAnim!=null?t.blobAnim:true,
   };
@@ -883,7 +884,119 @@ function TransferBtn({theme}) {
   );
 }
 
+/* ═══════════════════ LIQUID PILL DOCK (spec normativa — valori §2, regole §4 verbatim) ═══════════════════ */
+const LPD_BLOB_H=54, LPD_DOCK_H=64, LPD_DRAG_THRESHOLD=5, LPD_RELAX_MS=70, LPD_LAND_MS=520;
+const LPD_STRETCH_MAX=0.42, LPD_STRETCH_GAIN=0.14, LPD_SQUASH_RATIO=0.55, LPD_SKEW_GAIN=2.4, LPD_SKEW_MAX=9;
+const LPD_SPRING='cubic-bezier(.34,1.4,.5,1)', LPD_ICON_SPRING='cubic-bezier(.34,1.5,.5,1)';
+function LiquidPillDock({items, current, onNavigate, idleColor='#9A94AD'}) {
+  const dockRef=React.useRef(null);
+  const btns=React.useRef({});
+  const [hl,setHl]=React.useState(null);
+  const [drag,setDrag]=React.useState(null);
+  const [landing,setLanding]=React.useState(false);
+  // Stato del gesto: in ref (regola 5), cambia a ogni pointermove e non deve ri-renderizzare.
+  const g=React.useRef({active:false,id:-1,startX:0,lastX:0,lastT:0,moved:false,w:0,baseCx:0});
+  const relaxT=React.useRef(null), landT=React.useRef(null);
+
+  // Misura la voce attiva → geometria blob, con snap concentrico ai bordi (regola 1+2).
+  const measure=React.useCallback(()=>{
+    const dock=dockRef.current, btn=btns.current[current];
+    if(!dock||!btn) return;
+    const dr=dock.getBoundingClientRect(), br=btn.getBoundingClientRect();
+    const pad=(dr.height-LPD_BLOB_H)/2;
+    let left=br.left-dr.left, width=br.width;
+    if(left<=pad+7){ width+=(left-pad); left=pad; }
+    const rightGap=dr.width-(left+width);
+    if(rightGap<=pad+7) width=dr.width-pad-left;
+    const next={left,top:pad,width,height:LPD_BLOB_H};
+    setHl(c=>(!c||Math.abs(c.left-next.left)>0.5||Math.abs(c.width-next.width)>0.5||Math.abs(c.top-next.top)>0.5)?next:c);
+  },[current]);
+  React.useLayoutEffect(()=>{ measure(); });
+  React.useEffect(()=>{ const on=()=>measure(); window.addEventListener('resize',on); return()=>window.removeEventListener('resize',on); },[measure]);
+  React.useEffect(()=>()=>{ if(relaxT.current)clearTimeout(relaxT.current); if(landT.current)clearTimeout(landT.current); },[]);
+
+  const keyAtX=(clientX)=>{
+    let best=current, bd=Infinity;
+    for(const it of items){ const b=btns.current[it.key]; if(!b)continue; const r=b.getBoundingClientRect();
+      if(clientX>=r.left&&clientX<=r.right) return it.key;
+      const d=Math.abs(clientX-(r.left+r.width/2)); if(d<bd){bd=d;best=it.key;} }
+    return best;
+  };
+  // Gesto unificato: tap e drag finiscono entrambi in onUp (regola 3) — nessun onClick.
+  const onDown=(e)=>{ const dock=dockRef.current; if(!dock||!hl)return;
+    g.current={active:true,id:e.pointerId,startX:e.clientX,lastX:e.clientX,lastT:performance.now(),moved:false,w:hl.width,baseCx:hl.left+hl.width/2};
+    try{dock.setPointerCapture(e.pointerId);}catch(_){}
+  };
+  const onMove=(e)=>{ const st=g.current, dock=dockRef.current;
+    if(!st.active||e.pointerId!==st.id||!dock)return;
+    const dx=e.clientX-st.startX; if(Math.abs(dx)>LPD_DRAG_THRESHOLD) st.moved=true;
+    const now=performance.now(), dt=Math.max(1,now-st.lastT), vx=(e.clientX-st.lastX)/dt; // px/ms
+    st.lastX=e.clientX; st.lastT=now; if(!st.moved)return;
+    const dr=dock.getBoundingClientRect(), minCx=st.w/2+4, maxCx=dr.width-st.w/2-4;
+    const cx=Math.min(maxCx,Math.max(minCx,st.baseCx+dx));
+    setDrag({cx,w:st.w,vx,nk:keyAtX(e.clientX)});
+    // Dito fermo → la deformazione si rilassa (regola/§3.7): è questo che sembra liquido.
+    if(relaxT.current)clearTimeout(relaxT.current);
+    relaxT.current=setTimeout(()=>setDrag(d=>d?{...d,vx:0}:d),LPD_RELAX_MS);
+  };
+  const onUp=(e)=>{ const st=g.current; if(!st.active||e.pointerId!==st.id)return;
+    st.active=false; try{ if(dockRef.current)dockRef.current.releasePointerCapture(e.pointerId); }catch(_){}
+    if(relaxT.current)clearTimeout(relaxT.current);
+    const target=keyAtX(e.clientX); setDrag(null);
+    if(st.moved){ setLanding(true); if(landT.current)clearTimeout(landT.current); landT.current=setTimeout(()=>setLanding(false),LPD_LAND_MS); }
+    if(target!==current) onNavigate(target);
+  };
+  const onKeyDown=(e,key)=>{
+    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); onNavigate(key); return; }
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){ e.preventDefault();
+      const i=items.findIndex(x=>x.key===current);
+      const n=items[(i+(e.key==='ArrowRight'?1:items.length-1))%items.length];
+      onNavigate(n.key); const nb=btns.current[n.key]; if(nb)nb.focus();
+    }
+  };
+  // Deformazione liquida guidata dalla velocità.
+  const stretch=drag?Math.min(LPD_STRETCH_MAX,Math.abs(drag.vx)*LPD_STRETCH_GAIN):0;
+  const skew=drag?Math.max(-LPD_SKEW_MAX,Math.min(LPD_SKEW_MAX,-drag.vx*LPD_SKEW_GAIN)):0;
+  const blobLeft=drag?drag.cx-drag.w/2:(hl?hl.left:0);
+  const blobWidth=drag?drag.w:(hl?hl.width:0);
+  const litKey=drag?drag.nk:current;
+  const litItem=items.find(i=>i.key===litKey);
+  const blobBg=litItem?litItem.tint:'transparent';
+  const blobTransition=drag?'background .22s ease':`left .44s ${LPD_SPRING}, width .44s ${LPD_SPRING}, top .44s ${LPD_SPRING}, background .3s`;
+  return (
+    <React.Fragment>
+      <style>{`@keyframes blobLand{0%{transform:scaleX(1.14) scaleY(.9)}42%{transform:scaleX(.95) scaleY(1.06)}72%{transform:scaleX(1.02) scaleY(.985)}100%{transform:scaleX(1) scaleY(1)}}`}</style>
+      <div ref={dockRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        style={{position:'relative',touchAction:'none',height:LPD_DOCK_H,padding:'0 8px',display:'flex',alignItems:'center',gap:4,background:'rgba(255,255,255,.9)',backdropFilter:'blur(16px) saturate(1.1)',WebkitBackdropFilter:'blur(16px) saturate(1.1)',border:'1px solid rgba(20,15,50,.05)',borderRadius:999,boxShadow:'0 18px 44px -14px rgba(20,15,50,.30)',cursor:g.current.active?'grabbing':'grab',userSelect:'none'}}>
+        <div style={{position:'absolute',zIndex:0,left:blobLeft,top:hl?hl.top:0,width:blobWidth,height:hl?hl.height:0,background:blobBg,borderRadius:999,opacity:hl?1:0,transformOrigin:'center',transform:drag?`scaleX(${(1+stretch).toFixed(3)}) scaleY(${(1-stretch*LPD_SQUASH_RATIO).toFixed(3)}) skewX(${skew.toFixed(2)}deg)`:undefined,animation:landing?'blobLand .52s cubic-bezier(.3,1.2,.5,1) both':undefined,transition:blobTransition,willChange:'left, width, transform'}}/>
+        {items.map(it=>{
+          const isCurrent=it.key===current;
+          const iconOn=it.key===litKey; // l'icona segue il blob; l'etichetta no (regola 9)
+          return (
+            <button key={it.key} ref={el=>{btns.current[it.key]=el;}} type="button" onKeyDown={e=>onKeyDown(e,it.key)}
+              aria-current={isCurrent?'page':undefined} aria-label={it.label}
+              style={{position:'relative',zIndex:1,touchAction:'none',display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'inherit',padding:isCurrent?'8px 15px':'9px 12px',color:iconOn?it.accent:idleColor,font:'inherit'}}>
+              <span style={{display:'flex',alignItems:'center',justifyContent:'center',transform:iconOn?'rotate(-10deg) scale(1.12)':'rotate(0deg) scale(1)',transition:`transform .46s ${LPD_ICON_SPRING}`}}>
+                {it.icon(iconOn)}
+              </span>
+              <span style={{display:isCurrent?'inline-block':'none',fontSize:13.5,fontWeight:800,color:it.accent,whiteSpace:'nowrap'}}>{it.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </React.Fragment>
+  );
+}
+
 function ModeOrb({mode, onChange, theme, size=54}) {
+  // Variante "aperto": barra liquida sempre estesa (liquid pill dock) al posto dell'orb collassabile.
+  if (theme.menuStart==='aperto') {
+    const items = MODES.map(m=>({
+      key:m.key, label:m.label, accent:theme.accent, tint:rgba(theme.accent,0.14),
+      icon:(active)=><m.Icon size={24} color={active?theme.accent:theme.sub} sw={1.9}/>,
+    }));
+    return <LiquidPillDock items={items} current={mode} onNavigate={onChange} idleColor={theme.sub}/>;
+  }
   const [openM, setOpenM] = React.useState(false);
   const ref = React.useRef(null);
   const idx = Math.max(0, MODES.findIndex(m=>m.key===mode));
@@ -1040,6 +1153,8 @@ function SettingsPanel({open, onClose, settings, setSetting, theme}) {
         <Block label="Movimento scheda"><Pills value={settings.cardEnter||'deck'} options={[{k:'slide',l:'Slide'},{k:'spring',l:'Spring'},{k:'deck',l:'Deck'},{k:'deckGlide',l:'Glide'},{k:'deckSettle',l:'Settle'},{k:'deckFeather',l:'Feather'}]} onChange={v=>setSetting('cardEnter',v)}/></Block>
         {Head('TRANSIZIONE MODALITÀ')}
         <Block label="Animazione cambio vista"><Pills value={settings.modeTransition||'liquido'} options={[{k:'liquido',l:'Liquido'},{k:'scorrimento',l:'Scorrimento'},{k:'dissolvenza',l:'Dissolvenza'}]} onChange={v=>setSetting('modeTransition',v)}/></Block>
+        {Head('MENU IN ALTO')}
+        <Block label="Selettore vista"><Pills value={settings.menuStart||'chiuso'} options={[{k:'chiuso',l:'A cerchio'},{k:'aperto',l:'Barra liquida'}]} onChange={v=>setSetting('menuStart',v)}/></Block>
         {Head('FONT TITOLI')}
         <div style={{display:'flex',flexDirection:'column',gap:7,marginTop:6}}>
           {fonts.map(f=>{const on=settings.display===f; return (
@@ -3005,7 +3120,7 @@ const DESK_DEFAULTS = {
   theme:'grey', accent:'#5856D6', display:'Nebulica', grain:true, borders:true,
   borderWidth:2, cardSurface:'opaco', btnStyle:'B', blobShape:'morbide', blobSpeed:1, blobAnim:true,
   modeTransition:'liquido', masterAnim:'rise', cardEnter:'deck', walletVariant:'row',
-  bgTone:null, colorGlow:false, tare:106, alertThreshold:1000,
+  bgTone:null, colorGlow:false, menuStart:'chiuso', tare:106, alertThreshold:1000,
 };
 
 function PaletteModeDesktop({theme, onNuova}) {
@@ -3088,7 +3203,7 @@ function DesktopApp({defaults}) {
     defaults.borderWidth,defaults.cardSurface,defaults.blobShape,defaults.blobSpeed,
     defaults.blobAnim,defaults.modeTransition]);
   const setSetting = (k,v)=>setSettings(s=>({...s,[k]:v}));
-  const theme = React.useMemo(()=>deriveTheme(settings),[settings.theme,settings.accent,settings.display,settings.grain,settings.borders,settings.borderWidth,settings.cardSurface,settings.btnStyle,settings.blobShape,settings.blobSpeed,settings.blobAnim,settings.bgTone,settings.colorGlow]);
+  const theme = React.useMemo(()=>deriveTheme(settings),[settings.theme,settings.accent,settings.display,settings.grain,settings.borders,settings.borderWidth,settings.cardSurface,settings.btnStyle,settings.blobShape,settings.blobSpeed,settings.blobAnim,settings.bgTone,settings.colorGlow,settings.menuStart]);
   const [mode, setMode] = React.useState('master');
   const [query, setQuery] = React.useState('');
   const [settingsOpen, setSettingsOpen] = React.useState(false);
