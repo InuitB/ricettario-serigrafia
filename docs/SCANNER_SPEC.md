@@ -291,3 +291,11 @@ di *implementazione* obbligate dall'ambiente. **Le 8 REGOLE ASSOLUTE restano ide
    magazzino. Una volta validato, i tre blocchi si trapiantano dentro `index.html` (modalità magazzino).
 5. **REGOLA 5 (WebView `window.open`)** non si applica alla pagina di prova (nessun PDF/nav). Resta valida quando
    il modulo verrà integrato nell'app.
+6. **Codici ALFANUMERICI ammessi (dominio inchiostri).** La REGOLA 8 elenca i formati; qui il filtro di validità
+   NON è "solo cifre 6–13" (quello era per gli ISBN). I barattoli SICO hanno spesso DUE barcode: un EAN-13
+   numerico (`7423508064030`) e un codice **alfanumerico** con la sigla inchiostro (`AS 61`). Entrambi validi:
+   accettare qualsiasi stringa di lunghezza 3–48. Il collegamento barcode→inchiostro è memorizzato (foglio
+   `Barcode`), quindi qualunque dei due si mappa allo stesso inchiostro.
+7. **Formati estesi + TRY_HARDER.** Oltre a EAN/UPC/CODE_128/CODE_39 aggiungere **CODE_93, ITF, CODABAR** e
+   `DecodeHintType.TRY_HARDER=true` per leggere i codici senza cifre stampate e quelli difficili
+   (curvatura barattolo, riflessi). HID: lunghezza minima buffer abbassata a 3 (sigle brevi tipo `AS 61`).

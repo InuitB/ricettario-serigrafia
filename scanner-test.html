@@ -164,7 +164,7 @@ function useHidScanner({ enabled, onScan }) {
     const onKey = (e) => {
       const t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      if (e.key === 'Enter') { if (buf.length >= 6) onScanRef.current(buf); buf = ''; if (timer) clearTimeout(timer); return; }
+      if (e.key === 'Enter') { if (buf.length >= 3) onScanRef.current(buf); buf = ''; if (timer) clearTimeout(timer); return; }
       if (e.key.length === 1) { buf += e.key; if (timer) clearTimeout(timer); timer = setTimeout(() => { buf = ''; }, 150); }
     };
     document.addEventListener('keydown', onKey);
@@ -190,8 +190,10 @@ function useCameraScanner({ enabled, onScan, videoRef }) {
         const hints = new Map();
         hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [
           Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.CODE_128,
-          Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E,
+          Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.CODE_93, Z.BarcodeFormat.UPC_A,
+          Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.ITF, Z.BarcodeFormat.CODABAR,
         ]);
+        hints.set(Z.DecodeHintType.TRY_HARDER, true); // insiste sui codici ostici (curvatura/riflesso)
         reader = new Z.BrowserMultiFormatReader(hints);
         if (stopped || !videoRef.current) return;
         reader.decodeFromConstraints(
@@ -258,8 +260,9 @@ function App() {
 
   // handleScan: FEEDBACK OTTIMISTICO prima di qualunque cosa (REGOLA 6)
   const handleScan = React.useCallback((raw) => {
-    const code = String(raw).trim().replace(/-/g, '');
-    if (!/^\d{6,13}$/.test(code)) { playBeep('warn'); doFlash('warn'); setRejected(r => r + 1); return; }
+    // Codici inchiostro: alfanumerici ammessi (EAN numerico OPPURE sigla tipo "AS 61").
+    const code = String(raw).trim();
+    if (code.length < 3 || code.length > 48) { playBeep('warn'); doFlash('warn'); setRejected(r => r + 1); return; }
     playBeep('ok'); doFlash('ok');
     setCount(c => c + 1); setLast(code);
     setRecent(list => [{ code: code, t: Date.now() }].concat(list).slice(0, 12));
@@ -333,7 +336,7 @@ function App() {
           <button onClick={() => playBeep('saved')}>saved</button>
         </div>
         <div className="manual">
-          <input ref={manualRef} inputMode="numeric" placeholder="inserimento manuale (6–13 cifre)" onKeyDown={(e) => { if (e.key === 'Enter') submitManual(); }} />
+          <input ref={manualRef} placeholder="inserimento manuale (codice, min 3)" onKeyDown={(e) => { if (e.key === 'Enter') submitManual(); }} />
           <button onClick={submitManual}>Invia</button>
         </div>
       </div>
