@@ -3099,6 +3099,14 @@ function IconPalette({size=24,color='currentColor',sw=1.7}){
     </svg>
   );
 }
+function IconBox({size=26,color='currentColor',sw=1.8}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <path d="M14 3.2 4 8v12l10 4.8L24 20V8L14 3.2Z" stroke={color} strokeWidth={sw} strokeLinejoin="round" fill="none"/>
+      <path d="M4 8l10 4.8L24 8M14 12.8V24.8" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
 
 function BottomNav({activeKey='ricette', accent='#0033FF', restColor='#222', bg='#F2F0EA', dark=false, onNuova, onTabChange}) {
   const c0=hexToRGBA(bg,0), c1=hexToRGBA(bg,0.85), c2=hexToRGBA(bg,1);
@@ -3106,6 +3114,7 @@ function BottomNav({activeKey='ricette', accent='#0033FF', restColor='#222', bg=
   const items = [
     {Icon:IconBeaker,key:'ricette'},
     {Icon:IconPalette,key:'palette'},
+    {Icon:IconBox,key:'magazzino'},
     {Icon:IconPenPlus,key:'nuovo'},
   ];
   return (
@@ -3583,6 +3592,7 @@ function MobileSettingsPanel({open, onClose, settings, setSetting}) {
 const MOBILE_DEFAULTS = {
   theme:'cream', accent:'#0033FF', borders:true, borderWidth:1.5,
   grain:true, blobAnim:true, blobShape:'morbide', blobSpeed:1, cardStyle:'unified',
+  tare:106, alertThreshold:1000,
 };
 
 /* ═══════════════════ PALETTE VIEW (mobile) ═══════════════════ */
@@ -3699,6 +3709,181 @@ function PaletteView({accent='#0033FF', bg='#F4EFE2', onTabChange, onNuova}) {
   );
 }
 
+/* ═══════════════════ MAGAZZINO MOBILE ═══════════════════ */
+// Modello: UN numero (grammi totali) per inchiostro. Da lì si deriva kg + "X pieni / Yg avviato".
+// Inventario = barattoli sigillati (stepper, 1 = 1kg) + barattolo aperto pesato (lordo − tara).
+// Salva come valore ASSOLUTO (aggiornaStock) → sostituisce il conteggio precedente.
+function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=106, alertThreshold=1000, onTabChange, onNuova}){
+  const [query,setQuery]=React.useState('');
+  const [filterM,setFilterM]=React.useState('tutti');
+  const [caricaInk,setCaricaInk]=React.useState(null);
+  const ink='#0B0B0B', sub='rgba(11,11,11,0.5)', faint='rgba(11,11,11,0.35)', line='rgba(11,11,11,0.10)';
+
+  const inks=React.useMemo(()=>allInchiostri.map(x=>{
+    const code=x.Codice||'';
+    const inv=allInventario.find(i=>i.inchiostro===code);
+    const grammi=inv?inv.grammi:0;
+    const soglia=(inv&&inv.soglia!=null)?inv.soglia:alertThreshold;
+    const status=grammi<=0?'vuoto':grammi<soglia?'basso':'ok';
+    return {code,nome:x.Nome_completo||code,tipo:x.Tipologia||'',grammi,soglia,status};
+  }),[allInchiostri.length,allInventario.length,alertThreshold]);
+
+  const filtered=React.useMemo(()=>{
+    let list=[...inks];
+    if(filterM==='basso') list=list.filter(i=>i.status!=='ok');
+    else if(filterM==='in_mag') list=list.filter(i=>i.grammi>0);
+    if(query){const q=query.toLowerCase();list=list.filter(i=>i.code.toLowerCase().includes(q)||i.nome.toLowerCase().includes(q));}
+    list.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}));
+    return list;
+  },[inks,filterM,query]);
+
+  const maxG=Math.max.apply(null,inks.map(i=>i.grammi).concat([1]));
+  const totG=inks.reduce((s,i)=>s+i.grammi,0);
+  const inStock=inks.filter(i=>i.grammi>0).length;
+  const belowCnt=inks.filter(i=>i.status!=='ok').length;
+  const fmtG=g=>g>=1000?(g/1000).toFixed(2)+' kg':Math.round(g)+' g';
+  const jarsLabel=g=>{const interi=Math.floor(g/1000);const av=Math.round(g-interi*1000);if(interi>0&&av>0)return interi+' pieni + '+av+'g';if(interi>0)return interi+(interi===1?' pieno':' pieni');if(av>0)return av+'g avviato';return 'vuoto';};
+
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:100,display:'flex',flexDirection:'column',background:bg,fontFamily:'Nebulica,Arial,sans-serif',overflow:'hidden'}}>
+      {/* header */}
+      <div style={{padding:'calc(env(safe-area-inset-top,44px) + 14px) 18px 0',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+          <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:21,letterSpacing:-0.5,color:ink}}>Magazzino</div>
+          <div style={{fontFamily:'"JetBrains Mono",monospace',fontSize:9,letterSpacing:1.1,color:sub,background:'rgba(11,11,11,0.06)',padding:'5px 10px',borderRadius:8}}>
+            {(totG/1000).toFixed(1)} KG · {inStock} INK
+          </div>
+        </div>
+        <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="cerca inchiostro…" style={{width:'100%',boxSizing:'border-box',border:'1.5px solid rgba(11,11,11,0.14)',borderRadius:14,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',color:ink,outline:'none'}}/>
+        <div style={{display:'flex',gap:7,padding:'12px 0'}}>
+          {[['tutti','Tutti'],['in_mag','In magazzino'],['basso','Sotto soglia']].map(([k,l])=>{
+            const on=filterM===k;
+            return <button key={k} onClick={()=>setFilterM(k)} style={{padding:'7px 13px',borderRadius:99,border:'none',cursor:'pointer',background:on?ink:'rgba(11,11,11,0.07)',color:on?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:13,whiteSpace:'nowrap'}}>{l}{k==='basso'&&belowCnt>0?' · '+belowCnt:''}</button>;
+          })}
+        </div>
+      </div>
+      {/* list */}
+      <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch',padding:'0 14px 150px'}}>
+        {allInventario.length===0&&allInchiostri.length>0&&(
+          <div style={{padding:'14px 16px',borderRadius:14,background:rgba(accent,0.07),border:`1px solid ${rgba(accent,0.2)}`,margin:'2px 4px 14px',fontFamily:'Nebulica',fontSize:13,color:sub,lineHeight:1.5}}>
+            💡 Nessun dato in magazzino. Tocca un inchiostro e registra le scorte (barattoli pieni + barattolo aperto).
+          </div>
+        )}
+        {filtered.map(i=>{
+          const pct=Math.min(100,(i.grammi/maxG)*100);
+          const sc=i.status==='vuoto'?'#E4002B':i.status==='basso'?'#FF8C00':accent;
+          const alert=i.status!=='ok';
+          return (
+            <div key={i.code} onClick={()=>setCaricaInk(i.code)} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',marginBottom:8,borderRadius:16,background:'#fff',border:`1px solid ${alert?rgba(sc,0.35):line}`,cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,0.04)'}}>
+              <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,background:ink,color:'#fff',padding:'6px 10px',borderRadius:99,whiteSpace:'nowrap',flexShrink:0,minWidth:52,textAlign:'center'}}>{i.code}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{i.nome}</div>
+                <div style={{height:5,borderRadius:99,background:'rgba(11,11,11,0.08)',margin:'6px 0 4px',overflow:'hidden'}}>
+                  <div style={{width:pct+'%',height:'100%',background:sc,borderRadius:99}}/>
+                </div>
+                <div style={{fontFamily:'Nebulica',fontSize:11,color:faint}}>{jarsLabel(i.grammi)}</div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:alert?sc:ink,letterSpacing:-0.5}}>{fmtG(i.grammi)}</div>
+                <div style={{fontFamily:'Nebulica',fontSize:10,color:faint,marginTop:1}}>{i.status==='vuoto'?'vuoto':i.status==='basso'?'sotto soglia':'soglia '+fmtG(i.soglia)}</div>
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length===0&&<div style={{padding:'48px 0',textAlign:'center',fontFamily:'Nebulica',color:faint,fontSize:14}}>{query||filterM!=='tutti'?'Nessun inchiostro corrisponde.':'Foglio Inchiostri vuoto o non caricato.'}</div>}
+      </div>
+      <CaricaMobileSheet code={caricaInk} onClose={()=>setCaricaInk(null)} tare={tare} accent={accent}/>
+      <BottomNav activeKey="magazzino" accent={accent} restColor="#0B0B0B" bg={bg} onNuova={onNuova} onTabChange={onTabChange}/>
+    </div>
+  );
+}
+
+function CaricaMobileSheet({code, onClose, tare=106, accent='#0033FF'}){
+  const open=!!code;
+  const ink='#0B0B0B', sub='rgba(11,11,11,0.5)', faint='rgba(11,11,11,0.4)';
+  const inkObj=code?allInchiostri.find(x=>(x.Codice||'')===code):null;
+  const inv=code?allInventario.find(i=>i.inchiostro===code):null;
+  const cur=inv?inv.grammi:0;
+  const [sigillati,setSigillati]=React.useState(0);
+  const [apertoLordo,setApertoLordo]=React.useState('');
+  const [saving,setSaving]=React.useState(false);
+
+  React.useEffect(()=>{
+    if(!code)return;
+    const interi=Math.floor(cur/1000);
+    const rem=Math.max(0,cur-interi*1000);
+    setSigillati(interi);
+    setApertoLordo(rem>0?String(Math.round(rem+tare)):'');
+    setSaving(false);
+  },[code]);
+
+  const parse=v=>{const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?0:n;};
+  const lordo=parse(apertoLordo);
+  const nettoAperto=lordo>0?Math.max(0,lordo-tare):0;
+  const totale=sigillati*1000+nettoAperto;
+  const fmtKg=g=>g>=1000?(g/1000).toFixed(2)+' kg':Math.round(g)+' g';
+  const step=d=>setSigillati(s=>Math.max(0,s+d));
+
+  const salva=async()=>{
+    if(!code||saving)return;
+    setSaving(true);
+    try{
+      await postInventario({action:'aggiornaStock',inchiostro:code,grammi:Math.round(totale)});
+      onClose();
+    }catch(e){ alert('Errore salvataggio: '+(e&&e.message?e.message:e)); setSaving(false); }
+  };
+
+  return (
+    <div>
+      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',backdropFilter:'blur(3px)',WebkitBackdropFilter:'blur(3px)',opacity:open?1:0,pointerEvents:open?'auto':'none',transition:'opacity .3s',zIndex:1010}}/>
+      <div style={{position:'fixed',left:0,right:0,bottom:0,background:'#F4EFE2',borderRadius:'24px 24px 0 0',padding:'10px 20px calc(env(safe-area-inset-bottom,16px) + 20px)',transform:open?'translateY(0)':'translateY(100%)',transition:'transform .42s cubic-bezier(.2,.85,.25,1)',zIndex:1020,boxShadow:'0 -8px 40px rgba(0,0,0,0.2)',maxHeight:'88vh',overflowY:'auto'}}>
+        <div style={{width:38,height:4,borderRadius:99,background:'rgba(0,0,0,0.14)',margin:'0 auto 14px'}}/>
+        {code&&(
+          <div>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}>
+              <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:13,background:ink,color:'#fff',padding:'6px 12px',borderRadius:99}}>{code}</div>
+              <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:16,color:ink,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{inkObj?(inkObj.Nome_completo||code):code}</div>
+            </div>
+            <div style={{fontFamily:'Nebulica',fontSize:12,color:sub,marginBottom:18}}>In magazzino ora: <b style={{color:ink}}>{fmtKg(cur)}</b> · registra l'inventario aggiornato</div>
+
+            <div style={{background:'#fff',borderRadius:16,padding:'14px 16px',marginBottom:12,border:'1px solid rgba(11,11,11,0.08)'}}>
+              <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink}}>Barattoli sigillati</div>
+              <div style={{fontFamily:'Nebulica',fontSize:11,color:faint,marginBottom:12}}>1 barattolo = 1 kg</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <button onClick={()=>step(-1)} style={{width:48,height:48,borderRadius:14,border:'1.5px solid '+ink,background:'transparent',color:ink,fontSize:24,fontWeight:700,cursor:'pointer'}}>−</button>
+                <div style={{textAlign:'center'}}>
+                  <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:32,color:ink,lineHeight:1}}>{sigillati}</div>
+                  <div style={{fontFamily:'Nebulica',fontSize:11,color:faint}}>{sigillati} kg</div>
+                </div>
+                <button onClick={()=>step(1)} style={{width:48,height:48,borderRadius:14,border:'none',background:ink,color:'#fff',fontSize:24,fontWeight:700,cursor:'pointer'}}>+</button>
+              </div>
+            </div>
+
+            <div style={{background:'#fff',borderRadius:16,padding:'14px 16px',marginBottom:14,border:'1px solid rgba(11,11,11,0.08)'}}>
+              <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink}}>Barattolo aperto</div>
+              <div style={{fontFamily:'Nebulica',fontSize:11,color:faint,marginBottom:10}}>peso lordo sulla bilancia — tara {tare}g sottratta in automatico</div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <input value={apertoLordo} onChange={e=>setApertoLordo(e.target.value)} inputMode="decimal" placeholder="lordo (g)" style={{flex:1,boxSizing:'border-box',border:'1.5px solid rgba(11,11,11,0.16)',borderRadius:12,padding:'12px 14px',fontSize:17,fontFamily:'Nebulica',background:'#F4EFE2',color:ink,outline:'none'}}/>
+                <div style={{textAlign:'right',minWidth:92}}>
+                  <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:ink}}>{nettoAperto>0?Math.round(nettoAperto)+' g':'—'}</div>
+                  <div style={{fontFamily:'Nebulica',fontSize:10,color:faint}}>netto</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:12,padding:'0 4px'}}>
+              <span style={{fontFamily:'Nebulica',fontSize:13,color:sub}}>Totale disponibile</span>
+              <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:26,color:ink,letterSpacing:-1}}>{fmtKg(totale)}</span>
+            </div>
+            <button onClick={salva} disabled={saving} style={{width:'100%',height:52,borderRadius:16,border:'none',background:saving?'rgba(11,11,11,0.4)':ink,color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:16,cursor:saving?'default':'pointer'}}>{saving?'Salvataggio…':'Salva inventario'}</button>
+            <div style={{fontFamily:'Nebulica',fontSize:11,color:faint,textAlign:'center',marginTop:10}}>Sostituisce il valore attuale con questo conteggio.</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MobileApp() {
   const [settings, setSettings] = React.useState(MOBILE_DEFAULTS);
   const setSetting = (k,v) => setSettings(s=>({...s,[k]:v}));
@@ -3742,6 +3927,16 @@ function MobileApp() {
         <PaletteView
           accent={settings.accent}
           bg={bg}
+          onTabChange={setActiveTab}
+          onNuova={()=>setNuovaOpen(true)}
+        />
+      )}
+      {activeTab==='magazzino'&&(
+        <MagazzinoMobile
+          accent={settings.accent}
+          bg={bg}
+          tare={settings.tare??106}
+          alertThreshold={settings.alertThreshold??1000}
           onTabChange={setActiveTab}
           onNuova={()=>setNuovaOpen(true)}
         />
