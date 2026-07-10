@@ -566,11 +566,26 @@ function walletOpenHeight(pantone, headerH=150) {
   return Math.round(headerH + body);
 }
 
+// Toni di sfondo neutri (opzionali): il colore Pantone resta un bagliore dietro
+// la scheda e NON invade l'interfaccia. (handoff Ricettario Pantone)
+const NEUTRAL_TONES = {
+  neutro: { bg: '#E9E9E7', bgDeep: '#DFDFDC', panelAlt: '#F3F3F1', label: 'Grigio neutro' },
+  caldo:  { bg: '#E8E4DF', bgDeep: '#DDD8D0', panelAlt: '#F3EFEA', label: 'Grigio caldo' },
+  beige:  { bg: '#ECE6D9', bgDeep: '#E2DAC8', panelAlt: '#F7F2E7', label: 'Beige' },
+  bianco: { bg: '#F6F5F3', bgDeep: '#ECEBE8', panelAlt: '#FCFCFB', label: 'Bianco' },
+  puro:   { bg: '#FFFFFF', bgDeep: '#F2F2F2', panelAlt: '#FFFFFF', label: 'Bianco puro' },
+};
 function deriveTheme(t) {
   const grey = t.theme === 'grey';
+  const tone = NEUTRAL_TONES[t.bgTone] || null;
   return {
-    grey, bg: grey?'#E6E4DE':'#F4EFE2', bgDeep: grey?'#DBD9D2':'#EDE7D7',
-    panel:'#FFFFFF', panelAlt: grey?'#F3F1EC':'#FBF7EE',
+    grey,
+    bg:      (tone||{}).bg      || (grey?'#E6E4DE':'#F4EFE2'),
+    bgDeep:  (tone||{}).bgDeep  || (grey?'#DBD9D2':'#EDE7D7'),
+    panel:'#FFFFFF',
+    panelAlt:(tone||{}).panelAlt|| (grey?'#F3F1EC':'#FBF7EE'),
+    bgTone: t.bgTone||null,
+    colorGlow: !!t.colorGlow,
     ink:'#0B0B0B', sub:'rgba(11,11,11,0.52)', faint:'rgba(11,11,11,0.34)',
     line:'rgba(11,11,11,0.10)', line2:'rgba(11,11,11,0.16)',
     accent: t.accent, onAccent: textOnDesk(t.accent),
@@ -579,9 +594,35 @@ function deriveTheme(t) {
     grain: t.grain, borders: t.borders,
     borderWidth: t.borderWidth!=null ? t.borderWidth : 2,
     cardSurface: t.cardSurface||'opaco',
+    btnStyle: t.btnStyle||'B',
     blobShape: t.blobShape||'morbide', blobSpeed: t.blobSpeed!=null?t.blobSpeed:1,
     blobAnim: t.blobAnim!=null?t.blobAnim:true,
   };
+}
+// Stile pulsanti d'azione A/B/C/D (handoff) — role: primary|secondary|icon
+function actionStyle(theme, role='primary') {
+  const { accent, onAccent, ink, panel } = theme;
+  const s = theme.btnStyle || 'B';
+  const inkT = (a)=>rgba('#000',a), tint=(a)=>rgba(accent,a), bw=theme.borderWidth||2;
+  const P = {
+    A: { background: accent, color: onAccent, border: 'none', boxShadow: `0 6px 18px ${tint(0.32)}` },
+    B: { background: accent, color: onAccent, border: `${bw}px solid ${ink}`, boxShadow: 'none' },
+    C: { background: tint(0.16), color: accent, border: 'none', boxShadow: 'none' },
+    D: { background: ink, color: '#fff', border: 'none', boxShadow: `0 6px 18px ${inkT(0.22)}` },
+  };
+  const S = {
+    A: { background: panel, color: ink, border: `1px solid ${inkT(0.14)}`, boxShadow: `0 5px 14px ${inkT(0.05)}` },
+    B: { background: panel, color: ink, border: `${bw}px solid ${ink}`, boxShadow: 'none' },
+    C: { background: inkT(0.05), color: ink, border: 'none', boxShadow: 'none' },
+    D: { background: panel, color: ink, border: `1.5px solid ${ink}`, boxShadow: 'none' },
+  };
+  const I = {
+    A: { background: panel, border: `1px solid ${inkT(0.14)}`, boxShadow: `0 5px 14px ${inkT(0.05)}`, color: accent },
+    B: { background: panel, border: `${bw}px solid ${ink}`, boxShadow: 'none', color: ink },
+    C: { background: tint(0.16), border: 'none', boxShadow: 'none', color: accent },
+    D: { background: ink, border: 'none', boxShadow: `0 6px 18px ${inkT(0.22)}`, color: '#fff' },
+  };
+  return ({ primary: P, secondary: S, icon: I }[role] || P)[s];
 }
 
 function glass(theme, {active=false, accent=false, strong=false}={}) {
@@ -609,7 +650,7 @@ function GrainBlobs({theme, blobHex}) {
   const id = React.useMemo(()=>'dk-grain-'+(_grainSeq++),[]);
   ensureDeskBlobKf();
   const sh = BLOB_SHAPES[theme.blobShape]||BLOB_SHAPES.morbide;
-  const showBlobs = theme.blobShape!=='nessuna' && blobHex;
+  const showBlobs = theme.blobShape!=='nessuna' && blobHex && !theme.colorGlow;
   if (!theme.grain && !showBlobs) return null;
   const spd = Math.max(0.25, theme.blobSpeed||1);
   const d1=(22/spd).toFixed(1), d2=(28/spd).toFixed(1), d3=(34/spd).toFixed(1);
@@ -776,9 +817,10 @@ function NotesBlock({note, vecchioNome, theme}) {
 }
 
 function PrintButton({theme, full=true, label='Stampa etichetta', onClick}) {
+  const st = actionStyle(theme,'secondary');
   return (
-    <button onClick={onClick} style={{height:52,borderRadius:99,background:theme.ink,color:'#fff',border:`1.5px solid ${theme.ink}`,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,width:full?'100%':'auto',padding:full?0:'0 26px',fontFamily:'Nebulica',fontWeight:700,fontSize:15,letterSpacing:-0.2}}>
-      <IcoPrinter size={19} color="#fff"/> {label}
+    <button onClick={onClick} style={{height:52,borderRadius:99,cursor:'pointer',...st,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,width:full?'100%':'auto',padding:full?0:'0 26px',fontFamily:'Nebulica',fontWeight:700,fontSize:15,letterSpacing:-0.2}}>
+      <IcoPrinter size={19} color={st.color}/> {label}
     </button>
   );
 }
@@ -820,9 +862,10 @@ const MODES = [
 function Logo({theme, sub=true, onSettings}) {
   return (
     <div style={{display:'flex',alignItems:'center',gap:12}}>
-      <button onClick={onSettings} title="Impostazioni" style={{width:46,height:46,borderRadius:99,cursor:'pointer',padding:0,display:'flex',alignItems:'center',justifyContent:'center',background:rgba(theme.accent,theme.grey?0.16:0.14),border:theme.borders?`1.6px solid ${theme.ink}`:'none',boxShadow:`0 4px 12px ${rgba('#000',0.05)}`}}>
-        <span style={{width:22,height:22,background:theme.accent,display:'block',WebkitMaskImage:'url(gear.svg)',maskImage:'url(gear.svg)',WebkitMaskSize:'contain',maskSize:'contain',WebkitMaskRepeat:'no-repeat',maskRepeat:'no-repeat',WebkitMaskPosition:'center',maskPosition:'center'}}/>
-      </button>
+      {(()=>{const st=actionStyle(theme,'icon');return (
+      <button onClick={onSettings} title="Impostazioni" style={{width:46,height:46,borderRadius:99,cursor:'pointer',padding:0,display:'flex',alignItems:'center',justifyContent:'center',background:st.background,border:st.border,boxShadow:st.boxShadow}}>
+        <span style={{width:22,height:22,background:st.color,display:'block',WebkitMaskImage:'url(gear.svg)',maskImage:'url(gear.svg)',WebkitMaskSize:'contain',maskSize:'contain',WebkitMaskRepeat:'no-repeat',maskRepeat:'no-repeat',WebkitMaskPosition:'center',maskPosition:'center'}}/>
+      </button>);})()}
       <div>
         <div style={{fontFamily:theme.display,fontWeight:theme.displayWeight,fontSize:20,letterSpacing:-0.6,color:theme.ink,fontStyle:theme.isSerif?'italic':'normal',lineHeight:1}}>Ricettario</div>
         {sub&&<div style={{fontFamily:'"JetBrains Mono",monospace',fontSize:9.5,letterSpacing:1,color:theme.faint,marginTop:2}}>SICO · {DESK_PANTONES.length} PANTONE</div>}
@@ -886,10 +929,11 @@ function IconPill({Icon, onClick, theme, active=false, title, size=50}) {
   );
 }
 
-function NuovaPill({theme, compact=false, onClick}) {
+function NuovaPill({theme, compact=false, full=false, onClick}) {
+  const st = actionStyle(theme,'primary');
   return (
-    <button onClick={onClick} style={{height:50,padding:compact?'0 18px':'0 22px',borderRadius:99,cursor:'pointer',background:theme.accent,color:theme.onAccent,border:'none',display:'inline-flex',alignItems:'center',gap:8,fontFamily:'Nebulica',fontWeight:700,fontSize:14,boxShadow:`0 6px 18px ${rgba(theme.accent,0.32)}`}}>
-      <IcoPlus size={19} color={theme.onAccent} sw={2}/> {compact?'Nuova':'Nuova ricetta'}
+    <button onClick={onClick} style={{height:full?54:50,width:full?'100%':'auto',padding:full?0:(compact?'0 18px':'0 22px'),borderRadius:99,cursor:'pointer',display:full?'flex':'inline-flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:'Nebulica',fontWeight:700,fontSize:14.5,...st}}>
+      <IcoPlus size={19} color={st.color} sw={2}/> {compact&&!full?'Nuova':'Nuova ricetta'}
     </button>
   );
 }
@@ -946,7 +990,7 @@ function ISlider({value, min, max, step, onChange, theme, unit=''}) {
 }
 
 function SettingsPanel({open, onClose, settings, setSetting, theme}) {
-  const accents = ['#0033FF','#E4002B','#1F8A5B','#F66257','#0B0B0B'];
+  const accents = ['#5856D6','#0A84FF','#30B0C7','#34C759','#FF9F0A','#0B0B0B'];
   const fonts = ['Nebulica','Bricolage Grotesque','Instrument Serif'];
   const shapes = [{k:'morbide',l:'Morbide'},{k:'tonde',l:'Tonde'},{k:'ampie',l:'Ampie'},{k:'nessuna',l:'Nessuna'}];
   const Row = ({label,children})=>(
@@ -980,9 +1024,12 @@ function SettingsPanel({open, onClose, settings, setSetting, theme}) {
         </div></Row>
         <Row label="Accento"><div style={{display:'flex',gap:8}}>{accents.map(c=>{const on=settings.accent===c; return <button key={c} onClick={()=>setSetting('accent',c)} style={{width:30,height:30,borderRadius:99,cursor:'pointer',background:c,border:'none',boxShadow:on?`0 0 0 2px ${theme.panel}, 0 0 0 4px ${theme.ink}`:`inset 0 0 0 1px ${rgba('#000',0.1)}`}}/>;})}
         </div></Row>
+        <Block label="Tono neutro"><Pills value={settings.bgTone||'none'} options={[{k:'none',l:'Nessuno'},{k:'neutro',l:'Grigio neutro'},{k:'caldo',l:'Grigio caldo'},{k:'beige',l:'Beige'},{k:'bianco',l:'Bianco'},{k:'puro',l:'Bianco puro'}]} onChange={v=>setSetting('bgTone',v==='none'?null:v)}/></Block>
+        <Row label="Bagliore dietro la scheda"><IToggle value={!!settings.colorGlow} onChange={v=>setSetting('colorGlow',v)} theme={theme}/></Row>
         <Row label="Bordi neri"><IToggle value={settings.borders} onChange={v=>setSetting('borders',v)} theme={theme}/></Row>
         <Row label="Spessore bordo"><ISlider value={settings.borderWidth} min={0.5} max={4} step={0.5} unit="px" onChange={v=>setSetting('borderWidth',v)} theme={theme}/></Row>
         <Block label="Superficie scheda"><Pills value={settings.cardSurface} options={[{k:'opaco',l:'Opaca'},{k:'frosted',l:'Frosted'},{k:'trasparente',l:'Trasparente'}]} onChange={v=>setSetting('cardSurface',v)}/></Block>
+        <Block label="Stile pulsanti"><Pills value={settings.btnStyle||'B'} options={[{k:'A',l:'A · Pieno'},{k:'B',l:'B · Contorno'},{k:'C',l:'C · Tenue'},{k:'D',l:'D · Nero'}]} onChange={v=>setSetting('btnStyle',v)}/></Block>
         {Head('SFONDO · BLOB')}
         <Block label="Forme blob"><Pills value={settings.blobShape} options={shapes} onChange={v=>setSetting('blobShape',v)}/></Block>
         <Row label="Grana"><IToggle value={settings.grain} onChange={v=>setSetting('grain',v)} theme={theme}/></Row>
@@ -990,6 +1037,7 @@ function SettingsPanel({open, onClose, settings, setSetting, theme}) {
         <Row label="Velocità"><ISlider value={settings.blobSpeed} min={0.25} max={2.5} step={0.25} unit="×" onChange={v=>setSetting('blobSpeed',v)} theme={theme}/></Row>
         {Head('MASTER · ANIMAZIONE')}
         <Block label="Comparsa del dettaglio"><Pills value={settings.masterAnim||'rise'} options={[{k:'rise',l:'A · Slide-up'},{k:'morph',l:'B · Liquid + stagger'}]} onChange={v=>setSetting('masterAnim',v)}/></Block>
+        <Block label="Movimento scheda"><Pills value={settings.cardEnter||'deck'} options={[{k:'slide',l:'Slide'},{k:'spring',l:'Spring'},{k:'deck',l:'Deck'},{k:'deckGlide',l:'Glide'},{k:'deckSettle',l:'Settle'},{k:'deckFeather',l:'Feather'}]} onChange={v=>setSetting('cardEnter',v)}/></Block>
         {Head('TRANSIZIONE MODALITÀ')}
         <Block label="Animazione cambio vista"><Pills value={settings.modeTransition||'liquido'} options={[{k:'liquido',l:'Liquido'},{k:'scorrimento',l:'Scorrimento'},{k:'dissolvenza',l:'Dissolvenza'}]} onChange={v=>setSetting('modeTransition',v)}/></Block>
         {Head('FONT TITOLI')}
@@ -1983,7 +2031,18 @@ function ProjectOverlay({open, onClose, codes, theme, qty, setQty, formulaSort, 
   );
 }
 
-function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='rise', onNuova, onEdit}) {
+// Movimento d'ingresso dell'intera scheda (handoff), direzionale rispetto allo scorrimento lista
+function cardEnterAnim(variant, dir) {
+  const D = dir === 'fromTop' ? 'Down' : 'Up';
+  if (variant === 'spring')      return `cardSpring${D} .66s ${SPRING_SOFT} both`;
+  if (variant === 'deck')        return `cardDeck${D} .62s ${FLUID_SOFT} both`;
+  if (variant === 'deckGlide')   return `cardDeckGlide${D} .66s cubic-bezier(.22,.68,.24,1) both`;
+  if (variant === 'deckSettle')  return `cardDeckSettle${D} .9s cubic-bezier(.16,.72,.2,1.01) both`;
+  if (variant === 'deckFeather') return `cardDeckFeather${D} 1.15s cubic-bezier(.2,.6,.12,1) both`;
+  if (variant === 'slide')       return `cardSlide${D} .52s ${FLUID_SOFT} both`;
+  return `mBreath .6s cubic-bezier(.32,1.12,.4,1) both`;
+}
+function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='rise', cardEnter='deck', onNuova, onEdit}) {
   const [family, setFamily] = React.useState('tutti');
   const [inkFilter, setInkFilter] = React.useState(0);
   const [selCode, setSelCode] = React.useState(null);
@@ -2087,15 +2146,9 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
   return (
     <div style={{width:'100%',height:'100%',position:'relative'}}>
       <GrainBlobs theme={theme} blobHex={selected.hex}/>
+      {/* TOP BAR — Layout A: brand a sx · Trasferimenti + selettore vista a dx */}
       <div style={{position:'relative',zIndex:20,height:88,display:'flex',alignItems:'center',padding:'0 28px',gap:16}}>
-        <div style={{width:352,flexShrink:0,display:'flex',alignItems:'center'}}>
-          <Logo theme={theme} onSettings={onSettings}/>
-        </div>
-        <div style={{width:600,flexShrink:0,display:'flex',alignItems:'center',gap:12}}>
-          <div style={{flex:1}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca…"/></div>
-          <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="right"/>
-          <NuovaPill theme={theme} compact onClick={onNuova}/>
-        </div>
+        <Logo theme={theme} onSettings={onSettings}/>
         <div style={{flex:1}}/>
         <TransferBtn theme={theme}/>
         <ModeOrb mode={mode} onChange={setMode} theme={theme}/>
@@ -2104,6 +2157,10 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
         {/* LISTA */}
         <div style={{width:380,flexShrink:0,display:'flex',flexDirection:'column',padding:'6px 0 0 28px'}}>
           <div style={{paddingRight:18,display:'flex',flexDirection:'column',gap:8}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <div style={{flex:1,minWidth:0}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca pantone…"/></div>
+              <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="left"/>
+            </div>
             <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub}}>{filtered.length} / {DESK_PANTONES.length} PANTONE</span>
             <div style={{display:'flex',gap:6}}>
               <button onClick={()=>setSoloPref(v=>!v)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'5px 8px',borderRadius:99,fontFamily:'Nebulica',fontSize:10.5,fontWeight:700,letterSpacing:0.6,cursor:'pointer',border:`1.4px solid ${soloPreferiti?theme.ink:rgba(theme.ink,0.22)}`,background:soloPreferiti?theme.ink:'transparent',color:soloPreferiti?(theme.grey?'#0B0B0B':'#fff'):theme.sub,transition:'all .2s'}}>
@@ -2167,11 +2224,18 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
               </button>
             </div>
           )}
+          {/* Nuova ricetta — ancorata in basso al menu (Layout A) */}
+          <div style={{flexShrink:0,padding:'12px 18px 16px 0',borderTop:`1px solid ${theme.line}`,marginTop:4}}>
+            <NuovaPill theme={theme} full onClick={onNuova}/>
+          </div>
         </div>
         {/* DETTAGLIO */}
         <div style={{flex:1,minWidth:0,display:'flex',padding:'10px 28px 26px 16px'}}>
-          <div ref={colRef} style={{width:600,flexShrink:0,display:'flex',flexDirection:'column',minHeight:0}}>
-            <div key={'card-'+selected.code} style={{height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:34,overflow:'hidden',position:'relative',margin:'0 10px',...surface(theme),outline:theme.borders?`${theme.borderWidth}px solid ${theme.ink}`:`1px solid ${theme.line}`,boxShadow:`0 20px 50px ${rgba('#000',0.10)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1)`,animation:navDir==='down'?`mNavDown .48s ${SPRING_SOFT} both`:navDir==='up'?`mNavUp .48s ${SPRING_SOFT} both`:`mBreath .6s cubic-bezier(.32,1.12,.4,1) both`,transformOrigin:'top center'}}>
+          <div ref={colRef} style={{width:600,flexShrink:0,display:'flex',flexDirection:'column',minHeight:0,position:'relative'}}>
+            {theme.colorGlow&&(
+              <div aria-hidden style={{position:'absolute',top:'50%',left:'50%',width:780,height:620,transform:'translate(-50%,-50%)',borderRadius:'50%',pointerEvents:'none',zIndex:0,background:`radial-gradient(closest-side, ${rgba(selected.hex,0.5)}, ${rgba(selected.hex,0.22)} 46%, transparent 72%)`,filter:'blur(46px)',transition:'background .5s ease'}}/>
+            )}
+            <div key={'card-'+selected.code} style={{position:'relative',zIndex:1,height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:44,overflow:'hidden',margin:'0 10px',...surface(theme),border:'none',boxShadow:`0 8px 20px ${rgba('#000',0.05)}, 0 30px 60px ${rgba(selected.hex,0.34)}, 0 64px 110px ${rgba(selected.hex,0.26)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1), box-shadow .3s ease`,animation:cardEnterAnim(cardEnter, navDir==='down'?'fromTop':'fromBottom'),transformOrigin:'center center'}}>
               <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'62px 14px 14px',flexShrink:0,position:'relative',transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
                 <div style={{position:'absolute',top:14,right:14,display:'flex',gap:10}}>
                   {(()=>{
@@ -2248,7 +2312,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
 function ensureMasterKf() {
   if(document.getElementById('master-kf')) return;
   const s=document.createElement('style'); s.id='master-kf';
-  s.textContent=`@keyframes mFade{from{opacity:.4;}to{opacity:1;}}@keyframes mRise{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}@keyframes mMorph{from{opacity:0;transform:translateY(-10px) scaleY(.9);}to{opacity:1;transform:translateY(0) scaleY(1);}}@keyframes mPulse{0%{transform:scale(1);}45%{transform:scale(1.025);}100%{transform:scale(1);}}@keyframes mBreath{0%{transform:scaleY(.984);}60%{transform:scaleY(1.006);}100%{transform:scaleY(1);}}@keyframes newCard{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:translateX(0);}}@keyframes newRing{0%,60%{opacity:1;}100%{opacity:0;}}@keyframes mNavDown{from{opacity:0;transform:translateY(52px);}to{opacity:1;transform:translateY(0);}}@keyframes mNavUp{from{opacity:0;transform:translateY(-52px);}to{opacity:1;transform:translateY(0);}}`;
+  s.textContent=`@keyframes mFade{from{opacity:.4;}to{opacity:1;}}@keyframes mRise{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}@keyframes mMorph{from{opacity:0;transform:translateY(-10px) scaleY(.9);}to{opacity:1;transform:translateY(0) scaleY(1);}}@keyframes mPulse{0%{transform:scale(1);}45%{transform:scale(1.025);}100%{transform:scale(1);}}@keyframes mBreath{0%{transform:scaleY(.984);}60%{transform:scaleY(1.006);}100%{transform:scaleY(1);}}@keyframes newCard{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:translateX(0);}}@keyframes newRing{0%,60%{opacity:1;}100%{opacity:0;}}@keyframes mNavDown{from{opacity:0;transform:translateY(52px);}to{opacity:1;transform:translateY(0);}}@keyframes mNavUp{from{opacity:0;transform:translateY(-52px);}to{opacity:1;transform:translateY(0);}}@keyframes cardSlideUp{from{opacity:0;transform:translateY(74px);}to{opacity:1;transform:translateY(0);}}@keyframes cardSlideDown{from{opacity:0;transform:translateY(-74px);}to{opacity:1;transform:translateY(0);}}@keyframes cardSpringUp{0%{opacity:0;transform:translateY(96px) scale(.94);}60%{opacity:1;transform:translateY(-8px) scale(1.008);}100%{opacity:1;transform:translateY(0) scale(1);}}@keyframes cardSpringDown{0%{opacity:0;transform:translateY(-96px) scale(.94);}60%{opacity:1;transform:translateY(8px) scale(1.008);}100%{opacity:1;transform:translateY(0) scale(1);}}@keyframes cardDeckUp{0%{opacity:0;transform:translateY(88px) rotate(3deg);}70%{opacity:1;transform:translateY(0) rotate(-.8deg);}100%{opacity:1;transform:translateY(0) rotate(0);}}@keyframes cardDeckDown{0%{opacity:0;transform:translateY(-88px) rotate(-3deg);}70%{opacity:1;transform:translateY(0) rotate(.8deg);}100%{opacity:1;transform:translateY(0) rotate(0);}}@keyframes cardDeckGlideUp{0%{opacity:0;transform:translateY(96px) rotate(4deg);}55%{opacity:1;}100%{opacity:1;transform:translateY(0) rotate(0);}}@keyframes cardDeckGlideDown{0%{opacity:0;transform:translateY(-96px) rotate(-4deg);}55%{opacity:1;}100%{opacity:1;transform:translateY(0) rotate(0);}}@keyframes cardDeckSettleUp{0%{opacity:0;transform:translateY(84px) rotate(2.4deg);}60%{opacity:1;transform:translateY(0) rotate(-.5deg);}82%{transform:translateY(0) rotate(.2deg);}100%{opacity:1;transform:translateY(0) rotate(0);}}@keyframes cardDeckSettleDown{0%{opacity:0;transform:translateY(-84px) rotate(-2.4deg);}60%{opacity:1;transform:translateY(0) rotate(.5deg);}82%{transform:translateY(0) rotate(-.2deg);}100%{opacity:1;transform:translateY(0) rotate(0);}}@keyframes cardDeckFeatherUp{0%{opacity:0;transform:translateY(64px) rotate(.6deg);}100%{opacity:1;transform:translateY(0) rotate(0);}}@keyframes cardDeckFeatherDown{0%{opacity:0;transform:translateY(-64px) rotate(-.6deg);}100%{opacity:1;transform:translateY(0) rotate(0);}}`;
   document.head.appendChild(s);
 }
 
@@ -2938,10 +3002,10 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
 }
 
 const DESK_DEFAULTS = {
-  theme:'cream', accent:'#0033FF', display:'Nebulica', grain:false, borders:true,
-  borderWidth:2, cardSurface:'opaco', blobShape:'morbide', blobSpeed:1, blobAnim:true,
-  modeTransition:'liquido', masterAnim:'rise', walletVariant:'row',
-  tare:106, alertThreshold:1000,
+  theme:'grey', accent:'#5856D6', display:'Nebulica', grain:true, borders:true,
+  borderWidth:2, cardSurface:'opaco', btnStyle:'B', blobShape:'morbide', blobSpeed:1, blobAnim:true,
+  modeTransition:'liquido', masterAnim:'rise', cardEnter:'deck', walletVariant:'row',
+  bgTone:null, colorGlow:false, tare:106, alertThreshold:1000,
 };
 
 function PaletteModeDesktop({theme, onNuova}) {
@@ -3024,7 +3088,7 @@ function DesktopApp({defaults}) {
     defaults.borderWidth,defaults.cardSurface,defaults.blobShape,defaults.blobSpeed,
     defaults.blobAnim,defaults.modeTransition]);
   const setSetting = (k,v)=>setSettings(s=>({...s,[k]:v}));
-  const theme = React.useMemo(()=>deriveTheme(settings),[settings.theme,settings.accent,settings.display,settings.grain,settings.borders,settings.borderWidth,settings.cardSurface,settings.blobShape,settings.blobSpeed,settings.blobAnim]);
+  const theme = React.useMemo(()=>deriveTheme(settings),[settings.theme,settings.accent,settings.display,settings.grain,settings.borders,settings.borderWidth,settings.cardSurface,settings.btnStyle,settings.blobShape,settings.blobSpeed,settings.blobAnim,settings.bgTone,settings.colorGlow]);
   const [mode, setMode] = React.useState('master');
   const [query, setQuery] = React.useState('');
   const [settingsOpen, setSettingsOpen] = React.useState(false);
@@ -3036,7 +3100,7 @@ function DesktopApp({defaults}) {
   const changeMode = m=>{if(m===mode)return; dirRef.current=ORDER.indexOf(m)>=ORDER.indexOf(mode)?1:-1; setMode(m);};
   const chrome = {theme, mode, setMode:changeMode, query, setQuery, onSettings:()=>setSettingsOpen(true), onNuova:()=>setNuovaOpen(true), onEdit:(code)=>setEditCode(code)};
   let Body = null;
-  if(mode==='master') Body=<MasterMode {...chrome} anim={settings.masterAnim||'rise'}/>;
+  if(mode==='master') Body=<MasterMode {...chrome} anim={settings.masterAnim||'rise'} cardEnter={settings.cardEnter||'deck'}/>;
   if(mode==='wallet') Body=<WalletMode {...chrome}/>;
   if(mode==='gallery') Body=<GalleryMode {...chrome} formulaAnim="slide"/>;
   if(mode==='magazzino') Body=<MagazzinMode {...chrome} tare={settings.tare??106} alertThreshold={settings.alertThreshold??1000}/>;
