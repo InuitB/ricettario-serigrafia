@@ -3184,7 +3184,7 @@ const DESK_DEFAULTS = {
   bgTone:'puro', colorGlow:true, menuStart:'chiuso', tare:107, alertThreshold:1000,
 };
 
-function PaletteModeDesktop({theme, onNuova}) {
+function PaletteModeDesktop({theme, mode, setMode, onNuova}) {
   const MOODS=['pastello','rilassato','tropicale','pop','contrastato','notturno'];
   const relLabels={
     analogous:  ['Base','Tono+','Tono−','Tono++','Tono−−','Extra'],
@@ -3227,6 +3227,7 @@ function PaletteModeDesktop({theme, onNuova}) {
           {locked.size>0&&<button onClick={()=>setLocked(new Set())} style={{padding:'0 16px',height:42,borderRadius:12,border:'none',cursor:'pointer',background:isDark?'rgba(255,255,255,0.1)':rgba(theme.ink,0.08),color:isDark?'#fff':theme.ink,fontFamily:'Nebulica',fontWeight:600,fontSize:13}}>Sblocca tutto</button>}
           <button onClick={()=>setSeed(s=>s+1)} style={{padding:'0 24px',height:42,background:isDark?'rgba(255,255,255,0.9)':theme.ink,color:isDark?'#0B0B0B':theme.bg,border:'none',borderRadius:12,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>↻ Rigenera</button>
         </div>
+        {setMode&&<div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0}}><TransferBtn theme={theme}/><ModeOrb mode={mode} onChange={setMode} theme={theme}/></div>}
       </div>
       {/* columns */}
       <div style={{display:'flex',flex:1,gap:8,padding:'20px 32px 32px',overflow:'hidden',minHeight:0}}>
@@ -3280,7 +3281,7 @@ function DesktopApp({defaults}) {
   if(mode==='wallet') Body=<WalletMode {...chrome}/>;
   if(mode==='gallery') Body=<GalleryMode {...chrome} formulaAnim="slide"/>;
   if(mode==='magazzino') Body=<MagazzinMode {...chrome} tare={settings.tare??107} alertThreshold={settings.alertThreshold??1000}/>;
-  if(mode==='palette') Body=<PaletteModeDesktop theme={theme} onNuova={()=>setNuovaOpen(true)}/>;
+  if(mode==='palette') Body=<PaletteModeDesktop {...chrome}/>;
   const trans = settings.modeTransition||'liquido';
   const animName = trans==='dissolvenza'?'modeFade':(trans==='scorrimento'?(dirRef.current>0?'modeSlideR':'modeSlideL'):'modeLiquid');
   return (
