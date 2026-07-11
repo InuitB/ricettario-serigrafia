@@ -575,15 +575,22 @@ const NEUTRAL_TONES = {
   bianco: { bg: '#F6F5F3', bgDeep: '#ECEBE8', panelAlt: '#FCFCFB', label: 'Bianco' },
   puro:   { bg: '#FFFFFF', bgDeep: '#F2F2F2', panelAlt: '#FFFFFF', label: 'Bianco puro' },
 };
+// Sfondo base dell'app (opzione "Sfondo" nei settings). 'bianco' = più chiaro di crema/grigio.
+const THEME_BG = {
+  cream:  { bg: '#F4EFE2', bgDeep: '#EDE7D7', panelAlt: '#FBF7EE' },
+  grey:   { bg: '#E6E4DE', bgDeep: '#DBD9D2', panelAlt: '#F3F1EC' },
+  bianco: { bg: '#F7F6F3', bgDeep: '#ECEBE7', panelAlt: '#FCFCFB' },
+};
 function deriveTheme(t) {
   const grey = t.theme === 'grey';
   const tone = NEUTRAL_TONES[t.bgTone] || null;
+  const base = THEME_BG[t.theme] || THEME_BG.cream;
   return {
     grey,
-    bg:      (tone||{}).bg      || (grey?'#E6E4DE':'#F4EFE2'),
-    bgDeep:  (tone||{}).bgDeep  || (grey?'#DBD9D2':'#EDE7D7'),
+    bg:      (tone||{}).bg      || base.bg,
+    bgDeep:  (tone||{}).bgDeep  || base.bgDeep,
     panel:'#FFFFFF',
-    panelAlt:(tone||{}).panelAlt|| (grey?'#F3F1EC':'#FBF7EE'),
+    panelAlt:(tone||{}).panelAlt|| base.panelAlt,
     bgTone: t.bgTone||null,
     colorGlow: !!t.colorGlow,
     ink:'#0B0B0B', sub:'rgba(11,11,11,0.52)', faint:'rgba(11,11,11,0.34)',
@@ -1141,7 +1148,7 @@ function SettingsPanel({open, onClose, settings, setSetting, theme}) {
           <IconPill Icon={IcoClose} theme={theme} size={36} onClick={onClose} title="Chiudi"/>
         </div>
         {Head('GRAFICA')}
-        <Row label="Sfondo"><div style={{display:'flex',gap:8}}>{[{k:'cream',c:'#F4EFE2'},{k:'grey',c:'#E6E4DE'}].map(o=>{const on=settings.theme===o.k; return <button key={o.k} onClick={()=>setSetting('theme',o.k)} style={{width:34,height:34,borderRadius:99,cursor:'pointer',background:o.c,border:on?`2.5px solid ${theme.ink}`:`1px solid ${theme.line2}`,boxShadow:on?`0 0 0 2px ${theme.panel}, 0 0 0 3.5px ${theme.ink}`:'none'}}/>;})}
+        <Row label="Sfondo"><div style={{display:'flex',gap:8}}>{[{k:'cream',c:'#F4EFE2'},{k:'grey',c:'#E6E4DE'},{k:'bianco',c:'#F7F6F3'}].map(o=>{const on=settings.theme===o.k; return <button key={o.k} onClick={()=>setSetting('theme',o.k)} style={{width:34,height:34,borderRadius:99,cursor:'pointer',background:o.c,border:on?`2.5px solid ${theme.ink}`:`1px solid ${theme.line2}`,boxShadow:on?`0 0 0 2px ${theme.panel}, 0 0 0 3.5px ${theme.ink}`:'none'}}/>;})}
         </div></Row>
         <Row label="Accento"><div style={{display:'flex',gap:8}}>{accents.map(c=>{const on=settings.accent===c; return <button key={c} onClick={()=>setSetting('accent',c)} style={{width:30,height:30,borderRadius:99,cursor:'pointer',background:c,border:'none',boxShadow:on?`0 0 0 2px ${theme.panel}, 0 0 0 4px ${theme.ink}`:`inset 0 0 0 1px ${rgba('#000',0.1)}`}}/>;})}
         </div></Row>
@@ -3724,7 +3731,7 @@ function MobileSettingsPanel({open, onClose, settings, setSetting}) {
   const simpleTheme = {accent, sub:'rgba(11,11,11,0.52)', ink:'#0B0B0B', line:'rgba(11,11,11,0.10)'};
   const accents = ['#0033FF','#E4002B','#1F8A5B','#F66257','#0B0B0B'];
   const shapes = [{k:'morbide',l:'Morbide'},{k:'tonde',l:'Tonde'},{k:'ampie',l:'Ampie'},{k:'nessuna',l:'Nessuna'}];
-  const panelBg = settings.theme==='grey'?'#E6E4DE':'#F4EFE2';
+  const panelBg = (THEME_BG[settings.theme]||THEME_BG.cream).bg;
   const Head = t => <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:'rgba(11,11,11,0.34)',margin:'14px 0 2px'}}>{t}</div>;
   const Row = ({label,children}) => (
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16,padding:'12px 0',borderTop:'1px solid rgba(11,11,11,0.10)'}}>
@@ -3762,7 +3769,7 @@ function MobileSettingsPanel({open, onClose, settings, setSetting}) {
           {Head('GRAFICA')}
           <Row label="Sfondo">
             <div style={{display:'flex',gap:8}}>
-              {[{k:'cream',c:'#F4EFE2',l:'Crema'},{k:'grey',c:'#E6E4DE',l:'Grigio'}].map(o=>{
+              {[{k:'cream',c:'#F4EFE2',l:'Crema'},{k:'grey',c:'#E6E4DE',l:'Grigio'},{k:'bianco',c:'#F7F6F3',l:'Bianco'}].map(o=>{
                 const on=settings.theme===o.k;
                 return <button key={o.k} onClick={()=>setSetting('theme',o.k)} style={{width:34,height:34,borderRadius:99,cursor:'pointer',background:o.c,border:on?`2.5px solid #0B0B0B`:'1px solid rgba(11,11,11,0.18)',boxShadow:on?`0 0 0 2px ${panelBg}, 0 0 0 3.5px #0B0B0B`:'none',transition:'box-shadow .2s'}}/>;
               })}
@@ -3993,7 +4000,9 @@ const normInkCode = s => String(s||'').toUpperCase().replace(/\s+/g,'');
 
 // Overlay scanner del magazzino: riconosce la sigla inchiostro (barcode "AS xx") dal foglio condiviso.
 function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
-  const [mode,setMode]=React.useState('camera');
+  // Desktop/Mac (nessun touch) → solo lettore esterno, la fotocamera non si attiva.
+  const noCam = (typeof navigator!=='undefined') && (navigator.maxTouchPoints||0)===0;
+  const [mode,setMode]=React.useState(noCam?'hid':'camera');
   const [flash,setFlash]=React.useState(null);
   const [unknown,setUnknown]=React.useState(null); // codice non riconosciuto
   const [pickQ,setPickQ]=React.useState('');
@@ -4002,7 +4011,7 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
   const ink='#0B0B0B';
   const doFlash=k=>{ setFlash(k); if(flashT.current)clearTimeout(flashT.current); flashT.current=setTimeout(()=>setFlash(null),600); };
 
-  React.useEffect(()=>{ if(open){ setUnknown(null); setPickQ(''); setMode('camera'); } },[open]);
+  React.useEffect(()=>{ if(open){ setUnknown(null); setPickQ(''); setMode(noCam?'hid':'camera'); } },[open]);
 
   const resolve=React.useCallback((raw)=>{
     const rawTrim=String(raw).trim();
@@ -4045,7 +4054,7 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
         <div style={{color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:18}}>Scansiona barattolo</div>
         <div style={{flex:1}}/>
         <div style={{display:'flex',gap:6,background:'rgba(255,255,255,0.12)',borderRadius:99,padding:4}}>
-          {[['camera','📷'],['hid','⌨︎']].map(([k,l])=>(
+          {(noCam?[['hid','⌨︎ Lettore esterno']]:[['camera','📷'],['hid','⌨︎']]).map(([k,l])=>(
             <button key={k} onClick={()=>setMode(k)} style={{padding:'8px 14px',borderRadius:99,border:'none',cursor:'pointer',background:mode===k?'#fff':'transparent',color:mode===k?'#0B0B0B':'#fff',fontWeight:700,fontSize:14}}>{l}</button>
           ))}
         </div>
@@ -4290,7 +4299,7 @@ function MobileApp() {
   const [nuovaOpen, setNuovaOpen] = React.useState(false);
   const [editCode, setEditCode] = React.useState(null);
   const [activeTab, setActiveTab] = React.useState('ricette');
-  const bg = settings.theme==='grey'?'#E6E4DE':'#F4EFE2';
+  const bg = (THEME_BG[settings.theme]||THEME_BG.cream).bg;
   const mobileTheme = React.useMemo(()=>deriveTheme({
     theme:settings.theme, accent:settings.accent, display:'Nebulica',
     borders:settings.borders, borderWidth:settings.borderWidth,
