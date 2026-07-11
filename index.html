@@ -689,11 +689,14 @@ const IcoClock   = p=><Ico {...p}><circle cx="12" cy="12" r="8.4" stroke={p.colo
 const IcoSearch  = p=><Ico {...p}><circle cx="11" cy="11" r="7" stroke={p.color||'currentColor'} strokeWidth={p.sw||1.7}/><path d="m16.2 16.2 3.8 3.8" stroke={p.color||'currentColor'} strokeWidth={p.sw||1.7} strokeLinecap="round"/></Ico>;
 const IcoFilter  = p=><Ico {...p} d="M4 6h16M7 12h10M10 18h4"/>;
 const IcoBack    = p=><Ico {...p} d="M14 5l-7 7 7 7"/>;
-const IcoPrinter = p=><Ico {...p} d="M7 9V4h10v5M7 17H5.5A1.5 1.5 0 0 1 4 15.5v-4A1.5 1.5 0 0 1 5.5 10h13a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5H17M7 15h10v5H7z"/>;
-const IcoEdit    = p=><Ico {...p} d="M14 4l4 4L8.5 17.5 4 18.5l1-4.5L14 4z"/>;
+// Icone SF Symbols rese via maschera CSS (ereditano il colore del pulsante). File in icons/.
+const SFMask = ({src, size=24, color='currentColor'}) => <span style={{display:'inline-block',width:size,height:size,background:color,flexShrink:0,WebkitMaskImage:`url(${src})`,maskImage:`url(${src})`,WebkitMaskSize:'contain',maskSize:'contain',WebkitMaskRepeat:'no-repeat',maskRepeat:'no-repeat',WebkitMaskPosition:'center',maskPosition:'center'}}/>;
+const IcoPrinter = p=><SFMask src="icons/printer.svg" size={p.size||22} color={p.color||'currentColor'}/>;
+const IcoMescola = p=><SFMask src="icons/mescola.svg" size={p.size||22} color={p.color||'currentColor'}/>;
+const IcoEdit    = p=><SFMask src="icons/square.and.pencil.svg" size={p.size||22} color={p.color||'currentColor'}/>;
 const IcoPlus    = p=><Ico {...p} d="M12 5v14M5 12h14"/>;
 const IcoClose   = p=><Ico {...p} d="M6 6l12 12M18 6 6 18"/>;
-const IcoStar    = p=><Ico {...p} d="M12 4l2.3 4.9 5.2.7-3.8 3.7.9 5.3L12 16.9 7.4 18.6l.9-5.3L4.5 9.6l5.2-.7L12 4z"/>;
+const IcoStar    = p=><SFMask src={(p.fill&&p.fill!=='none')?'icons/star.fill.svg':'icons/star.svg'} size={p.size||22} color={p.color||'currentColor'}/>;
 const IcoFilterDecrease = p=><Ico {...p}><g stroke={p.color||'currentColor'} strokeWidth={p.sw||2} strokeLinecap="round"><line x1="3.2" y1="7" x2="20.8" y2="7"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="8.8" y1="17" x2="15.2" y2="17"/></g></Ico>;
 const IcoGear    = p=><Ico {...p}><circle cx="12" cy="12" r="3.1" stroke={p.color||'currentColor'} strokeWidth={p.sw||1.7}/><path d="M12 3.2v2.1M12 18.7v2.1M20.8 12h-2.1M5.3 12H3.2M18.2 5.8l-1.5 1.5M7.3 16.7l-1.5 1.5M18.2 18.2l-1.5-1.5M7.3 7.3 5.8 5.8" stroke={p.color||'currentColor'} strokeWidth={p.sw||1.7} strokeLinecap="round"/></Ico>;
 const IcoNote    = p=><Ico {...p} d="M5 4h11l3 3v13H5V4zM15 4v4h4M8 12h8M8 16h5"/>;
@@ -2413,7 +2416,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   <div style={{marginTop:14,display:'flex',gap:12,alignItems:'center'}}>
                     <div style={{flex:1}}><PrintButton theme={theme} onClick={recipe?()=>stampaPDF(selected,recipe,qty):undefined}/></div>
                     <button onClick={()=>setMescolaOpen(true)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'0 26px',height:52,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:15,color:theme.ink,...glass(theme,{strong:true})}}>
-                      <IcoBox size={18} color={theme.ink}/> Mescola</button>
+                      <IcoMescola size={19} color={theme.ink}/> Mescola</button>
                   </div>
                 </div>
               </div>
