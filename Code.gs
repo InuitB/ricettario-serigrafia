@@ -79,6 +79,8 @@ function doPost(e) {
       case 'mapBarcode':              result = mapBarcode(data);              break;
       case 'saveInvDraft':            result = saveInvDraft(data);            break;
       case 'clearInvDraft':           result = clearInvDraft();               break;
+      case 'chiudiInventario':        result = chiudiInventario(data);        break;
+      case 'azzeraMagazzino':         result = azzeraMagazzino();             break;
       case 'salvaVerifica':           result = salvaVerifica(data);           break;
       case 'backfillMondayIds':       result = backfillMondayIds(data);       break;
       default: result = { error: 'Azione sconosciuta: ' + data.action };
@@ -699,6 +701,54 @@ function mapBarcode(data) {
   }
   sh.appendRow([barcode, inchiostro, ts]);
   return { ok: true, updated: false };
+}
+
+// ── CHIUSURA INVENTARIO (stock assoluto + snapshot datato per lo storico) ──
+function ensureStoricoSheet() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sh = ss.getSheetByName('InventariStorico');
+  if (!sh) {
+    sh = ss.insertSheet('InventariStorico');
+    sh.appendRow(['Timestamp', 'Sessione', 'Inchiostro', 'Grammi', 'Barattoli', 'Aperto_g', 'Note']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+// Aggiorna lo stock (valore ASSOLUTO) di ogni inchiostro contato e registra una fotografia datata.
+function chiudiInventario(data) {
+  var items = data.items || [];
+  var ts = new Date();
+  var iso = ts.toISOString();
+  var sh = ensureMagazzinoSheet();
+  var rows = sh.getDataRange().getValues();
+  var headers = rows[0];
+  var inkCol = headers.indexOf('Inchiostro');
+  var gramCol = headers.indexOf('Grammi_disponibili');
+  items.forEach(function(it) {
+    var found = false;
+    for (var i = 1; i < rows.length; i++) {
+      if (String(rows[i][inkCol]) === String(it.inchiostro)) {
+        sh.getRange(i + 1, gramCol + 1).setValue(it.grammi); found = true; break;
+      }
+    }
+    if (!found) sh.appendRow([it.inchiostro, it.grammi, '', '']);
+  });
+  var st = ensureStoricoSheet();
+  var sid = data.sessionId || Utilities.getUuid();
+  var block = items.map(function(it) {
+    return [iso, sid, it.inchiostro, it.grammi, (it.jars != null ? it.jars : ''), (it.open != null ? it.open : ''), data.note || ''];
+  });
+  if (block.length) st.getRange(st.getLastRow() + 1, 1, block.length, block[0].length).setValues(block);
+  return { ok: true, timestamp: iso, sessione: sid, scritti: items.length };
+}
+// Azzera TUTTI gli inchiostri del magazzino (per rifare l'inventario da capo).
+function azzeraMagazzino() {
+  var sh = ensureMagazzinoSheet();
+  var rows = sh.getDataRange().getValues();
+  var headers = rows[0];
+  var gramCol = headers.indexOf('Grammi_disponibili');
+  for (var i = 1; i < rows.length; i++) sh.getRange(i + 1, gramCol + 1).setValue(0);
+  return { ok: true, azzerati: Math.max(0, rows.length - 1) };
 }
 
 // ── BOZZA INVENTARIO (condivisa, multi-dispositivo) ───────────────────────

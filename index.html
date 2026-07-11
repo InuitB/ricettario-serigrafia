@@ -3049,6 +3049,7 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
   const [scanOpen, setScanOpen] = React.useState(false);
   const [codiciOpen, setCodiciOpen] = React.useState(false);
   const openCarica = code=>{ setCaricaInk(code||null); setCaricaOpen(true); };
+  const azzeraTutto = ()=>{ if(typeof confirm!=='undefined'&&!confirm('Azzerare TUTTO il magazzino (ogni inchiostro a 0 g)? Serve per rifare l\'inventario da capo. Lo storico resta.'))return; allInventario.forEach(i=>{i.grammi=0;}); postGAS({action:'azzeraMagazzino'}).catch(()=>{}); if(window._bumpData)window._bumpData(); };
 
   const inks = React.useMemo(()=>allInchiostri.map(ink=>{
     const code=ink.Codice||'';
@@ -3119,10 +3120,11 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
         {[['tutti','Tutti'],['in_mag','In magazzino'],['basso','Sotto soglia'],['no_code','Senza codice']].map(([k,l])=>(
           <button key={k} onClick={()=>setFilterM(k)} style={{padding:'4px 12px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:11,cursor:'pointer',background:filterM===k?theme.ink:'transparent',color:filterM===k?'#fff':theme.sub,border:`1.4px solid ${filterM===k?theme.ink:rgba(theme.ink,0.22)}`,transition:'all .18s'}}>{l}</button>
         ))}
-        <div style={{width:1,height:18,background:theme.line}}/>
         {[['asc','↑ stock'],['desc','↓ stock'],['az','A–Z']].map(([k,l])=>(
           <button key={k} onClick={()=>setSortM(k)} style={{padding:'4px 12px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:11,cursor:'pointer',background:sortM===k?theme.ink:'transparent',color:sortM===k?'#fff':theme.sub,border:`1.4px solid ${sortM===k?theme.ink:rgba(theme.ink,0.22)}`,transition:'all .18s'}}>{l}</button>
         ))}
+        <div style={{width:1,height:18,background:theme.line}}/>
+        <button onClick={azzeraTutto} title="Azzera tutto il magazzino (rifare l'inventario da capo)" style={{padding:'4px 12px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:11,cursor:'pointer',background:'transparent',color:'#E4002B',border:`1.4px solid ${rgba('#E4002B',0.35)}`}}>⟲ Azzera</button>
       </div>
       {/* Ink list */}
       <div style={{position:'relative',zIndex:10,flex:1,overflowY:'auto',padding:'14px 28px 32px'}}>
@@ -4155,7 +4157,12 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
       else { if(idx>=0) allInventario[idx].grammi=r.grammi; else allInventario.push({inchiostro:r.ink,grammi:r.grammi,soglia:null,note:''}); }
     });
     if(purpose==='nuovi'){ postGAS({action:'aggiungiCarico',carichi:tallyRows.map(r=>({inchiostro:r.ink,grammi:r.jars*1000})),riferimento:'nuovi barattoli'}).catch(()=>{}); }
-    else { tallyRows.forEach(r=>postGAS({action:'aggiornaStock',inchiostro:r.ink,grammi:r.grammi}).catch(()=>{})); }
+    else {
+      const items=tallyRows.map(r=>({inchiostro:r.ink,grammi:r.grammi,jars:r.jars,open:r.open}));
+      const sessionId='inv_'+(typeof Date!=='undefined'?Date.now():0)+'_'+(typeof Math!=='undefined'?Math.floor(Math.random()*1000):0);
+      // chiudiInventario = stock assoluto + storico datato; fallback al vecchio aggiornaStock se non deployato
+      postGAS({action:'chiudiInventario',items,sessionId}).catch(()=>{ items.forEach(it=>postGAS({action:'aggiornaStock',inchiostro:it.inchiostro,grammi:it.grammi}).catch(()=>{})); });
+    }
     playBeep('saved'); if(window._bumpData)window._bumpData(); setTally({}); seqRef.current=0; try{localStorage.removeItem(SKEY);}catch(e){} clearInvDraftRemote(); onClose();
   };
 
@@ -4427,6 +4434,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=107, alertThresho
   const [scanOpen,setScanOpen]=React.useState(false);
   const [codiciOpen,setCodiciOpen]=React.useState(false);
   const ink='#0B0B0B', sub='rgba(11,11,11,0.5)', faint='rgba(11,11,11,0.35)', line='rgba(11,11,11,0.10)';
+  const azzeraTutto=()=>{ if(typeof confirm!=='undefined'&&!confirm('Azzerare TUTTO il magazzino (ogni inchiostro a 0 g)? Serve per rifare l\'inventario da capo. Lo storico resta.'))return; allInventario.forEach(i=>{i.grammi=0;}); postGAS({action:'azzeraMagazzino'}).catch(()=>{}); if(window._bumpData)window._bumpData(); };
 
   const inks=React.useMemo(()=>allInchiostri.map(x=>{
     const code=x.Codice||'';
@@ -4478,6 +4486,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=107, alertThresho
             const on=filterM===k;
             return <button key={k} onClick={()=>setFilterM(k)} style={{padding:'7px 13px',borderRadius:99,border:'none',cursor:'pointer',background:on?ink:'rgba(11,11,11,0.07)',color:on?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:13,whiteSpace:'nowrap'}}>{l}{k==='basso'&&belowCnt>0?' · '+belowCnt:''}{k==='no_code'&&noCodeCnt>0?' · '+noCodeCnt:''}</button>;
           })}
+          <button onClick={azzeraTutto} title="Azzera magazzino" style={{padding:'7px 13px',borderRadius:99,border:`1.4px solid ${rgba('#E4002B',0.35)}`,cursor:'pointer',background:'transparent',color:'#E4002B',fontFamily:'Nebulica',fontWeight:700,fontSize:13,whiteSpace:'nowrap'}}>⟲ Azzera</button>
         </div>
       </div>
       {/* list */}
