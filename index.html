@@ -4017,6 +4017,8 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
   // Desktop/Mac (nessun touch) → solo lettore esterno, la fotocamera non si attiva.
   const noCam = (typeof navigator!=='undefined') && (navigator.maxTouchPoints||0)===0;
   const [mode,setMode]=React.useState(noCam?'hid':'camera');
+  const [learn,setLearn]=React.useState(false); // 'Impara codici': mappa i barcode SENZA contare kg
+  const [log,setLog]=React.useState([]);         // registro sessione: [{barcode, ink, status}]
   const [flash,setFlash]=React.useState(null);
   const [unknown,setUnknown]=React.useState(null); // codice non riconosciuto
   const [pickQ,setPickQ]=React.useState('');
@@ -4024,8 +4026,9 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
   const flashT=React.useRef(null);
   const ink='#0B0B0B';
   const doFlash=k=>{ setFlash(k); if(flashT.current)clearTimeout(flashT.current); flashT.current=setTimeout(()=>setFlash(null),600); };
+  const pushLog=(barcode,ink,status)=>setLog(l=>[{barcode,ink,status},...l.filter(e=>e.barcode!==barcode)].slice(0,60));
 
-  React.useEffect(()=>{ if(open){ setUnknown(null); setPickQ(''); setMode(noCam?'hid':'camera'); } },[open]);
+  React.useEffect(()=>{ if(open){ setUnknown(null); setPickQ(''); setMode(noCam?'hid':'camera'); setLog([]); } },[open]);
 
   const resolve=React.useCallback((raw)=>{
     const rawTrim=String(raw).trim();
@@ -4033,13 +4036,13 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
     if(norm.length<2){ playBeep('warn'); doFlash('warn'); return; }
     // 1) mappa condivisa (barcode → inchiostro): vale su tutti i dispositivi
     const mapped=allBarcodes.find(b=>normInkCode(b.barcode)===norm);
-    if(mapped){ playBeep('ok'); doFlash('ok'); onPick(mapped.inchiostro); return; }
-    // 2) il codice È già la sigla inchiostro (es. "AS 40")
+    if(mapped){ playBeep('ok'); doFlash('ok'); if(learn){ pushLog(rawTrim,mapped.inchiostro,'known'); } else { onPick(mapped.inchiostro); } return; }
+    // 2) il codice È già la sigla inchiostro (es. "AS 40") — riconosciuto da solo, non serve mapparlo
     const inkObj=allInchiostri.find(x=>normInkCode(x.Codice)===norm);
-    if(inkObj){ playBeep('ok'); doFlash('ok'); onPick(inkObj.Codice); return; }
+    if(inkObj){ playBeep('ok'); doFlash('ok'); if(learn){ pushLog(rawTrim,inkObj.Codice,'sigla'); } else { onPick(inkObj.Codice); } return; }
     // 3) sconosciuto → chiedi a quale inchiostro appartiene
     playBeep('warn'); doFlash('warn'); setUnknown(rawTrim);
-  },[onPick]);
+  },[onPick,learn]);
 
   // Assegna un codice sconosciuto a un inchiostro e LO SALVA nel foglio condiviso
   const assignUnknown=React.useCallback((inkCode)=>{
@@ -4048,9 +4051,10 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
       allBarcodes=allBarcodes.filter(b=>b.barcode!==bc).concat([{barcode:bc,inchiostro:inkCode}]);
       postGAS({action:'mapBarcode',barcode:bc,inchiostro:inkCode}).then(()=>loadBarcodeMap()).catch(()=>{});
       playBeep('saved');
+      if(learn){ pushLog(bc,inkCode,'new'); setUnknown(null); setPickQ(''); return; } // resta in scansione, NIENTE kg
     }
     onPick(inkCode);
-  },[unknown,onPick]);
+  },[unknown,onPick,learn]);
 
   useHidScanner({enabled:open&&mode==='hid'&&!unknown, onScan:resolve});
   const {cameraLoading,cameraError}=useCameraScanner({enabled:open&&mode==='camera'&&!unknown, onScan:resolve, videoRef});
@@ -4065,7 +4069,7 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
       {/* header */}
       <div style={{padding:'calc(env(safe-area-inset-top,44px) + 12px) 16px 10px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
         <button onClick={onClose} style={{width:44,height:44,borderRadius:99,border:'none',background:'rgba(255,255,255,0.14)',color:'#fff',fontSize:20,cursor:'pointer'}}>✕</button>
-        <div style={{color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:18}}>Scansiona barattolo</div>
+        <div style={{color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:18}}>{learn?'Impara codici':'Scansiona barattolo'}</div>
         <div style={{flex:1}}/>
         <div style={{display:'flex',gap:6,background:'rgba(255,255,255,0.12)',borderRadius:99,padding:4}}>
           {(noCam?[['hid','⌨︎ Lettore esterno']]:[['camera','📷'],['hid','⌨︎']]).map(([k,l])=>(
@@ -4073,6 +4077,16 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
           ))}
         </div>
       </div>
+      {/* Selettore scopo: Inventario (apre la scheda kg) vs Impara codici (mappa e basta, niente kg) */}
+      {!unknown && (
+        <div style={{padding:'0 16px 10px',flexShrink:0}}>
+          <div style={{display:'flex',gap:4,background:'rgba(255,255,255,0.10)',borderRadius:14,padding:4}}>
+            {[[false,'📦 Inventario'],[true,'⌗ Impara codici']].map(([k,l])=>(
+              <button key={String(k)} onClick={()=>setLearn(k)} style={{flex:1,padding:'9px 10px',borderRadius:11,border:'none',cursor:'pointer',background:learn===k?'#fff':'transparent',color:learn===k?'#0B0B0B':'rgba(255,255,255,0.85)',fontFamily:'Nebulica',fontWeight:700,fontSize:13.5}}>{l}</button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {unknown ? (
         /* codice non riconosciuto → scelta manuale (nessun dato salvato sul dispositivo) */
@@ -4106,9 +4120,26 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF'}){
               Pronto per il lettore esterno.<br/>Scansiona il codice del barattolo.
             </div>
           )}
-          <div style={{color:'rgba(255,255,255,0.7)',fontFamily:'Nebulica',fontSize:13,textAlign:'center',padding:'16px 8px'}}>
-            Inquadra il codice <b style={{color:'#fff'}}>AS…</b> del barattolo. Al riconoscimento si apre la scheda inventario.
+          <div style={{color:'rgba(255,255,255,0.7)',fontFamily:'Nebulica',fontSize:13,textAlign:'center',padding:'14px 8px 8px'}}>
+            {learn
+              ? <>Scansiona <b style={{color:'#fff'}}>tutti i codici</b> (anche i due su uno stesso barattolo). Registro i codici <b style={{color:'#fff'}}>senza contare kg</b>.</>
+              : <>Inquadra il codice <b style={{color:'#fff'}}>AS…</b> del barattolo. Al riconoscimento si apre la scheda inventario.</>}
           </div>
+          {learn && (
+            <div style={{maxHeight:'26vh',overflowY:'auto',margin:'0 0 8px',padding:'0 2px'}}>
+              <div style={{display:'flex',justifyContent:'center',gap:16,padding:'4px 0 10px',color:'rgba(255,255,255,0.9)',fontFamily:'Nebulica',fontWeight:700,fontSize:13}}>
+                <span>✓ {log.filter(e=>e.status==='new').length} nuovi</span>
+                <span style={{color:'rgba(255,255,255,0.5)'}}>{log.filter(e=>e.status!=='new').length} già noti</span>
+              </div>
+              {log.map((e,idx)=>(
+                <div key={e.barcode+idx} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',marginBottom:5,borderRadius:11,background:'rgba(255,255,255,0.08)'}}>
+                  <span style={{fontSize:13}}>{e.status==='new'?'🆕':e.status==='sigla'?'🔤':'✓'}</span>
+                  <span style={{fontFamily:'"JetBrains Mono",monospace',fontSize:11,color:'rgba(255,255,255,0.7)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{e.barcode}</span>
+                  <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:'#fff',background:'rgba(255,255,255,0.16)',padding:'3px 9px',borderRadius:99,flexShrink:0}}>{e.ink}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <ManualInkEntry onSubmit={resolve} accent={accent}/>
         </div>
       )}
