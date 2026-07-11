@@ -3034,6 +3034,7 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
   const [caricaInk, setCaricaInk] = React.useState(null);
   const [caricaOpen, setCaricaOpen] = React.useState(false);
   const [scanOpen, setScanOpen] = React.useState(false);
+  const [codiciOpen, setCodiciOpen] = React.useState(false);
   const openCarica = code=>{ setCaricaInk(code||null); setCaricaOpen(true); };
 
   const inks = React.useMemo(()=>allInchiostri.map(ink=>{
@@ -3077,8 +3078,11 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
         </div>
         <div style={{width:600,flexShrink:0,display:'flex',alignItems:'center',gap:12}}>
           <div style={{flex:1}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca inchiostro…"/></div>
-          <button onClick={()=>setScanOpen(true)} style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 20px',height:44,borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.ink,background:'transparent',border:`1.6px solid ${theme.ink}`,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
+          <button onClick={()=>setScanOpen(true)} style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 18px',height:44,borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.ink,background:'transparent',border:`1.6px solid ${theme.ink}`,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
             ⌨︎ Scansiona
+          </button>
+          <button onClick={()=>setCodiciOpen(true)} title="Vedi e correggi i codici a barre" style={{display:'inline-flex',alignItems:'center',gap:6,padding:'0 16px',height:44,borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.sub,background:'transparent',border:`1.4px solid ${rgba(theme.ink,0.22)}`,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
+            ⌗ Codici
           </button>
           <button onClick={()=>openCarica(null)} style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 22px',height:44,borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:'#fff',background:theme.ink,border:'none',cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
             <IcoPlus size={16} color="#fff"/> Carico
@@ -3141,6 +3145,7 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
       </div>
       <CaricaSheet open={caricaOpen} inkCode={caricaInk} onClose={()=>setCaricaOpen(false)} theme={theme} tare={tare}/>
       <ScannerOverlay open={scanOpen} accent={theme.accent} onClose={()=>setScanOpen(false)} onPick={code=>{ setScanOpen(false); openCarica(code); }}/>
+      <CodiciManager open={codiciOpen} accent={theme.accent} onClose={()=>setCodiciOpen(false)}/>
     </div>
   );
 }
@@ -4157,6 +4162,99 @@ function ManualInkEntry({onSubmit, accent}){
   );
 }
 
+// Pannello gestione codici: vedi quali inchiostri hanno/non hanno codici, cerca un codice
+// per sapere a chi è associato, e riassegna un codice all'inchiostro giusto (fix mis-scan).
+function CodiciManager({open, onClose, accent='#0033FF'}){
+  const [q,setQ]=React.useState('');
+  const [onlyMissing,setOnlyMissing]=React.useState(false);
+  const [reassign,setReassign]=React.useState(null); // barcode in riassegnazione
+  const [pickQ,setPickQ]=React.useState('');
+  const [tick,setTick]=React.useState(0);
+  const ink='#0B0B0B';
+
+  React.useEffect(()=>{ if(open){ setQ(''); setOnlyMissing(false); setReassign(null); setPickQ('');
+    loadBarcodeMap().then(()=>setTick(t=>t+1)).catch(()=>{}); } },[open]);
+
+  const rows=React.useMemo(()=>{
+    const map={};
+    allInchiostri.forEach(x=>{ const c=x.Codice||''; if(c) map[c]={codice:c,nome:x.Nome_completo||c,codes:[]}; });
+    allBarcodes.forEach(b=>{ const k=b.inchiostro; if(!map[k]) map[k]={codice:k,nome:k,codes:[]}; map[k].codes.push(b.barcode); });
+    let list=Object.values(map);
+    if(q){ const s=q.toLowerCase(); list=list.filter(r=>r.codice.toLowerCase().includes(s)||r.nome.toLowerCase().includes(s)||r.codes.some(c=>c.toLowerCase().includes(s))); }
+    if(onlyMissing) list=list.filter(r=>r.codes.length===0);
+    list.sort((a,b)=>a.codice.localeCompare(b.codice,undefined,{numeric:true}));
+    return list;
+  },[q,onlyMissing,tick]);
+
+  const withCode=React.useMemo(()=>new Set(allBarcodes.map(b=>b.inchiostro)).size,[tick]);
+  const pickList=React.useMemo(()=>{ const s=pickQ.toLowerCase();
+    return allInchiostri.filter(x=>{const c=(x.Codice||'').toLowerCase(),n=(x.Nome_completo||'').toLowerCase();return !s||c.includes(s)||n.includes(s);}).slice(0,40);
+  },[pickQ,reassign]);
+
+  const doReassign=(inkCode)=>{ const bc=reassign; if(!bc)return;
+    allBarcodes=allBarcodes.filter(b=>b.barcode!==bc).concat([{barcode:bc,inchiostro:inkCode}]);
+    postGAS({action:'mapBarcode',barcode:bc,inchiostro:inkCode}).then(()=>loadBarcodeMap()).catch(()=>{});
+    try{playBeep('saved');}catch(e){}
+    setReassign(null); setPickQ(''); setTick(t=>t+1); if(window._bumpData)window._bumpData();
+  };
+
+  if(!open) return null;
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:2000,background:'#F4EFE2',display:'flex',flexDirection:'column',fontFamily:'Nebulica,Arial,sans-serif'}}>
+      <div style={{padding:'calc(env(safe-area-inset-top,20px) + 14px) 18px 12px',display:'flex',alignItems:'center',gap:12,flexShrink:0,borderBottom:'1px solid rgba(11,11,11,0.08)'}}>
+        <button onClick={onClose} style={{width:40,height:40,borderRadius:99,border:'none',background:'rgba(11,11,11,0.06)',color:ink,fontSize:18,cursor:'pointer'}}>✕</button>
+        <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:ink}}>Codici a barre</div>
+        <div style={{flex:1}}/>
+        <div style={{fontFamily:'Nebulica',fontSize:12,color:'rgba(11,11,11,0.5)'}}>{withCode} con codice</div>
+      </div>
+
+      {reassign ? (
+        <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+          <div style={{padding:'16px 18px 8px'}}>
+            <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:ink}}>Riassegna codice</div>
+            <div style={{fontFamily:'Nebulica',fontSize:13,color:'rgba(11,11,11,0.55)',marginTop:3}}><b style={{fontFamily:'"JetBrains Mono",monospace'}}>{reassign}</b> → scegli l'inchiostro corretto:</div>
+            <input value={pickQ} onChange={e=>setPickQ(e.target.value)} placeholder="cerca inchiostro…" style={{width:'100%',boxSizing:'border-box',marginTop:10,border:'1.5px solid rgba(11,11,11,0.16)',borderRadius:12,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',outline:'none'}}/>
+          </div>
+          <div style={{flex:1,overflowY:'auto',padding:'0 14px 24px'}}>
+            {pickList.map(x=>(
+              <div key={x.Codice} onClick={()=>doReassign(x.Codice)} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',marginBottom:6,borderRadius:14,background:'#fff',border:'1px solid rgba(11,11,11,0.10)',cursor:'pointer'}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,background:ink,color:'#fff',padding:'6px 10px',borderRadius:99,minWidth:52,textAlign:'center'}}>{x.Codice}</div>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink}}>{x.Nome_completo||x.Codice}</div>
+              </div>
+            ))}
+            <button onClick={()=>{setReassign(null);setPickQ('');}} style={{width:'100%',height:44,marginTop:8,borderRadius:12,border:'1.5px solid rgba(11,11,11,0.2)',background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>Annulla</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{padding:'12px 18px 8px',display:'flex',gap:10,alignItems:'center',flexShrink:0}}>
+            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="cerca codice o inchiostro…" style={{flex:1,boxSizing:'border-box',border:'1.5px solid rgba(11,11,11,0.14)',borderRadius:12,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',outline:'none'}}/>
+            <button onClick={()=>setOnlyMissing(v=>!v)} style={{padding:'10px 14px',borderRadius:99,border:'none',cursor:'pointer',background:onlyMissing?ink:'rgba(11,11,11,0.07)',color:onlyMissing?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:13,whiteSpace:'nowrap'}}>Senza codice</button>
+          </div>
+          <div style={{flex:1,overflowY:'auto',padding:'6px 14px 40px'}}>
+            {rows.map(r=>(
+              <div key={r.codice} style={{display:'flex',alignItems:'flex-start',gap:12,padding:'12px 14px',marginBottom:6,borderRadius:14,background:'#fff',border:`1px solid ${r.codes.length===0?'rgba(228,0,43,0.18)':'rgba(11,11,11,0.08)'}`}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,background:ink,color:'#fff',padding:'6px 10px',borderRadius:99,minWidth:54,textAlign:'center',flexShrink:0}}>{r.codice}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.nome}</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:6}}>
+                    {r.codes.length===0
+                      ? <span style={{fontFamily:'Nebulica',fontSize:12,color:'rgba(228,0,43,0.7)'}}>— nessun codice</span>
+                      : r.codes.map(c=>(
+                        <button key={c} onClick={()=>{setReassign(c);setPickQ('');}} title="Tocca per riassegnare a un altro inchiostro" style={{fontFamily:'"JetBrains Mono",monospace',fontSize:11,color:ink,background:'rgba(11,11,11,0.06)',border:'1px solid rgba(11,11,11,0.12)',borderRadius:8,padding:'5px 9px',cursor:'pointer'}}>{c} ✎</button>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {rows.length===0&&<div style={{padding:'40px 0',textAlign:'center',fontFamily:'Nebulica',color:'rgba(11,11,11,0.35)',fontSize:14}}>Nessun risultato.</div>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════ MAGAZZINO MOBILE ═══════════════════ */
 // Modello: UN numero (grammi totali) per inchiostro. Da lì si deriva kg + "X pieni / Yg avviato".
 // Inventario = barattoli sigillati (stepper, 1 = 1kg) + barattolo aperto pesato (lordo − tara).
@@ -4166,6 +4264,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=107, alertThresho
   const [filterM,setFilterM]=React.useState('tutti');
   const [caricaInk,setCaricaInk]=React.useState(null);
   const [scanOpen,setScanOpen]=React.useState(false);
+  const [codiciOpen,setCodiciOpen]=React.useState(false);
   const ink='#0B0B0B', sub='rgba(11,11,11,0.5)', faint='rgba(11,11,11,0.35)', line='rgba(11,11,11,0.10)';
 
   const inks=React.useMemo(()=>allInchiostri.map(x=>{
@@ -4209,6 +4308,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=107, alertThresho
         <div style={{display:'flex',gap:10}}>
           <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="cerca inchiostro…" style={{flex:1,minWidth:0,boxSizing:'border-box',border:'1.5px solid rgba(11,11,11,0.14)',borderRadius:14,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',color:ink,outline:'none'}}/>
           <button onClick={()=>setScanOpen(true)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'0 16px',borderRadius:14,border:'none',background:ink,color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>📷 Scansiona</button>
+          <button onClick={()=>setCodiciOpen(true)} title="Codici a barre" style={{flexShrink:0,width:46,borderRadius:14,border:`1.5px solid rgba(11,11,11,0.14)`,background:'#fff',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:16,cursor:'pointer'}}>⌗</button>
         </div>
         <div style={{display:'flex',gap:7,padding:'12px 0'}}>
           {[['tutti','Tutti'],['in_mag','In magazzino'],['basso','Sotto soglia'],['no_code','Senza codice']].map(([k,l])=>{
@@ -4251,6 +4351,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=107, alertThresho
       </div>
       <CaricaMobileSheet code={caricaInk} onClose={()=>setCaricaInk(null)} tare={tare} accent={accent}/>
       <ScannerOverlay open={scanOpen} accent={accent} onClose={()=>setScanOpen(false)} onPick={code=>{ setScanOpen(false); setCaricaInk(code); }}/>
+      <CodiciManager open={codiciOpen} accent={accent} onClose={()=>setCodiciOpen(false)}/>
       <BottomNav activeKey="magazzino" accent={accent} restColor="#0B0B0B" bg={bg} onNuova={onNuova} onTabChange={onTabChange}/>
     </div>
   );
