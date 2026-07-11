@@ -2356,25 +2356,25 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
               <div aria-hidden style={{position:'absolute',top:'50%',left:'50%',width:780,height:620,transform:'translate(-50%,-50%)',borderRadius:'50%',pointerEvents:'none',zIndex:0,background:`radial-gradient(closest-side, ${rgba(selected.hex,0.5)}, ${rgba(selected.hex,0.22)} 46%, transparent 72%)`,filter:'blur(46px)',transition:'background .5s ease'}}/>
             )}
             <div key={'card-'+selected.code} style={{position:'relative',zIndex:1,height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:44,overflow:'hidden',margin:'0 10px',...surface(theme),border:'none',boxShadow:`0 8px 20px ${rgba('#000',0.05)}, 0 30px 60px ${rgba(selected.hex,0.34)}, 0 64px 110px ${rgba(selected.hex,0.26)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1), box-shadow .3s ease`,animation:cardEnterAnim(cardEnter, navDir==='down'?'fromTop':'fromBottom'),transformOrigin:'center center'}}>
-              <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'62px 18px 14px',flexShrink:0,position:'relative',transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
-                <div style={{position:'absolute',top:14,right:14,display:'flex',gap:10}}>
+              <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'66px 18px 14px',flexShrink:0,position:'relative',transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
+                <div style={{position:'absolute',top:18,right:18,display:'flex',gap:10}}>
                   {(()=>{
                     const isFav = favoritiSet.has(selected.code);
                     const isApproved = approvedSet.has(selected.code);
                     const isVerif = verificatoSet.has(selected.code);
-                    const btnStyle = {width:40,height:40,borderRadius:99,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:rgba(fg==='#fff'?'#fff':'#000',0.12),border:`1.4px solid ${rgba(fg==='#fff'?'#fff':'#000',0.3)}`};
+                    const btnStyle = {width:48,height:48,borderRadius:99,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:rgba(fg==='#fff'?'#fff':'#000',0.12),border:`1.4px solid ${rgba(fg==='#fff'?'#fff':'#000',0.3)}`};
                     return [
                       <button key="verif" onClick={()=>toggleVerificato(selected.code)} title={isVerif?'Rimuovi verifica':'Segna come verificato'} style={{...btnStyle,background:isVerif?'rgba(217,119,6,0.22)':btnStyle.background,border:isVerif?'1.4px solid rgba(217,119,6,0.7)':btnStyle.border}}>
-                        <IcoThumbsUp size={17} color={isVerif?'#D97706':rgba(fg,0.55)}/>
+                        <IcoThumbsUp size={20} color={isVerif?'#D97706':rgba(fg,0.55)}/>
                       </button>,
                       <button key="approve" onClick={()=>toggleApprovato(selected.code)} title={isApproved?'Rimuovi approvazione':'Approva HEX'} style={{...btnStyle,background:isApproved?'rgba(34,197,94,0.22)':btnStyle.background,border:isApproved?'1.4px solid rgba(34,197,94,0.6)':btnStyle.border}}>
-                        <IcoSeal size={18} color={isApproved?'#22C55E':rgba(fg,0.55)}/>
+                        <IcoSeal size={21} color={isApproved?'#22C55E':rgba(fg,0.55)}/>
                       </button>,
                       <button key="fav" onClick={()=>toggleFavorito(selected.code)} style={btnStyle}>
-                        <IcoStar size={19} color={fg} fill={isFav?fg:'none'}/>
+                        <IcoStar size={22} color={fg} fill={isFav?fg:'none'}/>
                       </button>,
                       <button key="edit" onClick={onEdit?()=>onEdit(selected.code):undefined} style={btnStyle}>
-                        <IcoEdit size={18} color={fg}/>
+                        <IcoEdit size={21} color={fg}/>
                       </button>,
                     ];
                   })()}
@@ -2412,10 +2412,8 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   <NotesBlock note={recipe.note} vecchioNome={recipe.vecchioNome} theme={theme}/>
                   <div style={{marginTop:14,display:'flex',gap:12,alignItems:'center'}}>
                     <div style={{flex:1}}><PrintButton theme={theme} onClick={recipe?()=>stampaPDF(selected,recipe,qty):undefined}/></div>
-                    <button onClick={()=>setMescolaOpen(true)} style={{display:'inline-flex',alignItems:'center',gap:7,padding:'0 18px',height:52,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:14,color:theme.ink,...glass(theme,{strong:true})}}>
-                      <IcoBox size={17} color={theme.ink}/> Mescola</button>
-                    <button onClick={onEdit?()=>onEdit(selected.code):undefined} style={{display:'inline-flex',alignItems:'center',gap:9,padding:'0 22px',height:52,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:14,color:theme.ink,...glass(theme,{strong:true})}}>
-                      <IcoEdit size={17} color={theme.ink}/> Modifica</button>
+                    <button onClick={()=>setMescolaOpen(true)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'0 26px',height:52,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:15,color:theme.ink,...glass(theme,{strong:true})}}>
+                      <IcoBox size={18} color={theme.ink}/> Mescola</button>
                   </div>
                 </div>
               </div>
