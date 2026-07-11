@@ -16,6 +16,7 @@ function doGet(e) {
     if (action === 'getVerificati')      return getVerificati();
     if (action === 'getInventario')      return jsonResp(getInventario());
     if (action === 'getBarcodeMap')      return jsonResp(getBarcodeMap());
+    if (action === 'getInvDraft')        return jsonResp(getInvDraft());
     if (action === 'getVerifiche')       return jsonResp(getVerifiche());
     if (action === 'getHexAlternative')  return jsonResp(getHexAlternative(e.parameter.pantone_id || ''));
     return jsonResp({ error: 'Azione sconosciuta' });
@@ -76,6 +77,8 @@ function doPost(e) {
       case 'registraMescola':         result = registraMescola(data);         break;
       case 'aggiornaStock':           result = aggiornaStock(data);           break;
       case 'mapBarcode':              result = mapBarcode(data);              break;
+      case 'saveInvDraft':            result = saveInvDraft(data);            break;
+      case 'clearInvDraft':           result = clearInvDraft();               break;
       case 'salvaVerifica':           result = salvaVerifica(data);           break;
       case 'backfillMondayIds':       result = backfillMondayIds(data);       break;
       default: result = { error: 'Azione sconosciuta: ' + data.action };
@@ -696,6 +699,25 @@ function mapBarcode(data) {
   }
   sh.appendRow([barcode, inchiostro, ts]);
   return { ok: true, updated: false };
+}
+
+// ── BOZZA INVENTARIO (condivisa, multi-dispositivo) ───────────────────────
+// Una sola bozza in corso, salvata come JSON negli ScriptProperties (no foglio).
+// pausa → saveInvDraft; ripresa su un altro dispositivo → getInvDraft; chiusura → clearInvDraft.
+function getInvDraft() {
+  var p = PropertiesService.getScriptProperties().getProperty('invDraft');
+  if (!p) return { ok: true, draft: null };
+  try { return { ok: true, draft: JSON.parse(p) }; } catch(e) { return { ok: true, draft: null }; }
+}
+function saveInvDraft(data) {
+  var draft = data.draft || null;
+  if (!draft) { PropertiesService.getScriptProperties().deleteProperty('invDraft'); return { ok: true }; }
+  PropertiesService.getScriptProperties().setProperty('invDraft', JSON.stringify(draft));
+  return { ok: true };
+}
+function clearInvDraft() {
+  PropertiesService.getScriptProperties().deleteProperty('invDraft');
+  return { ok: true };
 }
 
 // ── VERIFICHE TRASFERIMENTO ───────────────────────────────────────────────

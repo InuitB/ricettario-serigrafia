@@ -48,6 +48,7 @@ let allComponenti = [];
 let allInchiostri = [];
 let allInventario = []; // [{inchiostro, grammi, soglia, note}]
 let allBarcodes = [];   // [{barcode, inchiostro}] — mappatura condivisa codice→inchiostro
+let invDraftRemote = null; // bozza inventario condivisa (multi-dispositivo): {purpose,subMode,tally,seq,ts}
 let DESK_PANTONES = [];
 let favoritiSet  = new Set();
 let approvedSet  = new Set();
@@ -96,6 +97,18 @@ async function loadBarcodeMap() {
     if (d.ok) allBarcodes = d.barcodes || [];
   } catch(e) { /* Code.gs non ancora deployato con getBarcodeMap — OK, allBarcodes resta [] */ }
 }
+
+// Bozza inventario condivisa (multi-dispositivo): salvata via saveInvDraft, letta qui.
+async function loadInvDraft() {
+  try {
+    const resp = await fetch(SCRIPT_URL + '?action=getInvDraft');
+    const d = await resp.json();
+    invDraftRemote = (d && d.draft) || null;
+  } catch(e) { /* Code.gs non aggiornato — resta null */ }
+  return invDraftRemote;
+}
+function saveInvDraftRemote(draft) { postGAS({action:'saveInvDraft', draft}).catch(()=>{}); }
+function clearInvDraftRemote() { invDraftRemote=null; postGAS({action:'clearInvDraft'}).catch(()=>{}); }
 
 async function postGAS(payload) {
   const resp = await fetch(SCRIPT_URL, {
@@ -3067,6 +3080,7 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
   const belowCnt=inks.filter(i=>i.status!=='ok').length;
   const totG=inks.reduce((s,i)=>s+i.grammi,0);
   const fmtG=g=>g>=1000?(g/1000).toFixed(2)+' kg':g.toFixed(0)+' g';
+  React.useEffect(()=>{ loadInvDraft().then(()=>{ if(window._bumpData)window._bumpData(); }).catch(()=>{}); },[]);
   const invPaused=!scanOpen&&readInvSession();
 
   return (
@@ -4028,13 +4042,18 @@ function useCameraScanner({enabled,onScan,videoRef}){
 // Normalizza un codice per il confronto con la sigla inchiostro: "AS  40" ⇒ "AS40"
 const normInkCode = s => String(s||'').toUpperCase().replace(/\s+/g,'');
 
-// Legge la sessione inventario in pausa (salvata da ScannerOverlay in localStorage).
+// Legge la sessione inventario in pausa: la più recente tra locale (localStorage) e remota (condivisa).
+function invSessionSummary(s){
+  if(!s||!s.tally)return null;
+  const rows=Object.keys(s.tally).map(k=>s.tally[k]).filter(v=>v&&(v.jars>0||v.open>0));
+  if(!rows.length)return null;
+  return {jars:rows.reduce((a,v)=>a+(v.jars||0),0), inks:rows.length, purpose:s.purpose||'inventario', ts:s.ts||0};
+}
 function readInvSession(){
-  try{ const s=JSON.parse(localStorage.getItem('mag_inv_session')||'null');
-    if(s&&s.tally){ const rows=Object.keys(s.tally).map(k=>s.tally[k]).filter(v=>v&&(v.jars>0||v.open>0));
-      if(rows.length) return {jars:rows.reduce((a,v)=>a+(v.jars||0),0), inks:rows.length, purpose:s.purpose||'inventario'}; }
-  }catch(e){}
-  return null;
+  let local=null; try{ local=JSON.parse(localStorage.getItem('mag_inv_session')||'null'); }catch(e){}
+  const L=invSessionSummary(local), R=invSessionSummary(invDraftRemote);
+  if(L&&R) return L.ts>=R.ts?L:R;
+  return L||R;
 }
 
 // Overlay scanner del magazzino. Tre scopi:
@@ -4066,16 +4085,21 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
   const doToast=t=>{ setToast(t); if(toastT.current)clearTimeout(toastT.current); toastT.current=setTimeout(()=>setToast(null),1100); };
   const pushLog=(barcode,ink,status)=>setLog(l=>[{barcode,ink,status},...l.filter(e=>e.barcode!==barcode)].slice(0,60));
   const bump=(ink,dj,openVal)=>{ const o=++seqRef.current; setTally(t=>{ const cur=t[ink]||{jars:0,open:0,ord:0}; return {...t,[ink]:{jars:Math.max(0,cur.jars+(dj||0)),open:openVal!=null?openVal:cur.open,ord:o}}; }); };
-  const ricomincia=()=>{ if(typeof confirm==='undefined'||confirm('Svuotare il conteggio in corso?')){ setTally({}); seqRef.current=0; try{localStorage.removeItem(SKEY);}catch(e){} } };
+  const ricomincia=()=>{ if(typeof confirm==='undefined'||confirm('Svuotare il conteggio in corso?')){ setTally({}); seqRef.current=0; try{localStorage.removeItem(SKEY);}catch(e){} clearInvDraftRemote(); } };
 
-  // Ripristina una sessione interrotta (chiusa senza salvare) da localStorage.
-  React.useEffect(()=>{ if(open){ setUnknown(null); setPickQ(''); setMode(noCam?'hid':'camera'); setLog([]); setWeighFor(null); setGross('');
-    let s=null; try{ s=JSON.parse(localStorage.getItem(SKEY)||'null'); }catch(e){}
-    if(s&&s.tally&&Object.keys(s.tally).length){ setTally(s.tally); setPurpose(s.purpose||'inventario'); setSubMode(s.subMode||'sigillato'); seqRef.current=s.seq||0; }
+  // All'apertura ripristina la sessione più recente tra locale e remota (ripresa multi-dispositivo).
+  React.useEffect(()=>{ if(!open) return;
+    setUnknown(null); setPickQ(''); setMode(noCam?'hid':'camera'); setLog([]); setWeighFor(null); setGross('');
+    let local=null; try{ local=JSON.parse(localStorage.getItem(SKEY)||'null'); }catch(e){}
+    const remote=invDraftRemote;
+    const pick=(local&&local.tally&&Object.keys(local.tally).length&&remote&&remote.tally&&Object.keys(remote.tally).length)
+      ? ((local.ts||0)>=(remote.ts||0)?local:remote)
+      : ((local&&local.tally&&Object.keys(local.tally).length)?local:remote);
+    if(pick&&pick.tally&&Object.keys(pick.tally).length){ setTally(pick.tally); setPurpose(pick.purpose||'inventario'); setSubMode(pick.subMode||'sigillato'); seqRef.current=pick.seq||0; }
     else { setTally({}); setPurpose('inventario'); setSubMode('sigillato'); seqRef.current=0; }
-  } },[open]);
-  // Salva la sessione in corso a ogni modifica → sopravvive a chiusura/ricarica.
-  React.useEffect(()=>{ if(!open)return; try{ if(Object.keys(tally).length) localStorage.setItem(SKEY,JSON.stringify({purpose,subMode,tally,seq:seqRef.current})); }catch(e){} },[tally,purpose,subMode,open]);
+  },[open]);
+  // Salva la sessione in corso in locale a ogni modifica → sopravvive a chiusura/ricarica (stesso dispositivo).
+  React.useEffect(()=>{ if(!open)return; try{ if(Object.keys(tally).length) localStorage.setItem(SKEY,JSON.stringify({purpose,subMode,tally,seq:seqRef.current,ts:(typeof Date!=='undefined'?Date.now():0)})); }catch(e){} },[tally,purpose,subMode,open]);
 
   const addJar=(inkCode)=>{ playBeep('ok'); doFlash('ok'); bump(inkCode,1); doToast('+1 '+inkCode); };
   const startWeigh=(inkCode)=>{ playBeep('ok'); doFlash('ok'); setWeighFor(inkCode); setGross(''); };
@@ -4116,7 +4140,14 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
   const totJars=tallyRows.reduce((s,r)=>s+r.jars,0);
   const totG=tallyRows.reduce((s,r)=>s+r.grammi,0);
 
-  const salva=()=>{
+  // PAUSA: salva la bozza (locale + condivisa) senza toccare il magazzino → riprendibile ovunque.
+  const pausa=()=>{
+    if(tallyRows.length){ const draft={purpose,subMode,tally,seq:seqRef.current,ts:(typeof Date!=='undefined'?Date.now():0)};
+      try{localStorage.setItem(SKEY,JSON.stringify(draft));}catch(e){} saveInvDraftRemote(draft); playBeep('ok'); }
+    onClose();
+  };
+  // CHIUDI: finalizza → scrive nel magazzino e cancella la bozza (locale + condivisa).
+  const chiudi=()=>{
     if(!tallyRows.length){ onClose(); return; }
     tallyRows.forEach(r=>{
       const idx=allInventario.findIndex(i=>i.inchiostro===r.ink);
@@ -4125,7 +4156,7 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
     });
     if(purpose==='nuovi'){ postGAS({action:'aggiungiCarico',carichi:tallyRows.map(r=>({inchiostro:r.ink,grammi:r.jars*1000})),riferimento:'nuovi barattoli'}).catch(()=>{}); }
     else { tallyRows.forEach(r=>postGAS({action:'aggiornaStock',inchiostro:r.ink,grammi:r.grammi}).catch(()=>{})); }
-    playBeep('saved'); if(window._bumpData)window._bumpData(); setTally({}); seqRef.current=0; try{localStorage.removeItem(SKEY);}catch(e){} onClose();
+    playBeep('saved'); if(window._bumpData)window._bumpData(); setTally({}); seqRef.current=0; try{localStorage.removeItem(SKEY);}catch(e){} clearInvDraftRemote(); onClose();
   };
 
   useHidScanner({enabled:open&&mode==='hid'&&!unknown&&!weighFor, onScan:resolve});
@@ -4143,7 +4174,7 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
     <div style={{position:'fixed',inset:0,zIndex:2000,background:'#0B0B0B',display:open?'flex':'none',flexDirection:'column',fontFamily:'Nebulica,Arial,sans-serif'}}>
       {/* header */}
       <div style={{padding:'calc(env(safe-area-inset-top,44px) + 12px) 16px 10px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
-        <button onClick={onClose} style={{width:44,height:44,borderRadius:99,border:'none',background:'rgba(255,255,255,0.14)',color:'#fff',fontSize:20,cursor:'pointer'}}>✕</button>
+        <button onClick={pausa} title="Chiudi (mette in pausa il conteggio)" style={{width:44,height:44,borderRadius:99,border:'none',background:'rgba(255,255,255,0.14)',color:'#fff',fontSize:20,cursor:'pointer'}}>✕</button>
         <div style={{color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:18}}>{title}</div>
         <div style={{flex:1}}/>
         <div style={{display:'flex',gap:6,background:'rgba(255,255,255,0.12)',borderRadius:99,padding:4}}>
@@ -4267,9 +4298,12 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
               </div>
               <div style={{flexShrink:0,paddingBottom:'calc(env(safe-area-inset-bottom,12px) + 10px)'}}>
                 <ManualInkEntry onSubmit={resolve} accent={accent}/>
-                <button onClick={salva} disabled={!tallyRows.length} style={{width:'100%',height:52,borderRadius:14,border:'none',background:tallyRows.length?'#16A34A':'rgba(255,255,255,0.14)',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:16,cursor:tallyRows.length?'pointer':'default',marginTop:2}}>
-                  {purpose==='nuovi'?`Aggiungi al magazzino · ${totJars} barattoli`:`Salva inventario · ${(totG/1000).toFixed(1)} kg`}
-                </button>
+                <div style={{display:'flex',gap:8,marginTop:2}}>
+                  <button onClick={pausa} disabled={!tallyRows.length} style={{flex:1,height:52,borderRadius:14,border:'1.5px solid rgba(255,255,255,0.3)',background:'transparent',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:15,cursor:tallyRows.length?'pointer':'default',opacity:tallyRows.length?1:0.4}}>⏸ Pausa</button>
+                  <button onClick={chiudi} disabled={!tallyRows.length} style={{flex:2,height:52,borderRadius:14,border:'none',background:tallyRows.length?'#16A34A':'rgba(255,255,255,0.14)',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:15,cursor:tallyRows.length?'pointer':'default'}}>
+                    {purpose==='nuovi'?`Chiudi · +${totJars} barattoli`:`Chiudi inventario · ${(totG/1000).toFixed(1)} kg`}
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -4421,6 +4455,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=107, alertThresho
   const noCodeCnt=inks.filter(i=>i.codici===0).length;
   const fmtG=g=>g>=1000?(g/1000).toFixed(2)+' kg':Math.round(g)+' g';
   const jarsLabel=g=>{const interi=Math.floor(g/1000);const av=Math.round(g-interi*1000);if(interi>0&&av>0)return interi+' pieni + '+av+'g';if(interi>0)return interi+(interi===1?' pieno':' pieni');if(av>0)return av+'g avviato';return 'vuoto';};
+  React.useEffect(()=>{ loadInvDraft().then(()=>{ if(window._bumpData)window._bumpData(); }).catch(()=>{}); },[]);
   const invPaused=!scanOpen&&readInvSession();
 
   return (
@@ -5612,6 +5647,7 @@ function App() {
       loadVerificati();
       loadInventario().then(()=>setDataVer(v=>v+1)).catch(()=>{});
       loadBarcodeMap().then(()=>setDataVer(v=>v+1)).catch(()=>{});
+      loadInvDraft().then(()=>setDataVer(v=>v+1)).catch(()=>{});
     }).catch(err=>{
       console.error('Errore caricamento:', err);
       setStatus('error');
