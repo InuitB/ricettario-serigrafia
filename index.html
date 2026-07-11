@@ -2415,8 +2415,10 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   <NotesBlock note={recipe.note} vecchioNome={recipe.vecchioNome} theme={theme}/>
                   <div style={{marginTop:14,display:'flex',gap:12,alignItems:'center'}}>
                     <div style={{flex:1}}><PrintButton theme={theme} onClick={recipe?()=>stampaPDF(selected,recipe,qty):undefined}/></div>
-                    <button onClick={()=>setMescolaOpen(true)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'0 26px',height:52,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:15,color:theme.ink,...glass(theme,{strong:true})}}>
-                      <IcoMescola size={19} color={theme.ink}/> Mescola</button>
+                    <div style={{flex:1}}>
+                      <button onClick={()=>setMescolaOpen(true)} style={{display:'flex',width:'100%',alignItems:'center',justifyContent:'center',gap:8,height:52,borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:15,color:theme.ink,...glass(theme,{strong:true})}}>
+                        <IcoMescola size={19} color={theme.ink}/> Mescola</button>
+                    </div>
                   </div>
                 </div>
               </div>
