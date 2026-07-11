@@ -692,7 +692,7 @@ const IcoBack    = p=><Ico {...p} d="M14 5l-7 7 7 7"/>;
 // Icone SF Symbols rese via maschera CSS (ereditano il colore del pulsante). File in icons/.
 const SFMask = ({src, size=24, color='currentColor'}) => <span style={{display:'inline-block',width:size,height:size,background:color,flexShrink:0,WebkitMaskImage:`url(${src})`,maskImage:`url(${src})`,WebkitMaskSize:'contain',maskSize:'contain',WebkitMaskRepeat:'no-repeat',maskRepeat:'no-repeat',WebkitMaskPosition:'center',maskPosition:'center'}}/>;
 const IcoPrinter = p=><SFMask src="icons/printer.svg" size={p.size||22} color={p.color||'currentColor'}/>;
-const IcoMescola = p=><SFMask src="icons/mescola.svg" size={p.size||22} color={p.color||'currentColor'}/>;
+const IcoMescola = p=><SFMask src="icons/mescola.svg?v=2" size={p.size||22} color={p.color||'currentColor'}/>;
 const IcoEdit    = p=><SFMask src="icons/square.and.pencil.svg" size={p.size||22} color={p.color||'currentColor'}/>;
 const IcoPlus    = p=><Ico {...p} d="M12 5v14M5 12h14"/>;
 const IcoClose   = p=><Ico {...p} d="M6 6l12 12M18 6 6 18"/>;
