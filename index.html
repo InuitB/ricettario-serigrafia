@@ -3033,6 +3033,7 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
   const [filterM, setFilterM] = React.useState('tutti');
   const [caricaInk, setCaricaInk] = React.useState(null);
   const [caricaOpen, setCaricaOpen] = React.useState(false);
+  const [scanOpen, setScanOpen] = React.useState(false);
   const openCarica = code=>{ setCaricaInk(code||null); setCaricaOpen(true); };
 
   const inks = React.useMemo(()=>allInchiostri.map(ink=>{
@@ -3070,6 +3071,9 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
         </div>
         <div style={{width:600,flexShrink:0,display:'flex',alignItems:'center',gap:12}}>
           <div style={{flex:1}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca inchiostro…"/></div>
+          <button onClick={()=>setScanOpen(true)} style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 20px',height:44,borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.ink,background:'transparent',border:`1.6px solid ${theme.ink}`,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
+            ⌨︎ Scansiona
+          </button>
           <button onClick={()=>openCarica(null)} style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 22px',height:44,borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:'#fff',background:theme.ink,border:'none',cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
             <IcoPlus size={16} color="#fff"/> Carico
           </button>
@@ -3127,6 +3131,7 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
         {filtered.length===0&&<div style={{padding:'48px 0',textAlign:'center',fontFamily:'Nebulica',color:theme.faint,fontSize:14}}>{filterM!=='tutti'||query?'Nessun inchiostro corrisponde al filtro.':'Il foglio Inchiostri è vuoto o non ancora caricato.'}</div>}
       </div>
       <CaricaSheet open={caricaOpen} inkCode={caricaInk} onClose={()=>setCaricaOpen(false)} theme={theme} tare={tare}/>
+      <ScannerOverlay open={scanOpen} accent={theme.accent} onClose={()=>setScanOpen(false)} onPick={code=>{ setScanOpen(false); openCarica(code); }}/>
     </div>
   );
 }
