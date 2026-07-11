@@ -3042,19 +3042,25 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
     const grammi=inv?inv.grammi:0;
     const soglia=(inv&&inv.soglia!=null)?inv.soglia:alertThreshold;
     const status=grammi===0?'vuoto':grammi<soglia?'basso':'ok';
-    return {code,nome:ink.Nome_completo||code,tipo:ink.Tipologia||'',grammi,soglia,status};
-  }),[allInchiostri.length,allInventario.length,alertThreshold]);
+    const codici=allBarcodes.filter(b=>normInkCode(b.inchiostro)===normInkCode(code)).length;
+    return {code,nome:ink.Nome_completo||code,tipo:ink.Tipologia||'',grammi,soglia,status,codici};
+  }),[allInchiostri.length,allInventario.length,alertThreshold,allBarcodes.length]);
+
+  // 1 barattolo = 1 kg → dai grammi deriva "N pieni + resto avviato"
+  const jarsLabel=g=>{const interi=Math.floor(g/1000);const av=Math.round(g-interi*1000);if(interi>0&&av>0)return interi+' pieni + '+av+'g';if(interi>0)return interi+(interi===1?' pieno':' pieni');if(av>0)return av+'g avviato';return '—';};
 
   const filtered = React.useMemo(()=>{
     let list=[...inks];
     if(filterM==='basso') list=list.filter(i=>i.status!=='ok');
     else if(filterM==='in_mag') list=list.filter(i=>i.grammi>0);
+    else if(filterM==='no_code') list=list.filter(i=>i.codici===0);
     if(query){const q=query.toLowerCase();list=list.filter(i=>i.code.toLowerCase().includes(q)||i.nome.toLowerCase().includes(q));}
     if(sortM==='az') list.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}));
     else if(sortM==='asc') list.sort((a,b)=>a.grammi-b.grammi);
     else if(sortM==='desc') list.sort((a,b)=>b.grammi-a.grammi);
     return list;
   },[inks,filterM,sortM,query]);
+  const noCodeCnt=inks.filter(i=>i.codici===0).length;
 
   const maxG=Math.max(...inks.map(i=>i.grammi),1);
   const belowCnt=inks.filter(i=>i.status!=='ok').length;
@@ -3088,9 +3094,10 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
           <div><span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:22,color:theme.ink,letterSpacing:-0.5}}>{inks.filter(i=>i.grammi>0).length}</span><span style={{fontFamily:'Nebulica',fontSize:12,color:theme.sub,marginLeft:5}}>inchiostri in magazzino</span></div>
           <div><span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:22,color:theme.ink,letterSpacing:-0.5}}>{(totG/1000).toFixed(1)}</span><span style={{fontFamily:'Nebulica',fontSize:12,color:theme.sub,marginLeft:5}}>kg totali</span></div>
           {belowCnt>0&&<div style={{display:'flex',alignItems:'center',gap:6,padding:'4px 14px',borderRadius:99,background:rgba('#E4002B',0.08),border:`1px solid ${rgba('#E4002B',0.2)}`}}><span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:'#E4002B'}}>⚠ {belowCnt} sotto soglia</span></div>}
+          {noCodeCnt>0&&<div style={{display:'flex',alignItems:'center',gap:6,padding:'4px 14px',borderRadius:99,background:rgba(theme.ink,0.05),border:`1px solid ${rgba(theme.ink,0.14)}`}}><span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:theme.sub}}>⌗ {noCodeCnt} senza codice</span></div>}
         </div>
         <div style={{flex:1}}/>
-        {[['tutti','Tutti'],['in_mag','In magazzino'],['basso','Sotto soglia']].map(([k,l])=>(
+        {[['tutti','Tutti'],['in_mag','In magazzino'],['basso','Sotto soglia'],['no_code','Senza codice']].map(([k,l])=>(
           <button key={k} onClick={()=>setFilterM(k)} style={{padding:'4px 12px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:11,cursor:'pointer',background:filterM===k?theme.ink:'transparent',color:filterM===k?'#fff':theme.sub,border:`1.4px solid ${filterM===k?theme.ink:rgba(theme.ink,0.22)}`,transition:'all .18s'}}>{l}</button>
         ))}
         <div style={{width:1,height:18,background:theme.line}}/>
@@ -3112,16 +3119,18 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
           return (
             <div key={ink.code} style={{display:'flex',alignItems:'center',gap:14,padding:'11px 16px',marginBottom:6,borderRadius:16,background:isAlert?rgba(sc,0.05):'transparent',border:`1px solid ${isAlert?rgba(sc,0.22):theme.line}`,transition:'background .2s'}}>
               <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,background:theme.ink,color:'#fff',padding:'5px 11px',borderRadius:99,whiteSpace:'nowrap',flexShrink:0,minWidth:54,textAlign:'center'}}>{ink.code}</div>
-              <div style={{flex:'0 0 220px',minWidth:0}}>
+              <div style={{flex:'0 0 200px',minWidth:0}}>
                 <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.ink,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ink.nome}</div>
                 {ink.tipo&&<div style={{fontFamily:'Nebulica',fontSize:11,color:theme.faint,marginTop:1}}>{ink.tipo}</div>}
               </div>
+              {(()=>{const n=ink.codici,col=n===0?'#E4002B':n>=2?'#1F8A5B':theme.sub,bgc=n===0?rgba('#E4002B',0.08):n>=2?rgba('#1F8A5B',0.10):rgba(theme.ink,0.05);
+                return <div title={n===0?'Nessun codice a barre mappato':n+' codice/i mappati'} style={{flexShrink:0,minWidth:46,textAlign:'center',fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:col,background:bgc,border:`1px solid ${n===0?rgba('#E4002B',0.2):n>=2?rgba('#1F8A5B',0.25):theme.line}`,borderRadius:99,padding:'4px 10px'}}>⌗ {n}</div>;})()}
               <div style={{flex:1,height:7,borderRadius:99,background:theme.line,overflow:'hidden'}}>
                 <div style={{width:`${pct}%`,height:'100%',background:isAlert?sc:theme.accent,borderRadius:99,transition:'width .5s'}}/>
               </div>
-              <div style={{textAlign:'right',flexShrink:0,minWidth:110}}>
+              <div style={{textAlign:'right',flexShrink:0,minWidth:120}}>
                 <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:20,color:isAlert?sc:theme.ink,letterSpacing:-0.5}}>{fmtG(ink.grammi)}</span>
-                <div style={{fontFamily:'Nebulica',fontSize:10,color:theme.faint,marginTop:1}}>soglia {fmtG(ink.soglia)}</div>
+                <div style={{fontFamily:'Nebulica',fontSize:10,color:theme.faint,marginTop:1}}>{ink.grammi>0?jarsLabel(ink.grammi):'soglia '+fmtG(ink.soglia)}</div>
               </div>
               <span style={{fontSize:16,flexShrink:0}}>{ink.status==='vuoto'?'🔴':ink.status==='basso'?'⚠️':'✓'}</span>
               <button onClick={()=>openCarica(ink.code)} style={{flexShrink:0,padding:'7px 16px',borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:12,cursor:'pointer',background:theme.ink,color:'#fff',border:'none',whiteSpace:'nowrap'}}>+ Carico</button>
@@ -4134,13 +4143,15 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=106, alertThresho
     const grammi=inv?inv.grammi:0;
     const soglia=(inv&&inv.soglia!=null)?inv.soglia:alertThreshold;
     const status=grammi<=0?'vuoto':grammi<soglia?'basso':'ok';
-    return {code,nome:x.Nome_completo||code,tipo:x.Tipologia||'',grammi,soglia,status};
-  }),[allInchiostri.length,allInventario.length,alertThreshold]);
+    const codici=allBarcodes.filter(b=>normInkCode(b.inchiostro)===normInkCode(code)).length;
+    return {code,nome:x.Nome_completo||code,tipo:x.Tipologia||'',grammi,soglia,status,codici};
+  }),[allInchiostri.length,allInventario.length,alertThreshold,allBarcodes.length]);
 
   const filtered=React.useMemo(()=>{
     let list=[...inks];
     if(filterM==='basso') list=list.filter(i=>i.status!=='ok');
     else if(filterM==='in_mag') list=list.filter(i=>i.grammi>0);
+    else if(filterM==='no_code') list=list.filter(i=>i.codici===0);
     if(query){const q=query.toLowerCase();list=list.filter(i=>i.code.toLowerCase().includes(q)||i.nome.toLowerCase().includes(q));}
     list.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}));
     return list;
@@ -4150,6 +4161,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=106, alertThresho
   const totG=inks.reduce((s,i)=>s+i.grammi,0);
   const inStock=inks.filter(i=>i.grammi>0).length;
   const belowCnt=inks.filter(i=>i.status!=='ok').length;
+  const noCodeCnt=inks.filter(i=>i.codici===0).length;
   const fmtG=g=>g>=1000?(g/1000).toFixed(2)+' kg':Math.round(g)+' g';
   const jarsLabel=g=>{const interi=Math.floor(g/1000);const av=Math.round(g-interi*1000);if(interi>0&&av>0)return interi+' pieni + '+av+'g';if(interi>0)return interi+(interi===1?' pieno':' pieni');if(av>0)return av+'g avviato';return 'vuoto';};
 
@@ -4168,9 +4180,9 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=106, alertThresho
           <button onClick={()=>setScanOpen(true)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'0 16px',borderRadius:14,border:'none',background:ink,color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>📷 Scansiona</button>
         </div>
         <div style={{display:'flex',gap:7,padding:'12px 0'}}>
-          {[['tutti','Tutti'],['in_mag','In magazzino'],['basso','Sotto soglia']].map(([k,l])=>{
+          {[['tutti','Tutti'],['in_mag','In magazzino'],['basso','Sotto soglia'],['no_code','Senza codice']].map(([k,l])=>{
             const on=filterM===k;
-            return <button key={k} onClick={()=>setFilterM(k)} style={{padding:'7px 13px',borderRadius:99,border:'none',cursor:'pointer',background:on?ink:'rgba(11,11,11,0.07)',color:on?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:13,whiteSpace:'nowrap'}}>{l}{k==='basso'&&belowCnt>0?' · '+belowCnt:''}</button>;
+            return <button key={k} onClick={()=>setFilterM(k)} style={{padding:'7px 13px',borderRadius:99,border:'none',cursor:'pointer',background:on?ink:'rgba(11,11,11,0.07)',color:on?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:13,whiteSpace:'nowrap'}}>{l}{k==='basso'&&belowCnt>0?' · '+belowCnt:''}{k==='no_code'&&noCodeCnt>0?' · '+noCodeCnt:''}</button>;
           })}
         </div>
       </div>
@@ -4195,6 +4207,8 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=106, alertThresho
                 </div>
                 <div style={{fontFamily:'Nebulica',fontSize:11,color:faint}}>{jarsLabel(i.grammi)}</div>
               </div>
+              {(()=>{const n=i.codici,col=n===0?'#E4002B':n>=2?'#1F8A5B':sub,bgc=n===0?rgba('#E4002B',0.08):n>=2?rgba('#1F8A5B',0.10):'rgba(11,11,11,0.05)';
+                return <div title={n===0?'Nessun codice mappato':n+' codice/i mappati'} style={{flexShrink:0,fontFamily:'Nebulica',fontWeight:700,fontSize:11,color:col,background:bgc,borderRadius:99,padding:'3px 8px',whiteSpace:'nowrap'}}>⌗{n}</div>;})()}
               <div style={{textAlign:'right',flexShrink:0}}>
                 <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:alert?sc:ink,letterSpacing:-0.5}}>{fmtG(i.grammi)}</div>
                 <div style={{fontFamily:'Nebulica',fontSize:10,color:faint,marginTop:1}}>{i.status==='vuoto'?'vuoto':i.status==='basso'?'sotto soglia':'soglia '+fmtG(i.soglia)}</div>
@@ -5326,8 +5340,8 @@ function App() {
       loadFavoriti();
       loadApprovati();
       loadVerificati();
-      loadInventario();
-      loadBarcodeMap();
+      loadInventario().then(()=>setDataVer(v=>v+1)).catch(()=>{});
+      loadBarcodeMap().then(()=>setDataVer(v=>v+1)).catch(()=>{});
     }).catch(err=>{
       console.error('Errore caricamento:', err);
       setStatus('error');
