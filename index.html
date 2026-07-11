@@ -4036,17 +4036,26 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
   const [weighFor,setWeighFor]=React.useState(null);       // inchiostro in pesata (barattolo aperto)
   const [gross,setGross]=React.useState('');
   const videoRef=React.useRef(null);
-  const flashT=React.useRef(null), toastT=React.useRef(null);
+  const flashT=React.useRef(null), toastT=React.useRef(null), seqRef=React.useRef(0);
   const ink='#0B0B0B';
+  const SKEY='mag_inv_session';
   const isCount = purpose==='inventario'||purpose==='nuovi';
   const effSub = purpose==='nuovi' ? 'sigillato' : subMode;
   const inkName = code=>{ const o=allInchiostri.find(x=>x.Codice===code); return (o&&o.Nome_completo)||code; };
   const doFlash=k=>{ setFlash(k); if(flashT.current)clearTimeout(flashT.current); flashT.current=setTimeout(()=>setFlash(null),500); };
   const doToast=t=>{ setToast(t); if(toastT.current)clearTimeout(toastT.current); toastT.current=setTimeout(()=>setToast(null),1100); };
   const pushLog=(barcode,ink,status)=>setLog(l=>[{barcode,ink,status},...l.filter(e=>e.barcode!==barcode)].slice(0,60));
-  const bump=(ink,dj,openVal)=>setTally(t=>{ const cur=t[ink]||{jars:0,open:0}; return {...t,[ink]:{jars:Math.max(0,cur.jars+(dj||0)),open:openVal!=null?openVal:cur.open}}; });
+  const bump=(ink,dj,openVal)=>{ const o=++seqRef.current; setTally(t=>{ const cur=t[ink]||{jars:0,open:0,ord:0}; return {...t,[ink]:{jars:Math.max(0,cur.jars+(dj||0)),open:openVal!=null?openVal:cur.open,ord:o}}; }); };
+  const ricomincia=()=>{ if(typeof confirm==='undefined'||confirm('Svuotare il conteggio in corso?')){ setTally({}); seqRef.current=0; try{localStorage.removeItem(SKEY);}catch(e){} } };
 
-  React.useEffect(()=>{ if(open){ setUnknown(null); setPickQ(''); setMode(noCam?'hid':'camera'); setLog([]); setTally({}); setPurpose('inventario'); setSubMode('sigillato'); setWeighFor(null); setGross(''); } },[open]);
+  // Ripristina una sessione interrotta (chiusa senza salvare) da localStorage.
+  React.useEffect(()=>{ if(open){ setUnknown(null); setPickQ(''); setMode(noCam?'hid':'camera'); setLog([]); setWeighFor(null); setGross('');
+    let s=null; try{ s=JSON.parse(localStorage.getItem(SKEY)||'null'); }catch(e){}
+    if(s&&s.tally&&Object.keys(s.tally).length){ setTally(s.tally); setPurpose(s.purpose||'inventario'); setSubMode(s.subMode||'sigillato'); seqRef.current=s.seq||0; }
+    else { setTally({}); setPurpose('inventario'); setSubMode('sigillato'); seqRef.current=0; }
+  } },[open]);
+  // Salva la sessione in corso a ogni modifica → sopravvive a chiusura/ricarica.
+  React.useEffect(()=>{ if(!open)return; try{ if(Object.keys(tally).length) localStorage.setItem(SKEY,JSON.stringify({purpose,subMode,tally,seq:seqRef.current})); }catch(e){} },[tally,purpose,subMode,open]);
 
   const addJar=(inkCode)=>{ playBeep('ok'); doFlash('ok'); bump(inkCode,1); doToast('+1 '+inkCode); };
   const startWeigh=(inkCode)=>{ playBeep('ok'); doFlash('ok'); setWeighFor(inkCode); setGross(''); };
@@ -4082,8 +4091,8 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
 
   const confirmWeigh=()=>{ const g=parseFloat(String(gross).replace(',','.')); const net=(!isNaN(g)&&g>0)?Math.max(0,Math.round(g-tare)):0; if(weighFor){ bump(weighFor,0,net); doToast(weighFor+': '+net+'g aperto'); playBeep('saved'); } setWeighFor(null); setGross(''); };
 
-  const tallyRows=React.useMemo(()=>Object.keys(tally).map(k=>({ink:k,jars:tally[k].jars,open:tally[k].open,grammi:tally[k].jars*1000+tally[k].open}))
-    .filter(r=>r.jars>0||r.open>0).sort((a,b)=>a.ink.localeCompare(b.ink,undefined,{numeric:true})),[tally]);
+  const tallyRows=React.useMemo(()=>Object.keys(tally).map(k=>({ink:k,jars:tally[k].jars,open:tally[k].open,ord:tally[k].ord||0,grammi:tally[k].jars*1000+tally[k].open}))
+    .filter(r=>r.jars>0||r.open>0).sort((a,b)=>b.ord-a.ord),[tally]);
   const totJars=tallyRows.reduce((s,r)=>s+r.jars,0);
   const totG=tallyRows.reduce((s,r)=>s+r.grammi,0);
 
@@ -4096,7 +4105,7 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
     });
     if(purpose==='nuovi'){ postGAS({action:'aggiungiCarico',carichi:tallyRows.map(r=>({inchiostro:r.ink,grammi:r.jars*1000})),riferimento:'nuovi barattoli'}).catch(()=>{}); }
     else { tallyRows.forEach(r=>postGAS({action:'aggiornaStock',inchiostro:r.ink,grammi:r.grammi}).catch(()=>{})); }
-    playBeep('saved'); if(window._bumpData)window._bumpData(); setTally({}); onClose();
+    playBeep('saved'); if(window._bumpData)window._bumpData(); setTally({}); seqRef.current=0; try{localStorage.removeItem(SKEY);}catch(e){} onClose();
   };
 
   useHidScanner({enabled:open&&mode==='hid'&&!unknown&&!weighFor, onScan:resolve});
@@ -4216,10 +4225,12 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
             </>
           ) : (
             <>
-              <div style={{display:'flex',justifyContent:'center',gap:18,padding:'10px 0 8px',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:14,flexShrink:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:14,padding:'10px 2px 8px',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:14,flexShrink:0}}>
                 <span>{totJars} barattoli</span>
                 <span style={{color:'rgba(255,255,255,0.55)'}}>{tallyRows.length} inchiostri</span>
                 <span style={{color:'rgba(255,255,255,0.55)'}}>{(totG/1000).toFixed(1)} kg</span>
+                <div style={{flex:1}}/>
+                {tallyRows.length>0&&<button onClick={ricomincia} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.5)',fontFamily:'Nebulica',fontWeight:700,fontSize:12,cursor:'pointer'}}>↺ Ricomincia</button>}
               </div>
               <div style={{flex:1,overflowY:'auto',padding:'0 2px',minHeight:0}}>
                 {tallyRows.length===0 && <div style={{textAlign:'center',color:'rgba(255,255,255,0.4)',fontFamily:'Nebulica',fontSize:13,padding:'18px 0'}}>{effSub==='pesare'?'Scansiona un barattolo aperto per pesarlo.':'Scansiona i barattoli sigillati: +1 kg ciascuno.'}</div>}
