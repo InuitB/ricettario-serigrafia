@@ -3857,13 +3857,13 @@ function WalletProtoExtract({
         <filter id="wpx-grain"><feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0.35 0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0.4 0"/></filter>
         <rect width="100%" height="100%" filter="url(#wpx-grain)"/>
       </svg>}
-      {/* TITLE */}
-      <div style={{position:'absolute',top:'calc(env(safe-area-inset-top, 44px) + 2px)',left:18,right:18,zIndex:5,opacity:isDetail?0:1,transform:isDetail?'translateY(-6px)':'none',transition:'opacity .26s, transform .26s',pointerEvents:'none'}}>
+      {/* TITLE — solo nella vista Ricette */}
+      {activeTab==='ricette'&&<div style={{position:'absolute',top:'calc(env(safe-area-inset-top, 44px) + 2px)',left:18,right:18,zIndex:5,opacity:isDetail?0:1,transform:isDetail?'translateY(-6px)':'none',transition:'opacity .26s, transform .26s',pointerEvents:'none'}}>
         <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:26,lineHeight:0.95,letterSpacing:-0.8,color:'#0B0B0B'}}>Ricettario</div>
         <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.5)',marginTop:3}}>{list.length} PANTONE · SICO</div>
-      </div>
-      {/* TOP BAR */}
-      <div style={{position:'absolute',top:'calc(env(safe-area-inset-top, 44px) + 48px)',left:18,right:18,zIndex:1000,height:40}}>
+      </div>}
+      {/* TOP BAR — solo nella vista Ricette (impostazioni/ricerca/filtro non c'entrano col Magazzino) */}
+      {activeTab==='ricette'&&<div style={{position:'absolute',top:'calc(env(safe-area-inset-top, 44px) + 48px)',left:18,right:18,zIndex:1000,height:40}}>
         {onSettings&&(
           <div onClick={onSettings} style={{position:'absolute',left:0,top:0,width:40,height:40,borderRadius:99,background:bg,border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,opacity:isDetail?0:1,pointerEvents:isDetail?'none':'auto',transition:'opacity .22s ease'}}>
             <IcoTune color="#0B0B0B"/>
@@ -3891,7 +3891,7 @@ function WalletProtoExtract({
           <div style={{position:'absolute',opacity:isDetail?0:1,transition:isDetail?'opacity .12s':'opacity .16s .26s'}}><IconFilter color={filterOpen&&!isDetail?'#fff':'#0B0B0B'}/></div>
           <div style={{position:'absolute',opacity:isDetail?1:0,transition:isDetail?'opacity .2s .06s':'opacity .14s .24s'}}><IconEdit color="#0B0B0B"/></div>
         </div>
-      </div>
+      </div>}
       {/* FILTER PANEL */}
       {filterOpen&&!isDetail&&(
         <div style={{position:'absolute',top:'calc(env(safe-area-inset-top, 44px) + 98px)',left:18,right:18,zIndex:999,background:bg,borderRadius:18,border:pillBorders?`${borderWidth}px solid #0B0B0B`:'1px solid rgba(0,0,0,0.1)',padding:'14px 16px',boxShadow:'0 8px 32px rgba(0,0,0,0.14)'}}>
