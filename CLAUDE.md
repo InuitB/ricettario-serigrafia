@@ -12,6 +12,13 @@
   Fluo NON è più una famiglia: è un **flag** (`Fluo`) che convive con la tinta (un fluo rosa
   resta PNK + flag). Ricette storiche con Categoria='fluo' restano in "tutti" ma senza chip.
 - `FAM_BY_KEY`, `FAM_BY_EN` = lookup.
+- **Filtri per attributo** (`ATTR_FILTERS` = tutti/fluo/pastel/chiaro/scuro · `matchColorAttr(hex,attr)`):
+  dedotti dall'HEX al volo (NON salvati sulle ricette), **combinabili con la famiglia** in AND
+  ("i chiari che sono rossi" = famiglia rosso + attributo Chiari). `FilterButton` (desktop, prop
+  `attr`/`setAttr`) mostra una riga "ATTRIBUTO" sotto le famiglie; presenti in MasterMode/GalleryMode/
+  WalletMode e nel foglio filtro mobile di `WalletProtoExtract` (`filterAttr`). Fluo NON è più una
+  famiglia (è flag+filtro). Il foglio filtro mobile non si auto-chiude più al click famiglia, così
+  puoi scegliere famiglia+attributo nella stessa passata.
 - `guessFamily(hex)` **riscritto** su CROMA (c=max−min), non su s HSL (che esplode vicino a
   bianco/nero). Ora riconosce anche **grigio** e **marrone**. `hexHSLc()` ritorna {h,s,l,c}.
 - Attributi catalogo dedotti da HEX (solo suggerimenti, l'utente conferma):

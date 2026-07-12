@@ -636,6 +636,8 @@ const COLOR_FAMILIES = [
 const FAM_BY_KEY = Object.fromEntries(COLOR_FAMILIES.map(f=>[f.key,f]));
 const FAM_BY_EN  = Object.fromEntries(COLOR_FAMILIES.map(f=>[f.en,f]));
 const FAMILIES = ['tutti', ...COLOR_FAMILIES.map(f=>f.key)];
+// Filtri per attributo (dedotti dall'HEX, combinabili con la famiglia)
+const ATTR_FILTERS = [{key:'tutti',label:'Tutti'},{key:'fluo',label:'⚡ Fluo'},{key:'pastel',label:'◐ Pastel'},{key:'chiaro',label:'Chiari'},{key:'scuro',label:'Scuri'}];
 
 
 /* ═══════════════════ THEME ═══════════════════ */
@@ -1194,10 +1196,10 @@ function NuovaPill({theme, compact=false, full=false, onClick}) {
   );
 }
 
-function FilterButton({family, setFamily, ink, setInk, theme, align='left', size=50}) {
+function FilterButton({family, setFamily, ink, setInk, attr, setAttr, theme, align='left', size=50}) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef(null);
-  const active = (family&&family!=='tutti') || !!ink;
+  const active = (family&&family!=='tutti') || !!ink || (attr&&attr!=='tutti');
   React.useEffect(()=>{
     if(!open) return;
     const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
@@ -1213,9 +1215,17 @@ function FilterButton({family, setFamily, ink, setInk, theme, align='left', size
       <div style={{position:'absolute',top:size+10,[align]:0,width:304,zIndex:300,transformOrigin:align==='right'?'100% 0%':'0% 0%',transform:open?'scale(1)':'scale(.92)',opacity:open?1:0,pointerEvents:open?'auto':'none',transition:`transform .4s ${SPRING}, opacity .25s`,borderRadius:26,padding:'17px 19px',background:theme.panel,border:`1px solid ${theme.line}`,boxShadow:`0 26px 64px ${rgba('#000',0.24)}`}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
           <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.faint}}>FAMIGLIA COLORE</span>
-          {active&&<button onClick={()=>{setFamily('tutti');if(setInk)setInk(0);}} style={{border:'none',background:'transparent',cursor:'pointer',fontFamily:'Nebulica',fontSize:12,fontWeight:700,color:theme.accent}}>Azzera</button>}
+          {active&&<button onClick={()=>{setFamily('tutti');if(setInk)setInk(0);if(setAttr)setAttr('tutti');}} style={{border:'none',background:'transparent',cursor:'pointer',fontFamily:'Nebulica',fontSize:12,fontWeight:700,color:theme.accent}}>Azzera</button>}
         </div>
         <FamilyChips value={family} onChange={setFamily} theme={theme}/>
+        {setAttr&&<React.Fragment>
+          <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.faint,margin:'15px 0 9px'}}>ATTRIBUTO</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
+            {ATTR_FILTERS.map(a=>{const on=a.key===(attr||'tutti'); return (
+              <button key={a.key} onClick={()=>setAttr(a.key)} style={{padding:'8px 14px',borderRadius:99,cursor:'pointer',color:on?theme.onAccent:theme.sub,fontFamily:'Nebulica',fontWeight:600,fontSize:12.5,letterSpacing:-0.1,...glass(theme,{active:on,accent:true})}}>{a.label}</button>
+            );})}
+          </div>
+        </React.Fragment>}
         {setInk&&<React.Fragment>
           <div style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.3,fontWeight:700,color:theme.faint,margin:'15px 0 9px'}}>N° INCHIOSTRI</div>
           <div style={{display:'flex',gap:8}}>
@@ -1358,6 +1368,16 @@ function classifyTone(hexStr){ const c=hexHSLc(hexStr); if(!c) return ''; return
 function classifyIntensity(hexStr){ const c=hexHSLc(hexStr); if(!c) return ''; return (c.s>=0.55 && c.c>=0.25)?'intenso':'tenue'; }
 function isPastelHex(hexStr){ const c=hexHSLc(hexStr); if(!c) return false; return c.l>=0.72 && c.c>=0.05 && c.c<=0.30; }
 function isFluoHex(hexStr){ const c=hexHSLc(hexStr); if(!c) return false; return c.s>=0.80 && c.c>=0.55 && c.l>=0.50 && c.l<=0.72; }
+// Predicato filtro attributo dall'HEX (fluo/pastel/chiaro/scuro), combinabile con la famiglia
+function matchColorAttr(hexStr, attr){
+  if(!attr||attr==='tutti') return true;
+  if(!hexStr) return false;
+  if(attr==='fluo')   return isFluoHex(hexStr);
+  if(attr==='pastel') return isPastelHex(hexStr);
+  if(attr==='chiaro') return classifyTone(hexStr)==='chiaro';
+  if(attr==='scuro')  return classifyTone(hexStr)==='scuro';
+  return true;
+}
 
 function InkSearchField({value, onChange, options, style, onConfirm}) {
   const [q, setQ] = React.useState(value||'');
@@ -1973,7 +1993,7 @@ function WalletTopBar({theme, mode, setMode, open, onBack, onSettings, onNuova})
   );
 }
 
-function WalletSideList({list, query, setQuery, selCode, onPick, theme, family, setFamily, ink, setInk}) {
+function WalletSideList({list, query, setQuery, selCode, onPick, theme, family, setFamily, ink, setInk, attr, setAttr}) {
   const q = (query||'').toLowerCase();
   const filtered = list.filter(p=>!q||`${p.code} ${p.name} ${p.family}`.toLowerCase().includes(q));
   const ROW=60, STEP=66;
@@ -1983,7 +2003,7 @@ function WalletSideList({list, query, setQuery, selCode, onPick, theme, family, 
       <div style={{padding:'4px 18px 12px'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           <div style={{flex:1,minWidth:0}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca pantone…"/></div>
-          {setFamily&&<FilterButton family={family} setFamily={setFamily} ink={ink} setInk={setInk} theme={theme} align="left"/>}
+          {setFamily&&<FilterButton family={family} setFamily={setFamily} ink={ink} setInk={setInk} attr={attr} setAttr={setAttr} theme={theme} align="left"/>}
         </div>
         <div style={{fontFamily:'Nebulica',fontSize:10.5,letterSpacing:1.3,fontWeight:700,color:theme.sub,marginTop:12}}>{filtered.length} PANTONE</div>
       </div>
@@ -2014,7 +2034,8 @@ function WalletMode({theme, mode, setMode, query, setQuery, onSettings, onNuova}
 function WalletRow({theme, mode, setMode, query, setQuery, onSettings, onNuova, initialOpen=null}) {
   const [family, setFamily] = React.useState('tutti');
   const [ink, setInk] = React.useState(0);
-  const list = React.useMemo(()=>DESK_PANTONES.filter(p=>(family==='tutti'||p.family===family)&&(!ink||p.ink===ink)&&(!query||`${p.code} ${p.name} ${p.family}`.toLowerCase().includes(query.toLowerCase()))),[family,ink,query,DESK_PANTONES.length]);
+  const [attr, setAttr] = React.useState('tutti');
+  const list = React.useMemo(()=>DESK_PANTONES.filter(p=>(family==='tutti'||p.family===family)&&(!ink||p.ink===ink)&&matchColorAttr(p.hex,attr)&&(!query||`${p.code} ${p.name} ${p.family}`.toLowerCase().includes(query.toLowerCase()))),[family,ink,attr,query,DESK_PANTONES.length]);
   const [sel, setSel] = React.useState(null);
   const [qty, setQty] = React.useState(100);
   const [scroll, setScroll] = React.useState(()=>initialOpen!=null?Math.max(0,initialOpen*236+105-500):0);
@@ -2028,7 +2049,7 @@ function WalletRow({theme, mode, setMode, query, setQuery, onSettings, onNuova, 
   React.useEffect(()=>{setMeasuredH(null);},[sel]);
   const growH = open?(measuredH?Math.max(360,Math.min(760,measuredH)):Math.max(430,Math.min(720,walletOpenHeight(selP,150)))):624;
   const blobHex = open?selP.hex:(list[3]||list[0]||DESK_PANTONES[3]||{hex:'#FFCD00'}).hex;
-  React.useEffect(()=>{setSel(null);},[family,ink,query]);
+  React.useEffect(()=>{setSel(null);},[family,ink,attr,query]);
   const maxScroll = Math.max(0, list.length*STEP-VIEW);
   const clampS = v=>Math.max(-40,Math.min(maxScroll+40,v));
   const onWheel = e=>{if(open)return; setScroll(s=>clampS(s+(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)));};
@@ -2040,7 +2061,7 @@ function WalletRow({theme, mode, setMode, query, setQuery, onSettings, onNuova, 
     <div style={{width:'100%',height:'100%',position:'relative'}}>
       <GrainBlobs theme={theme} blobHex={blobHex}/>
       <WalletTopBar theme={theme} mode={mode} setMode={setMode} onSettings={onSettings} onNuova={onNuova} open={open} onBack={()=>setSel(null)}/>
-      <WalletSideList list={list} query={query} setQuery={setQuery} selCode={open?selP.code:null} onPick={openCard} theme={theme} family={family} setFamily={setFamily} ink={ink} setInk={setInk}/>
+      <WalletSideList list={list} query={query} setQuery={setQuery} selCode={open?selP.code:null} onPick={openCard} theme={theme} family={family} setFamily={setFamily} ink={ink} setInk={setInk} attr={attr} setAttr={setAttr}/>
       <div onWheel={onWheel} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
         style={{position:'absolute',top:88,left:SB,right:0,bottom:0,zIndex:10,overflow:'hidden',cursor:open?'default':(drag.current.on?'grabbing':'grab'),touchAction:'none'}}>
         <div style={{position:'absolute',left:70,top:'50%',height:1,width:1}}>
@@ -2102,6 +2123,7 @@ function SwatchCard({p, theme, active, onClick}) {
 function GalleryMode({theme, mode, setMode, query, setQuery, onSettings, formulaAnim='slide', onNuova}) {
   const [family, setFamily] = React.useState('tutti');
   const [inkFilter, setInkFilter] = React.useState(0);
+  const [attr, setAttr] = React.useState('tutti');
   const [selCode, setSelCode] = React.useState(null);
   const [qty, setQty] = React.useState(100);
   const rootRef = React.useRef(null);
@@ -2114,6 +2136,7 @@ function GalleryMode({theme, mode, setMode, query, setQuery, onSettings, formula
   const filtered = DESK_PANTONES.filter(p=>{
     if(family!=='tutti'&&p.family!==family) return false;
     if(inkFilter&&p.ink!==inkFilter) return false;
+    if(!matchColorAttr(p.hex,attr)) return false;
     if(query){const q=query.toLowerCase(); if(!`${p.code} ${p.name} ${p.family}`.toLowerCase().includes(q)) return false;}
     return true;
   });
@@ -2136,7 +2159,7 @@ function GalleryMode({theme, mode, setMode, query, setQuery, onSettings, formula
       <div style={{position:'absolute',top:88,left:0,bottom:0,right:open?INSPECTOR_W:0,transform:open?'translateX(-14px)':'translateX(0)',transition:`right .55s ${SPRING_SOFT}, transform .55s ${SPRING_SOFT}`,zIndex:10,display:'flex',flexDirection:'column'}}>
         <div style={{padding:'4px 36px 14px',display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
           <div style={{width:380,maxWidth:'46%'}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%"/></div>
-          <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="left"/>
+          <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} attr={attr} setAttr={setAttr} theme={theme} align="left"/>
           <NuovaPill theme={theme} compact onClick={onNuova}/>
           <div style={{flex:1,minWidth:0}}/>
           <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub,whiteSpace:'nowrap'}}>{filtered.length} PANTONE</span>
@@ -2321,6 +2344,7 @@ function cardEnterAnim(variant, dir) {
 function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='rise', cardEnter='deck', onNuova, onEdit}) {
   const [family, setFamily] = React.useState('tutti');
   const [inkFilter, setInkFilter] = React.useState(0);
+  const [attr, setAttr] = React.useState('tutti');
   const [selCode, setSelCode] = React.useState(null);
   const [qty, setQty] = React.useState(100);
   const [soloPreferiti, setSoloPref] = React.useState(false);
@@ -2381,6 +2405,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
   const filtered = applyFilterSort(DESK_PANTONES.filter(p=>{
     if(family!=='tutti'&&p.family!==family) return false;
     if(inkFilter&&p.ink!==inkFilter) return false;
+    if(!matchColorAttr(p.hex,attr)) return false;
     if(query){const q=query.toLowerCase(); if(!`${p.code} ${p.name} ${p.family}`.toLowerCase().includes(q)) return false;}
     return true;
   }), {onlyFav:soloPreferiti, sort:sortMode});
@@ -2437,7 +2462,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
           <div style={{paddingRight:18,display:'flex',flexDirection:'column',gap:8}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{flex:1,minWidth:0}}><SearchPill value={query} onChange={setQuery} theme={theme} w="100%" placeholder="cerca pantone…"/></div>
-              <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} theme={theme} align="left"/>
+              <FilterButton family={family} setFamily={setFamily} ink={inkFilter} setInk={setInkFilter} attr={attr} setAttr={setAttr} theme={theme} align="left"/>
             </div>
             <span style={{fontFamily:'Nebulica',fontSize:11,letterSpacing:1.4,fontWeight:700,color:theme.sub}}>{filtered.length} / {DESK_PANTONES.length} PANTONE</span>
             <div style={{display:'flex',gap:6}}>
@@ -3681,6 +3706,7 @@ function WalletProtoExtract({
   const [query, setQuery] = React.useState('');
   const [searchActive, setSearchActive] = React.useState(false);
   const [filterFamily, setFilterFamily] = React.useState('tutti');
+  const [filterAttr, setFilterAttr] = React.useState('tutti');
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [soloPreferiti, setSoloPref] = React.useState(false);
   const [sortMode, setSortMode] = React.useState('default');
@@ -3689,9 +3715,10 @@ function WalletProtoExtract({
   const favSize = favoritiSet.size;
   const list = React.useMemo(()=>applyFilterSort(allList.filter(p=>{
     const matchFamily = filterFamily==='tutti'||p.family===filterFamily;
+    const matchAttr = matchColorAttr(p.hex, filterAttr);
     const matchQuery = !query||`${p.code} ${p.name} ${p.family||''}`.toLowerCase().includes(query.toLowerCase());
-    return matchFamily&&matchQuery;
-  }), {onlyFav:soloPreferiti, sort:sortMode}),[allList, filterFamily, query, soloPreferiti, sortMode, favSize]);
+    return matchFamily&&matchAttr&&matchQuery;
+  }), {onlyFav:soloPreferiti, sort:sortMode}),[allList, filterFamily, filterAttr, query, soloPreferiti, sortMode, favSize]);
   const [selectedIdx, setSelectedIdx] = React.useState(null);
   const [phase, setPhase] = React.useState('closed');
   const [scrollY, setScrollY] = React.useState(0);
@@ -3884,8 +3911,16 @@ function WalletProtoExtract({
           <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.45)',marginBottom:10}}>FAMIGLIA COLORE</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
             {FAMILIES.map(f=>(
-              <button key={f} onClick={()=>{setFilterFamily(f);if(f!=='tutti')setFilterOpen(false);}} style={{padding:'6px 12px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:12,background:filterFamily===f?'#0B0B0B':'rgba(11,11,11,0.07)',color:filterFamily===f?'#fff':'#0B0B0B',border:filterFamily===f?'none':'1px solid rgba(11,11,11,0.14)'}}>
+              <button key={f} onClick={()=>{setFilterFamily(f);}} style={{padding:'6px 12px',borderRadius:99,cursor:'pointer',textTransform:'capitalize',fontFamily:'Nebulica',fontWeight:600,fontSize:12,background:filterFamily===f?'#0B0B0B':'rgba(11,11,11,0.07)',color:filterFamily===f?'#fff':'#0B0B0B',border:filterFamily===f?'none':'1px solid rgba(11,11,11,0.14)'}}>
                 {f}
+              </button>
+            ))}
+          </div>
+          <div style={{fontFamily:'Nebulica',fontSize:10,letterSpacing:1.4,fontWeight:700,color:'rgba(0,0,0,0.45)',margin:'14px 0 10px'}}>ATTRIBUTO</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+            {ATTR_FILTERS.map(a=>(
+              <button key={a.key} onClick={()=>setFilterAttr(a.key)} style={{padding:'6px 12px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:600,fontSize:12,background:filterAttr===a.key?'#0B0B0B':'rgba(11,11,11,0.07)',color:filterAttr===a.key?'#fff':'#0B0B0B',border:filterAttr===a.key?'none':'1px solid rgba(11,11,11,0.14)'}}>
+                {a.label}
               </button>
             ))}
           </div>
