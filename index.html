@@ -51,7 +51,30 @@ let allBarcodes = [];   // [{barcode, inchiostro}] — mappatura condivisa codic
 let invDraftRemote = null; // bozza inventario condivisa (multi-dispositivo): {purpose,subMode,tally,seq,ts}
 let verificaQC = {};       // {Pantone_ID: {barattolo,formula,codice,copertura,hex,problema}} — verdetto QC utente
 let verificheAux = {};     // {mondayId: {barattolo,codice,copertura,hex,done}} — spunte dichiarate in Trasferimenti (Aux)
+let allSperimentazioni = []; // esperimenti (foglio Sperimentazioni)
 let DESK_PANTONES = [];
+
+// Solver 40 g con lucchetti: gli inchiostri bloccati restano fissi, gli altri
+// si dividono il budget (40 − somma bloccati) mantenendo le proporzioni reali.
+function solve40(inks){
+  const parse=v=>{const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?0:n;};
+  const rows=inks.map(k=>({real:parse(k.g), locked:!!k.locked}));
+  const lockedSum=rows.filter(r=>r.locked).reduce((s,r)=>s+r.real,0);
+  const unlocked=rows.filter(r=>!r.locked);
+  const unlockedRealSum=unlocked.reduce((s,r)=>s+r.real,0);
+  const budget=40-lockedSum;
+  const invalid=lockedSum>40.0001;
+  const out=inks.map((k,i)=>{
+    const r=rows[i]; let g40;
+    if(r.locked) g40=r.real;
+    else if(invalid||budget<=0) g40=0;
+    else if(unlockedRealSum>0) g40=r.real/unlockedRealSum*budget;
+    else g40=unlocked.length?budget/unlocked.length:0;
+    return {...k, real:r.real, g40:Math.max(0,g40)};
+  });
+  const totReal=rows.reduce((s,r)=>s+r.real,0);
+  return {rows:out, totReale:totReal, lockedSum, invalid};
+}
 let favoritiSet  = new Set();
 let approvedSet  = new Set();
 let verificatoSet = new Set();
@@ -120,6 +143,11 @@ async function loadVerificaQC() {
 async function loadVerificheAux() {
   try { const r = await fetch(SCRIPT_URL + '?action=getVerifiche'); const d = await r.json(); if (d.ok) verificheAux = d.verifiche || {}; }
   catch(e) { /* resta {} */ }
+}
+async function loadSperimentazioni() {
+  try { allSperimentazioni = await fetchSheet('Sperimentazioni') || []; }
+  catch(e) { /* foglio non ancora creato — resta [] */ }
+  return allSperimentazioni;
 }
 const QC_KEYS = ['barattolo','formula','codice','copertura','hex'];
 function qcOf(pid){ return verificaQC[pid] || {barattolo:false,formula:false,codice:false,copertura:false,hex:false,problema:false}; }
@@ -965,6 +993,13 @@ function VerificaBtn({theme}) {
   return (
     <a href="?verifica" title="Verifica colori (QC)" style={{height:44,width:44,borderRadius:99,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',color:theme.sub,textDecoration:'none',flexShrink:0,...glass(theme,{strong:true}),border:`1.4px solid ${rgba(theme.ink,0.13)}`}}>
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    </a>
+  );
+}
+function LabBtn({theme}) {
+  return (
+    <a href="?esperimenti" title="Laboratorio esperimenti" style={{height:44,width:44,borderRadius:99,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',color:theme.sub,textDecoration:'none',flexShrink:0,...glass(theme,{strong:true}),border:`1.4px solid ${rgba(theme.ink,0.13)}`}}>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M10 3v6.5L4.8 18a2 2 0 0 0 1.7 3h11a2 2 0 0 0 1.7-3L14 9.5V3"/><path d="M7.5 14h9"/></svg>
     </a>
   );
 }
@@ -2357,6 +2392,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
       <div style={{position:'relative',zIndex:20,height:88,display:'flex',alignItems:'center',padding:'0 28px',gap:16}}>
         <Logo theme={theme} onSettings={onSettings}/>
         <div style={{flex:1}}/>
+        <LabBtn theme={theme}/>
         <VerificaBtn theme={theme}/>
         <TransferBtn theme={theme}/>
         <ModeOrb mode={mode} onChange={setMode} theme={theme}/>
@@ -5287,6 +5323,148 @@ function VerificaQCPage(){
   );
 }
 
+/* ═══════════════════ LABORATORIO ESPERIMENTI ═══════════════════ */
+const IcoLock=({size=20,color='currentColor'})=>(<svg width={size} height={size} viewBox="0 0 14.0271 19.973" fill={color}><path d="M2.26054 19.4572L11.4053 19.4572C12.8883 19.4572 13.6658 18.6619 13.6658 17.0609L13.6658 10.1443C13.6658 8.54863 12.8883 7.76133 11.4053 7.76133L2.26054 7.76133C0.775781 7.76133 0 8.54863 0 10.1443L0 17.0609C0 18.6619 0.775781 19.4572 2.26054 19.4572ZM1.78632 8.58183L3.61502 8.58183L3.61502 5.28808C3.61502 3.00292 5.08183 1.74882 6.8289 1.74882C8.57246 1.74882 10.0605 3.00292 10.0605 5.28808L10.0605 8.58183L11.8812 8.58183L11.8812 5.46953C11.8812 1.86621 9.49647 0 6.8289 0C4.16933 0 1.78632 1.86621 1.78632 5.46953Z"/></svg>);
+const IcoUnlock=({size=20,color='currentColor'})=>(<svg width={size} height={size} viewBox="0 0 21.2429 22.9821" fill={color}><path d="M6.40031 11.0164L4.9015 11.0164C4.49564 11.0164 4.25579 11.2527 4.25579 11.7154L4.25579 18.5024C4.25579 18.9633 4.49564 19.2111 4.9015 19.2111L13.4933 19.2111C13.8302 19.2111 14.0462 19.0389 14.1081 18.7139L15.5932 20.197C15.2196 20.7076 14.6072 20.9617 13.7689 20.9617L4.6144 20.9617C3.1394 20.9617 2.36362 20.1664 2.36362 18.5654L2.36362 11.6488C2.36362 10.2376 2.97651 9.45245 4.14994 9.29693L4.14994 8.76906ZM14.2449 6.97404L14.2449 9.29794C15.4179 9.45645 16.0277 10.2412 16.0277 11.6488L16.0277 15.0405L14.1275 13.1414L14.1275 11.7154C14.1275 11.2527 13.8974 11.0164 13.4933 11.0164L12.0013 11.0164L10.2497 9.26584L12.4224 9.26584L12.4224 6.8006C12.4224 4.50743 10.9361 3.26133 9.19252 3.26133C7.88863 3.26133 6.74085 3.95542 6.24318 5.26156L4.89547 3.91461C5.79718 2.32235 7.43033 1.51252 9.19252 1.51252C11.8601 1.51252 14.2449 3.37072 14.2449 6.97404Z"/><path d="M18.6542 21.5514C18.9577 21.8531 19.4538 21.8549 19.7538 21.5514C20.0458 21.2496 20.0573 20.7553 19.7538 20.4535L2.53647 3.24592C2.23296 2.94241 1.73061 2.94241 1.4271 3.24592C1.13511 3.54768 1.13511 4.05354 1.4271 4.34553Z"/></svg>);
+function sperimInks(s){ const out=[]; for(let i=1;i<=6;i++){ const nm=s['Inchiostro_'+i]; if(nm) out.push({name:String(nm),real:parseFloat(String(s['Dose_reale_'+i]||'').replace(',','.'))||0,g40:parseFloat(String(s['Dose_40g_'+i]||'').replace(',','.'))||0}); } return out; }
+function EsperimentiPage(){
+  const [tab,setTab]=React.useState('nuovo');
+  const [rows,setRows]=React.useState(null);
+  const [progetto,setProgetto]=React.useState('');
+  const [note,setNote]=React.useState('');
+  const [inks,setInks]=React.useState([{id:1,name:'',g:'',locked:false},{id:2,name:'',g:'',locked:false}]);
+  const idRef=React.useRef(3);
+  const [saving,setSaving]=React.useState(false);
+  const [msg,setMsg]=React.useState('');
+  const [sperimId,setSperimId]=React.useState('');
+  const ink='#0B0B0B', sub='rgba(11,11,11,0.55)', faint='rgba(11,11,11,0.4)', line='rgba(11,11,11,0.12)', accent='#5856D6';
+  const back=()=>{ window.location.href=window.location.pathname; };
+  const inkOpts=React.useMemo(()=>allInchiostri.map(x=>x.Codice).filter(Boolean),[]);
+  const computeId=(list)=>{ const d=new Date(); const base=String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')+String(d.getFullYear()).slice(-2);
+    const used=(list||allSperimentazioni).map(s=>String(s.Sperim_ID||'')).filter(x=>x.startsWith(base));
+    for(let i=0;i<26;i++){ const L=String.fromCharCode(65+i); if(!used.includes(base+L)) return base+L; } return base+'Z'; };
+  React.useEffect(()=>{ loadSperimentazioni().then(l=>{ setRows(l||[]); setSperimId(computeId(l||[])); }).catch(()=>{ setRows([]); setSperimId(computeId([])); }); },[]);
+
+  const solved=solve40(inks);
+  const setInk=(id,patch)=>setInks(a=>a.map(r=>r.id===id?{...r,...patch}:r));
+  const addInk=()=>setInks(a=>[...a,{id:idRef.current++,name:'',g:'',locked:false}]);
+  const delInk=id=>setInks(a=>a.length>1?a.filter(r=>r.id!==id):a);
+  const normalizza=()=>{ setInks(a=>a.map((r,i)=>({...r,g:String(Math.round(solved.rows[i].g40*100)/100)}))); };
+  const fmt=g=>{const n=Math.round(g*100)/100; return n%1===0?n.toFixed(0):n.toFixed(2);};
+
+  const salva=async()=>{
+    const valid=inks.map((k,i)=>({name:k.name.trim(),real:solved.rows[i].real,g40:solved.rows[i].g40})).filter(k=>k.name&&k.real>0);
+    if(valid.length<1){ setMsg('Aggiungi almeno un inchiostro con la dose.'); return; }
+    if(solved.invalid){ setMsg('I bloccati superano 40 g — sblocca qualcosa.'); return; }
+    setSaving(true); setMsg('');
+    const ts=new Date().toISOString();
+    const payload={action:'addSperimentazione',sperim_id:sperimId,timestamp:ts,progetto,note,stato:'Aperta',
+      inchiostri:valid.map(k=>k.name),dose_reali:valid.map(k=>Math.round(k.real*100)/100),dose_40g:valid.map(k=>Math.round(k.g40*100)/100)};
+    try{ await postGAS(payload);
+      const rec={Sperim_ID:sperimId,Timestamp:ts,Progetto:progetto,Note:note,Stato:'Aperta'};
+      valid.forEach((k,i)=>{rec['Inchiostro_'+(i+1)]=k.name;rec['Dose_reale_'+(i+1)]=payload.dose_reali[i];rec['Dose_40g_'+(i+1)]=payload.dose_40g[i];});
+      allSperimentazioni.push(rec);
+      setMsg('Esperimento '+sperimId+' salvato ✓');
+      setTimeout(()=>{ setInks([{id:idRef.current++,name:'',g:'',locked:false},{id:idRef.current++,name:'',g:'',locked:false}]); setProgetto(''); setNote(''); setSperimId(computeId(allSperimentazioni)); setMsg(''); setRows([...allSperimentazioni]); setTab('lista'); },1100);
+    }catch(e){ setMsg('Errore di salvataggio.'); }
+    setSaving(false);
+  };
+  const variazione=(s)=>{ const ni=sperimInks(s).map(k=>({id:idRef.current++,name:k.name,g:String(k.real||k.g40||''),locked:false})); if(ni.length){ setInks(ni); setProgetto(s.Progetto||''); setNote('da '+s.Sperim_ID); setSperimId(computeId(allSperimentazioni)); setTab('nuovo'); window.scrollTo(0,0); } };
+
+  const inp={width:'100%',boxSizing:'border-box',border:`1.5px solid ${line}`,borderRadius:14,padding:'14px 16px',fontSize:17,fontFamily:'Nebulica',background:'#fff',outline:'none',color:ink};
+  const okA40=Math.abs(solved.rows.reduce((s,r)=>s+r.g40,0)-40)<0.05 && !solved.invalid;
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:2000,background:'#F4EFE2',display:'flex',flexDirection:'column',fontFamily:'Nebulica,Arial,sans-serif',overflow:'hidden'}}>
+      <div style={{padding:'calc(env(safe-area-inset-top,20px) + 14px) 18px 10px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+        <button onClick={back} style={{width:44,height:44,borderRadius:99,border:'none',background:'rgba(11,11,11,0.06)',color:ink,fontSize:20,cursor:'pointer'}}>✕</button>
+        <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:22,letterSpacing:-0.5,color:ink}}>Laboratorio</div>
+      </div>
+      <div style={{padding:'0 18px 10px',flexShrink:0}}>
+        <div style={{display:'flex',gap:4,background:'rgba(11,11,11,0.06)',borderRadius:16,padding:4,maxWidth:520}}>
+          {[['nuovo','✎ Nuovo'],['lista','⚗ Esperimenti']].map(([k,l])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:'11px 10px',borderRadius:12,border:'none',cursor:'pointer',background:tab===k?ink:'transparent',color:tab===k?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:15}}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch',padding:'6px 18px 40px'}}>
+        <div style={{maxWidth:640,margin:'0 auto'}}>
+        {tab==='nuovo' ? (
+          <>
+            <div style={{display:'flex',alignItems:'baseline',gap:10,margin:'6px 2px 14px'}}>
+              <span style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:1.2,color:faint}}>ID</span>
+              <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,fontSize:26,color:ink,letterSpacing:1}}>{sperimId}</span>
+              <span style={{fontFamily:'Nebulica',fontSize:12,color:faint}}>generato dalla data</span>
+            </div>
+            <input value={progetto} onChange={e=>setProgetto(e.target.value)} placeholder="Progetto (facoltativo)" style={{...inp,marginBottom:10}}/>
+
+            <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:1.2,color:faint,margin:'10px 2px 8px'}}>INCHIOSTRI — DOSE PESATA (g)</div>
+            {inks.map((r,i)=>{ const g40=solved.rows[i].g40;
+              return (
+                <div key={r.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <input list="esp-ink-opts" value={r.name} onChange={e=>setInk(r.id,{name:e.target.value})} placeholder="es. AS 40" style={{...inp,padding:'12px 14px'}}/>
+                  </div>
+                  <input value={r.g} onChange={e=>setInk(r.id,{g:e.target.value})} inputMode="decimal" placeholder="g" style={{...inp,width:92,padding:'12px 10px',textAlign:'right',fontWeight:700}}/>
+                  <button onClick={()=>setInk(r.id,{locked:!r.locked})} title={r.locked?'Bloccato (fisso)':'Libero (si adatta)'} style={{width:48,height:48,flexShrink:0,borderRadius:14,border:r.locked?`2px solid ${accent}`:`1.5px solid ${line}`,background:r.locked?rgba(accent,0.12):'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    {r.locked?<IcoLock size={20} color={accent}/>:<IcoUnlock size={20} color={faint}/>}
+                  </button>
+                  <button onClick={()=>delInk(r.id)} style={{width:38,height:48,flexShrink:0,borderRadius:12,border:'none',background:'transparent',color:faint,fontSize:22,cursor:'pointer'}}>×</button>
+                  <div style={{width:70,flexShrink:0,textAlign:'right',fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:r.locked?accent:'#1F8A5B'}}>{fmt(g40)}<span style={{fontSize:10,color:faint,fontWeight:400}}> a40</span></div>
+                </div>
+              );
+            })}
+            <datalist id="esp-ink-opts">{inkOpts.map(n=><option key={n} value={n}/>)}</datalist>
+            <button onClick={addInk} style={{width:'100%',height:48,borderRadius:14,border:`1.5px dashed ${line}`,background:'transparent',color:sub,fontFamily:'Nebulica',fontWeight:700,fontSize:15,cursor:'pointer',marginTop:2}}>+ aggiungi inchiostro</button>
+
+            <div style={{display:'flex',alignItems:'center',gap:14,margin:'18px 2px',flexWrap:'wrap'}}>
+              <div><span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:26,color:ink,letterSpacing:-0.5}}>{fmt(solved.totReale)}</span><span style={{fontFamily:'Nebulica',fontSize:13,color:sub,marginLeft:5}}>g pesati</span></div>
+              <div style={{width:1,height:26,background:line}}/>
+              <div><span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:26,color:okA40?'#1F8A5B':'#B26A00',letterSpacing:-0.5}}>{fmt(solved.rows.reduce((s,r)=>s+r.g40,0))}</span><span style={{fontFamily:'Nebulica',fontSize:13,color:sub,marginLeft:5}}>g a 40</span></div>
+              {solved.invalid&&<span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:13,color:'#E4002B'}}>⚠ bloccati &gt; 40 g</span>}
+            </div>
+            <div style={{fontFamily:'Nebulica',fontSize:12.5,color:faint,margin:'0 2px 14px',lineHeight:1.5}}>🔒 blocca un inchiostro per tenerlo fisso: gli altri si ridistribuiscono per chiudere a 40 g mantenendo le loro proporzioni.</div>
+
+            <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="Note (facoltativo)" style={{...inp,borderRadius:16,resize:'vertical',lineHeight:1.4,marginBottom:12}}/>
+            {msg&&<div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:msg.includes('salvato')?'#1F8A5B':'#E4002B',margin:'0 2px 10px'}}>{msg}</div>}
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={normalizza} title="Riscrivi le dosi pesate coi valori a 40 g" style={{flex:1,height:56,borderRadius:16,border:`1.5px solid ${ink}`,background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:16,cursor:'pointer'}}>→ 40 g</button>
+              <button onClick={salva} disabled={saving} style={{flex:2,height:56,borderRadius:16,border:'none',background:accent,color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:16,cursor:'pointer',opacity:saving?0.7:1}}>{saving?'Salvo…':'Salva esperimento'}</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {rows===null&&<div style={{padding:'40px 0',textAlign:'center',color:faint,fontFamily:'Nebulica',fontSize:15}}>Carico…</div>}
+            {rows!==null&&rows.length===0&&<div style={{padding:'40px 10px',textAlign:'center',color:sub,fontFamily:'Nebulica',fontSize:15,lineHeight:1.5}}>Nessun esperimento ancora.<br/>Creane uno dalla scheda "Nuovo".</div>}
+            {rows!==null&&[...rows].sort((a,b)=>String(b.Sperim_ID).localeCompare(String(a.Sperim_ID))).map(s=>{ const its=sperimInks(s); const promoted=(s.Stato||'').toLowerCase().indexOf('promoss')>=0;
+              return (
+                <div key={s.Sperim_ID} style={{background:'#fff',borderRadius:18,border:`1px solid ${line}`,padding:'16px 18px',marginBottom:12}}>
+                  <div style={{display:'flex',alignItems:'baseline',gap:10,marginBottom:10}}>
+                    <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,fontSize:20,color:ink,letterSpacing:0.5}}>{s.Sperim_ID}</span>
+                    {s.Progetto&&<span style={{fontFamily:'Nebulica',fontSize:13,color:sub}}>{s.Progetto}</span>}
+                    <div style={{flex:1}}/>
+                    <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:11,color:promoted?'#1F8A5B':'#B26A00',background:promoted?'rgba(31,138,91,0.1)':'rgba(178,106,0,0.1)',padding:'4px 10px',borderRadius:99}}>{promoted?('✓ '+(s.Pantone_ID_assegnato||'promosso')):'aperto'}</span>
+                  </div>
+                  {its.map((it,idx)=>(
+                    <div key={idx} style={{display:'flex',alignItems:'center',gap:10,padding:'5px 0'}}>
+                      <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:13,background:ink,color:'#fff',padding:'4px 10px',borderRadius:99,minWidth:52,textAlign:'center'}}>{it.name}</span>
+                      <div style={{flex:1,height:7,borderRadius:99,background:'rgba(11,11,11,0.08)',overflow:'hidden'}}><div style={{height:'100%',width:Math.min(100,(it.g40/40*100*2.5))+'%',background:accent,borderRadius:99}}/></div>
+                      <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:ink,minWidth:52,textAlign:'right'}}>{fmt(it.g40)}<span style={{fontSize:10,color:faint,fontWeight:400}}> g</span></span>
+                    </div>
+                  ))}
+                  <button onClick={()=>variazione(s)} style={{marginTop:12,height:44,padding:'0 18px',borderRadius:12,border:`1.5px solid ${ink}`,background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>↳ Crea variazione</button>
+                </div>
+              );
+            })}
+          </>
+        )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── HEX vicini liberi ─────────────────────────────────────────────────────
 // Genera alternative HEX vicine a un colore ma non ancora usate da nessuna ricetta.
 function hslToHex(h,s,l){
@@ -6017,6 +6195,7 @@ function App() {
   const kioskCode = React.useMemo(()=>{ const p=new URLSearchParams(window.location.search); return p.get('pantone')||null; },[]);
   const isTransfer = React.useMemo(()=>new URLSearchParams(window.location.search).has('transfer'),[]);
   const isVerifica = React.useMemo(()=>new URLSearchParams(window.location.search).has('verifica'),[]);
+  const isEsperimenti = React.useMemo(()=>new URLSearchParams(window.location.search).has('esperimenti'),[]);
 
   const doLoad = React.useCallback(()=>{
     setStatus('loading');
@@ -6050,6 +6229,7 @@ function App() {
   if(kioskCode) return <KioskView rawCode={kioskCode}/>;
   if(isTransfer) return <TransferPanel/>;
   if(isVerifica) return <VerificaQCPage/>;
+  if(isEsperimenti) return <EsperimentiPage/>;
 
   if(isMobile) {
     return <MobileApp/>;
