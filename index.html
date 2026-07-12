@@ -49,6 +49,8 @@ let allInchiostri = [];
 let allInventario = []; // [{inchiostro, grammi, soglia, note}]
 let allBarcodes = [];   // [{barcode, inchiostro}] — mappatura condivisa codice→inchiostro
 let invDraftRemote = null; // bozza inventario condivisa (multi-dispositivo): {purpose,subMode,tally,seq,ts}
+let verificaQC = {};       // {Pantone_ID: {barattolo,formula,codice,copertura,hex,problema}} — verdetto QC utente
+let verificheAux = {};     // {mondayId: {barattolo,codice,copertura,hex,done}} — spunte dichiarate in Trasferimenti (Aux)
 let DESK_PANTONES = [];
 let favoritiSet  = new Set();
 let approvedSet  = new Set();
@@ -109,6 +111,24 @@ async function loadInvDraft() {
 }
 function saveInvDraftRemote(draft) { postGAS({action:'saveInvDraft', draft}).catch(()=>{}); }
 function clearInvDraftRemote() { invDraftRemote=null; postGAS({action:'clearInvDraft'}).catch(()=>{}); }
+
+// Verifica QC (verdetto utente) + spunte Aux dei Trasferimenti
+async function loadVerificaQC() {
+  try { const r = await fetch(SCRIPT_URL + '?action=getVerificaQC'); const d = await r.json(); if (d.ok) verificaQC = d.qc || {}; }
+  catch(e) { /* Code.gs non aggiornato — resta {} */ }
+}
+async function loadVerificheAux() {
+  try { const r = await fetch(SCRIPT_URL + '?action=getVerifiche'); const d = await r.json(); if (d.ok) verificheAux = d.verifiche || {}; }
+  catch(e) { /* resta {} */ }
+}
+const QC_KEYS = ['barattolo','formula','codice','copertura','hex'];
+function qcOf(pid){ return verificaQC[pid] || {barattolo:false,formula:false,codice:false,copertura:false,hex:false,problema:false}; }
+function qcGreen(pid){ const q=qcOf(pid); return QC_KEYS.every(k=>q[k]); }
+function saveVerificaQC(pid, obj){
+  verificaQC[pid] = {...qcOf(pid), ...obj};
+  postGAS({action:'salvaVerificaQC', Pantone_ID:pid, ...verificaQC[pid]}).catch(()=>{});
+  if(window._bumpData) window._bumpData();
+}
 
 async function postGAS(payload) {
   const resp = await fetch(SCRIPT_URL, {
@@ -938,6 +958,13 @@ function TransferBtn({theme, overlay=false}) {
     <a href="?transfer" title="Pagina trasferimenti" style={{height:44,padding:'0 16px',borderRadius:99,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,fontFamily:'Nebulica',fontWeight:700,fontSize:13,letterSpacing:0.2,color:theme.sub,textDecoration:'none',flexShrink:0,...glass(theme,{strong:true}),border:`1.4px solid ${rgba(theme.ink,0.13)}`}}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       Trasferimenti
+    </a>
+  );
+}
+function VerificaBtn({theme}) {
+  return (
+    <a href="?verifica" title="Verifica colori (QC)" style={{height:44,width:44,borderRadius:99,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',color:theme.sub,textDecoration:'none',flexShrink:0,...glass(theme,{strong:true}),border:`1.4px solid ${rgba(theme.ink,0.13)}`}}>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
     </a>
   );
 }
@@ -2330,6 +2357,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
       <div style={{position:'relative',zIndex:20,height:88,display:'flex',alignItems:'center',padding:'0 28px',gap:16}}>
         <Logo theme={theme} onSettings={onSettings}/>
         <div style={{flex:1}}/>
+        <VerificaBtn theme={theme}/>
         <TransferBtn theme={theme}/>
         <ModeOrb mode={mode} onChange={setMode} theme={theme}/>
       </div>
@@ -2381,6 +2409,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
                   </div>
                   <div style={{height:44,display:'flex',alignItems:'center',gap:6}}>
                     {coverLvl(p.copertura)>0&&<div style={{display:'flex',gap:4}}>{[0,1,2].map(i=>{const lvl=coverLvl(p.copertura),fill=i<lvl;return <span key={i} style={{width:11,height:11,borderRadius:99,flexShrink:0,background:fill?rgba(theme.ink,on?0.85:0.42):'transparent',boxShadow:fill?'none':`inset 0 0 0 1.5px ${rgba(theme.ink,0.24)}`}}/>;})}</div>}
+                    {qcGreen(p.code)&&<IcoThumbsUp size={13} color="#1F8A5B"/>}
                     {approvedSet.has(p.code)&&<IcoSeal size={13} color="#22C55E"/>}
                     {verificatoSet.has(p.code)&&<IcoThumbsUp size={13} color="#D97706"/>}
                   </div>
@@ -2417,6 +2446,7 @@ function MasterMode({theme, mode, setMode, query, setQuery, onSettings, anim='ri
             )}
             <div key={'card-'+selected.code} style={{position:'relative',zIndex:1,height:cardH!=null?cardH:'auto',maxHeight:'100%',borderRadius:44,overflow:'hidden',margin:'0 10px',...surface(theme),border:'none',boxShadow:`0 8px 20px ${rgba('#000',0.05)}, 0 30px 60px ${rgba(selected.hex,0.34)}, 0 64px 110px ${rgba(selected.hex,0.26)}`,display:'flex',flexDirection:'column',transition:`height .55s cubic-bezier(.32,1.12,.4,1), box-shadow .3s ease`,animation:cardEnterAnim(cardEnter, navDir==='down'?'fromTop':'fromBottom'),transformOrigin:'center center'}}>
               <div ref={headerRef} key={'h-'+selected.code+anim} style={{background:selected.hex,padding:'66px 18px 14px',flexShrink:0,position:'relative',transformOrigin:'top center',animation:anim==='morph'?`mMorph .62s ${FLUID_SOFT} both`:`mFade .4s ${QUICK} both`}}>
+                {qcGreen(selected.code)&&<div title="Colore verificato al 100%" style={{position:'absolute',top:18,left:18,display:'inline-flex',alignItems:'center',gap:6,background:'#1F8A5B',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:12,padding:'7px 12px',borderRadius:99,boxShadow:'0 4px 12px rgba(0,0,0,0.18)'}}>✓ Verificato</div>}
                 <div style={{position:'absolute',top:18,right:18,display:'flex',gap:10}}>
                   {(()=>{
                     const isFav = favoritiSet.has(selected.code);
@@ -5082,6 +5112,181 @@ function txFormulaIdentica(mfNorm,rNorm){
   return true;
 }
 
+// ═══════════════ DIAGNOSI QC: la formula app combacia con la sua origine Monday? ═══════════════
+// Ritorna {origine, appInks, verdict, matchMf, adjusted, rows}
+//  verdict: 'coerente' | 'aggiustata' | 'scambio' | 'diversa' | 'no-origine'
+function qcDiagnose(r){
+  const comps=allComponenti.filter(c=>String(c.Pantone_ID)===String(r.Pantone_ID));
+  const appNorm=txNormInks(comps);
+  const mondayId=getMondayId(r);
+  const origine=(mondayId!=null)?MONDAY_FORMULAS.find(f=>f.id===mondayId):null;
+  // miglior corrispondenza esatta tra TUTTE le Monday
+  let exact=null;
+  for(const mf of MONDAY_FORMULAS){ if(txFormulaIdentica(txNormInks(mf.inks),appNorm)){ exact=mf; break; } }
+  let verdict, adjusted=false, matchMf=origine||exact||null;
+  if(origine){
+    const oNorm=txNormInks(origine.inks);
+    if(txFormulaIdentica(oNorm,appNorm)){
+      verdict='coerente'; matchMf=origine;
+      const sc=txCompare(oNorm,appNorm).score; adjusted = sc<99.9; // ritoccata ma stesso colore
+    } else if(exact){ verdict='scambio'; matchMf=exact; }
+    else { const sc=txCompare(oNorm,appNorm).score; verdict = sc>=97?'aggiustata':'diversa'; matchMf=origine; adjusted=(verdict==='aggiustata'); }
+  } else {
+    verdict = exact ? 'scambio' : 'no-origine'; matchMf = exact;
+  }
+  // tabella confronto per inchiostro (Monday vs App)
+  const rows=[];
+  const mfInks=matchMf?matchMf.inks:[];
+  const codes=new Set([...mfInks.map(i=>txNormCode(i.code)),...comps.map(c=>txNormCode(c.Inchiostro))]);
+  const mfBy={}; mfInks.forEach(i=>{mfBy[txNormCode(i.code)]=(mfBy[txNormCode(i.code)]||0)+(+i.dose||0);});
+  const apBy={}; comps.forEach(c=>{apBy[txNormCode(c.Inchiostro)]=(apBy[txNormCode(c.Inchiostro)]||0)+(parseFloat(c['Dose_40g (g)'])||0);});
+  [...codes].sort().forEach(code=>{ const m=mfBy[code]||0, a=apBy[code]||0; rows.push({code,monday:m,app:a,diff:a-m}); });
+  return {origine, mondayId, verdict, matchMf, adjusted, rows, comps};
+}
+function qcVerdictLabel(v){
+  return v==='coerente'?{t:'✅ Formula coerente',c:'#1F8A5B'}
+    :v==='aggiustata'?{t:'🔧 Aggiustata per i 40 g',c:'#B26A00'}
+    :v==='scambio'?{t:'🔁 Combacia con un ALTRO colore',c:'#E4002B'}
+    :v==='diversa'?{t:'🔴 Non combacia con nessuna Monday',c:'#E4002B'}
+    :{t:'➖ Nata nell\'app (nessuna origine Monday)',c:'rgba(11,11,11,0.45)'};
+}
+
+/* ═══════════════════ VERIFICA QC (controllo qualità dell'utente) ═══════════════════ */
+function VerificaQCPage(){
+  const [sel,setSel]=React.useState(null);
+  const [query,setQuery]=React.useState('');
+  const [filt,setFilt]=React.useState('tutti');
+  const [,setTick]=React.useState(0);
+  const ink='#0B0B0B', sub='rgba(11,11,11,0.5)', faint='rgba(11,11,11,0.4)', line='rgba(11,11,11,0.10)';
+  const back=()=>{ window.location.href = window.location.pathname; };
+  const fmt=g=>{const n=Math.round(g*100)/100; return (n%1===0?n.toFixed(0):n.toFixed(2));};
+  const nameOf=code=>{ const nm=PANTONE_NAMES[code]; return nm||code; };
+
+  const all=React.useMemo(()=>allRicette.map(r=>{
+    const pid=r.Pantone_ID; return {r,pid,qc:qcOf(pid),green:qcGreen(pid),diag:qcDiagnose(r)};
+  }),[allRicette.length, JSON.stringify(verificaQC)]);
+
+  const nGreen=all.filter(x=>x.green).length;
+  const nProb=all.filter(x=>x.qc.problema).length;
+  const nSusp=all.filter(x=>x.diag.verdict==='scambio'||x.diag.verdict==='diversa').length;
+  const nTodo=all.filter(x=>!x.green&&!x.qc.problema).length;
+
+  const list=React.useMemo(()=>{
+    let l=all;
+    if(filt==='verde') l=l.filter(x=>x.green);
+    else if(filt==='problema') l=l.filter(x=>x.qc.problema);
+    else if(filt==='sospetta') l=l.filter(x=>x.diag.verdict==='scambio'||x.diag.verdict==='diversa');
+    else if(filt==='daverif') l=l.filter(x=>!x.green&&!x.qc.problema);
+    if(query){const s=query.toLowerCase();l=l.filter(x=>x.pid.toLowerCase().includes(s)||nameOf(x.pid).toLowerCase().includes(s));}
+    return [...l].sort((a,b)=>a.pid.localeCompare(b.pid,undefined,{numeric:true}));
+  },[all,filt,query]);
+
+  const cur=sel?all.find(x=>x.pid===sel):null;
+  const auxOf=diag=>{ const id=diag.mondayId; return (id!=null)?verificheAux[id]:null; };
+
+  const chip=(label,on,color)=>({padding:'8px 13px',borderRadius:99,border:'none',cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:13,whiteSpace:'nowrap',background:on?color:'rgba(11,11,11,0.06)',color:on?'#fff':ink});
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:2000,background:'#F4EFE2',display:'flex',flexDirection:'column',fontFamily:'Nebulica,Arial,sans-serif'}}>
+      <div style={{padding:'calc(env(safe-area-inset-top,20px) + 14px) 20px 12px',display:'flex',alignItems:'center',gap:14,flexShrink:0,borderBottom:`1px solid ${line}`}}>
+        <button onClick={()=>{ if(sel)setSel(null); else back(); }} style={{width:40,height:40,borderRadius:99,border:'none',background:'rgba(11,11,11,0.06)',color:ink,fontSize:18,cursor:'pointer'}}>{sel?'‹':'✕'}</button>
+        <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:19,color:ink}}>Verifica colori</div>
+        <div style={{flex:1}}/>
+        <div style={{fontFamily:'Nebulica',fontSize:12,color:sub}}>{nGreen}/{all.length} verificati</div>
+      </div>
+
+      {!sel && (
+        <div style={{padding:'12px 20px 8px',display:'flex',flexWrap:'wrap',gap:8,alignItems:'center',flexShrink:0}}>
+          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="cerca colore…" style={{flex:'1 1 200px',minWidth:150,boxSizing:'border-box',border:`1.5px solid ${line}`,borderRadius:12,padding:'10px 14px',fontSize:15,fontFamily:'Nebulica',background:'#fff',outline:'none'}}/>
+          {[['tutti','Tutti',ink],['daverif','Da verificare · '+nTodo,ink],['sospetta','Formula sospetta · '+nSusp,'#E4002B'],['problema','Problemi · '+nProb,'#E4002B'],['verde','Verdi · '+nGreen,'#1F8A5B']].map(([k,l,c])=>(
+            <button key={k} onClick={()=>setFilt(k)} style={chip(l,filt===k,c)}>{l}</button>
+          ))}
+        </div>
+      )}
+
+      <div style={{flex:1,overflowY:'auto',padding:'8px 16px 40px'}}>
+        {/* LISTA */}
+        {!sel && list.map(x=>{
+          const vl=qcVerdictLabel(x.diag.verdict);
+          return (
+            <div key={x.pid} onClick={()=>setSel(x.pid)} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',marginBottom:7,borderRadius:16,background:'#fff',border:`1px solid ${x.qc.problema?'rgba(228,0,43,0.35)':x.green?'rgba(31,138,91,0.35)':line}`,cursor:'pointer'}}>
+              <div style={{width:34,height:34,borderRadius:10,flexShrink:0,background:(x.r.HEX&&x.r.HEX.length>=6)?(x.r.HEX[0]==='#'?x.r.HEX:'#'+x.r.HEX):'#ddd',border:'1px solid rgba(0,0,0,0.1)'}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:ink}}>{x.pid}</div>
+                <div style={{fontFamily:'Nebulica',fontSize:11.5,color:vl.c,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{vl.t}</div>
+              </div>
+              <div style={{display:'flex',gap:3,flexShrink:0}}>
+                {QC_KEYS.map(k=><span key={k} title={k} style={{width:8,height:8,borderRadius:99,background:x.qc[k]?'#1F8A5B':'rgba(11,11,11,0.15)'}}/>)}
+              </div>
+              {x.qc.problema&&<span style={{fontSize:15}}>⚠️</span>}
+              {x.green&&<span style={{fontSize:15,color:'#1F8A5B'}}>✓</span>}
+            </div>
+          );
+        })}
+        {!sel && list.length===0 && <div style={{padding:'40px 0',textAlign:'center',color:faint,fontFamily:'Nebulica',fontSize:14}}>Nessun colore in questo filtro.</div>}
+
+        {/* DETTAGLIO */}
+        {cur && (()=>{ const {r,pid,qc,diag}=cur; const vl=qcVerdictLabel(diag.verdict); const aux=auxOf(diag); const green=qcGreen(pid);
+          const setK=(k,v)=>{ saveVerificaQC(pid,{[k]:v}); setTick(t=>t+1); };
+          return (
+            <div>
+              {/* intestazione colore */}
+              <div style={{display:'flex',alignItems:'center',gap:14,padding:'4px 4px 14px'}}>
+                <div style={{width:56,height:56,borderRadius:14,flexShrink:0,background:(r.HEX&&r.HEX.length>=6)?(r.HEX[0]==='#'?r.HEX:'#'+r.HEX):'#ddd',border:'1px solid rgba(0,0,0,0.1)'}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:22,color:ink}}>{pid}</div>
+                  <div style={{fontFamily:'Nebulica',fontSize:13,color:vl.c,fontWeight:700,marginTop:2}}>{vl.t}</div>
+                </div>
+                {green&&<span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:'#fff',background:'#1F8A5B',padding:'6px 12px',borderRadius:99}}>VERIFICATO</span>}
+              </div>
+
+              {/* confronto formula Monday vs App */}
+              <div style={{background:'#fff',borderRadius:16,border:`1px solid ${line}`,padding:'14px 16px',marginBottom:14}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
+                  <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:11,letterSpacing:1,color:sub}}>{diag.matchMf?('◀ ORIGINALE: '+diag.matchMf.name):'NESSUNA ORIGINE MONDAY'}</span>
+                  {diag.adjusted&&<span title="Formula ritoccata per far tornare i 40 g" style={{fontFamily:'Nebulica',fontWeight:700,fontSize:11,color:'#B26A00'}}>🔧 aggiustata</span>}
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr auto auto auto',gap:'4px 12px',alignItems:'center',fontFamily:'"JetBrains Mono",monospace',fontSize:12}}>
+                  <span style={{color:faint,fontWeight:700,fontSize:9.5,letterSpacing:0.5}}>INCHIOSTRO</span>
+                  <span style={{color:faint,fontWeight:700,fontSize:9.5,textAlign:'right'}}>MONDAY</span>
+                  <span style={{color:faint,fontWeight:700,fontSize:9.5,textAlign:'right'}}>APP</span>
+                  <span style={{color:faint,fontWeight:700,fontSize:9.5,textAlign:'right'}}>DIFF</span>
+                  {diag.rows.map(rw=>{ const d=rw.diff; const bad=Math.abs(d)>TX_FORMULA_EPS;
+                    return (<React.Fragment key={rw.code}>
+                      <span style={{color:ink,fontWeight:700}}>{rw.code}</span>
+                      <span style={{color:sub,textAlign:'right'}}>{rw.monday?fmt(rw.monday):'—'}</span>
+                      <span style={{color:ink,textAlign:'right'}}>{rw.app?fmt(rw.app):'—'}</span>
+                      <span style={{textAlign:'right',fontWeight:700,color:bad?'#E4002B':'rgba(11,11,11,0.3)'}}>{d===0?'·':(d>0?'+':'')+fmt(d)}</span>
+                    </React.Fragment>);
+                  })}
+                </div>
+              </div>
+
+              {/* spunte Aux (promemoria) */}
+              {aux&&<div style={{fontFamily:'Nebulica',fontSize:12,color:sub,margin:'0 4px 12px'}}>Aux ha dichiarato: {['barattolo','codice','copertura','hex'].filter(k=>aux[k]).map(k=>k).join(', ')||'niente'} {aux.done?' · fatto':''}</div>}
+
+              {/* le 5 pillole + azioni */}
+              <div style={{background:'#fff',borderRadius:16,border:`1px solid ${line}`,padding:'14px 16px'}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:11,letterSpacing:1,color:sub,marginBottom:10}}>LE MIE VERIFICHE</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                  {[['barattolo','Barattolo'],['formula','Formula'],['codice','Codice'],['copertura','Copertura'],['hex','HEX']].map(([k,l])=>{
+                    const on=!!qc[k];
+                    return <button key={k} onClick={()=>setK(k,!on)} style={{padding:'10px 16px',borderRadius:99,border:'none',cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:14,background:on?'#1F8A5B':'rgba(11,11,11,0.07)',color:on?'#fff':ink}}>{on?'✓ ':''}{l}</button>;
+                  })}
+                </div>
+                <div style={{display:'flex',gap:8,marginTop:14}}>
+                  <button onClick={()=>{ saveVerificaQC(pid,{barattolo:true,formula:true,codice:true,copertura:true,hex:true}); setTick(t=>t+1); }} style={{flex:1,height:48,borderRadius:14,border:'none',cursor:'pointer',background:'#1F8A5B',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:15}}>✓ OK a tutto</button>
+                  <button onClick={()=>setK('problema',!qc.problema)} style={{flex:1,height:48,borderRadius:14,border:`1.5px solid ${qc.problema?'#E4002B':'rgba(11,11,11,0.2)'}`,cursor:'pointer',background:qc.problema?'#E4002B':'transparent',color:qc.problema?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:15}}>⚠ Problema</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}
+
 // ── HEX vicini liberi ─────────────────────────────────────────────────────
 // Genera alternative HEX vicine a un colore ma non ancora usate da nessuna ricetta.
 function hslToHex(h,s,l){
@@ -5811,6 +6016,7 @@ function App() {
   const [isMobile] = React.useState(()=>window.innerWidth<1024);
   const kioskCode = React.useMemo(()=>{ const p=new URLSearchParams(window.location.search); return p.get('pantone')||null; },[]);
   const isTransfer = React.useMemo(()=>new URLSearchParams(window.location.search).has('transfer'),[]);
+  const isVerifica = React.useMemo(()=>new URLSearchParams(window.location.search).has('verifica'),[]);
 
   const doLoad = React.useCallback(()=>{
     setStatus('loading');
@@ -5823,6 +6029,8 @@ function App() {
       loadInventario().then(()=>setDataVer(v=>v+1)).catch(()=>{});
       loadBarcodeMap().then(()=>setDataVer(v=>v+1)).catch(()=>{});
       loadInvDraft().then(()=>setDataVer(v=>v+1)).catch(()=>{});
+      loadVerificaQC().then(()=>setDataVer(v=>v+1)).catch(()=>{});
+      loadVerificheAux().then(()=>setDataVer(v=>v+1)).catch(()=>{});
     }).catch(err=>{
       console.error('Errore caricamento:', err);
       setStatus('error');
@@ -5841,6 +6049,7 @@ function App() {
   if(status==='error') return <ErrorScreen onRetry={doLoad}/>;
   if(kioskCode) return <KioskView rawCode={kioskCode}/>;
   if(isTransfer) return <TransferPanel/>;
+  if(isVerifica) return <VerificaQCPage/>;
 
   if(isMobile) {
     return <MobileApp/>;

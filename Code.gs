@@ -17,6 +17,7 @@ function doGet(e) {
     if (action === 'getInventario')      return jsonResp(getInventario());
     if (action === 'getBarcodeMap')      return jsonResp(getBarcodeMap());
     if (action === 'getInvDraft')        return jsonResp(getInvDraft());
+    if (action === 'getVerificaQC')      return jsonResp(getVerificaQC());
     if (action === 'getVerifiche')       return jsonResp(getVerifiche());
     if (action === 'getHexAlternative')  return jsonResp(getHexAlternative(e.parameter.pantone_id || ''));
     return jsonResp({ error: 'Azione sconosciuta' });
@@ -81,6 +82,7 @@ function doPost(e) {
       case 'clearInvDraft':           result = clearInvDraft();               break;
       case 'chiudiInventario':        result = chiudiInventario(data);        break;
       case 'azzeraMagazzino':         result = azzeraMagazzino();             break;
+      case 'salvaVerificaQC':         result = salvaVerificaQC(data);         break;
       case 'salvaVerifica':           result = salvaVerifica(data);           break;
       case 'backfillMondayIds':       result = backfillMondayIds(data);       break;
       default: result = { error: 'Azione sconosciuta: ' + data.action };
@@ -749,6 +751,58 @@ function azzeraMagazzino() {
   var gramCol = headers.indexOf('Grammi_disponibili');
   for (var i = 1; i < rows.length; i++) sh.getRange(i + 1, gramCol + 1).setValue(0);
   return { ok: true, azzerati: Math.max(0, rows.length - 1) };
+}
+
+// ── VERIFICA QC (controllo qualità dell'utente, per ricetta) ──────────────
+// 5 spunte per Pantone_ID: Barattolo, Formula, Codice, Copertura, HEX + Problema.
+// È il verdetto finale dell'utente (indipendente dalle spunte di Trasferimenti).
+function ensureVerificaQCSheet() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sh = ss.getSheetByName('VerificaQC');
+  if (!sh) {
+    sh = ss.insertSheet('VerificaQC');
+    sh.appendRow(['Pantone_ID', 'Barattolo', 'Formula', 'Codice', 'Copertura', 'HEX', 'Problema', 'Aggiornato']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+function getVerificaQC() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sh = ss.getSheetByName('VerificaQC');
+  if (!sh) return { ok: true, qc: {} };
+  var data = sh.getDataRange().getValues();
+  var h = data[0];
+  var res = {};
+  var bool = function(v){ return !!(v === 1 || v === true || String(v) === '1'); };
+  for (var i = 1; i < data.length; i++) {
+    var row = {}; h.forEach(function(k, j){ row[k] = data[i][j]; });
+    var id = String(row['Pantone_ID'] || '');
+    if (id !== '') res[id] = {
+      barattolo: bool(row['Barattolo']), formula: bool(row['Formula']), codice: bool(row['Codice']),
+      copertura: bool(row['Copertura']), hex: bool(row['HEX']), problema: bool(row['Problema']),
+    };
+  }
+  return { ok: true, qc: res };
+}
+function salvaVerificaQC(data) {
+  var sh = ensureVerificaQCSheet();
+  var rows = sh.getDataRange().getValues();
+  var h = rows[0];
+  var idCol = h.indexOf('Pantone_ID');
+  var id = String(data.Pantone_ID || '');
+  if (!id) return { error: 'Pantone_ID mancante' };
+  var ts = new Date().toISOString();
+  var val = function(k){
+    if (k === 'Pantone_ID') return id;
+    if (k === 'Aggiornato') return ts;
+    return data[k.toLowerCase()] ? 1 : 0; // Barattolo→barattolo, HEX→hex, …
+  };
+  var out = h.map(val);
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][idCol]) === id) { sh.getRange(i + 1, 1, 1, h.length).setValues([out]); return { ok: true }; }
+  }
+  sh.appendRow(out);
+  return { ok: true };
 }
 
 // ── BOZZA INVENTARIO (condivisa, multi-dispositivo) ───────────────────────
