@@ -1,5 +1,48 @@
 # Ricettario Serigrafia — Contesto progetto per Claude Code
 
+## 🎨 Laboratorio esperimenti + Famiglie colore (sessione 2026-07-12b)
+
+### Famiglie colore — UNICA fonte di verità: `COLOR_FAMILIES`
+- `const COLOR_FAMILIES` (vicino a ~riga 618) = array `{key,it,en,dot}`. 14 famiglie:
+  rosso(RED) rosa(PNK) arancio(ORG) giallo(YEL) verde(GRN) azzurro(CYN) blu(BLU)
+  viola(PUR) marrone(BRN) beige(BEI) grigio(GRY) neutro(NEU) nero(BLK) bianco(WHT).
+  `key`=Categoria salvata (minuscolo IT, come nel foglio) · `en`=sigla ID · `dot`=pallino.
+- `FAMILIES = ['tutti', ...COLOR_FAMILIES.map(f=>f.key)]` → **wallet filtro e creazione usano
+  la STESSA lista** (richiesta esplicita utente). Rispetto a prima: **+Grigio, −Fluo**.
+  Fluo NON è più una famiglia: è un **flag** (`Fluo`) che convive con la tinta (un fluo rosa
+  resta PNK + flag). Ricette storiche con Categoria='fluo' restano in "tutti" ma senza chip.
+- `FAM_BY_KEY`, `FAM_BY_EN` = lookup.
+- `guessFamily(hex)` **riscritto** su CROMA (c=max−min), non su s HSL (che esplode vicino a
+  bianco/nero). Ora riconosce anche **grigio** e **marrone**. `hexHSLc()` ritorna {h,s,l,c}.
+- Attributi catalogo dedotti da HEX (solo suggerimenti, l'utente conferma):
+  `classifyTone`→chiaro/medio/scuro (L) · `classifyIntensity`→intenso/tenue (s+croma) ·
+  `isFluoHex` · `isPastelHex`. Testati (33 casi) prima del wiring.
+
+### Schema ID esperimenti: `SIGLA[n]-ddmmyy+LETTERA`
+- **Lettera** (A,B,C…) = variazione dello STESSO colore/ricetta.
+- **Contatore** (`RED`, `RED2`, `RED3`) = colori DIVERSI della stessa famiglia lo stesso giorno
+  (il numero compare solo dal 2°). La data distingue i giorni; il contatore serve solo intra-giorno.
+- Helper module-level (prima di `EsperimentiPage`): `parseSperimId`, `nextNewSperimId(famKey,list,dateBase)`,
+  `nextVariationSperimId(parentId,list)`, `todayBase()`, `sperimAttrs(s)` (legge campi salvati con
+  fallback: famiglia da HEX o da sigla dell'ID). ID storici senza sigla (`120726A`) → parse null, ignorati.
+- **`EsperimentiPage`** riscritta: `sperimId` è **derivato** (useMemo) da `famiglia`/`variationParent`,
+  non più stato. Nuovo colore → serve scegliere una famiglia (pillole, obbligatoria) per generare l'ID.
+  Variazione (chaining dopo Salva, o "↳ Crea variazione" da archivio) → famiglia **ereditata**
+  (read-only), `variationParent` guida l'ID alla lettera successiva. "+ Nuovo colore" = `resetColore()`.
+- Composer: pillole famiglia (con pallino), campo HEX (swatch + auto-suggerimento attributi via
+  useEffect[hex]), segmented Tono/Intensità, toggle ⚡Fluo/◐Pastel, campi Progetto+Artista.
+  Archivio: pallino famiglia + chip attributi per card.
+
+### Backend — `addSperimentazione` header-driven (Code.gs) — ⚠️ REDEPLOY NECESSARIO
+- Riscritta per essere **guidata dall'intestazione**: garantisce le colonne
+  `HEX,Famiglia,Tone,Intensity,Fluo,Pastel,Artista` (le aggiunge in coda se il foglio esiste già)
+  e scrive per nome-colonna. Retro-compatibile.
+- **Senza redeploy**: ID (famiglia via sigla), formula, progetto, note **persistono comunque**;
+  solo i tag catalogo (HEX/Tone/Intensity/Fluo/Pastel/Artista) non sopravvivono al reload finché
+  l'utente non fa Deploy → Nuova versione. `sperimAttrs` recupera famiglia dalla sigla dell'ID.
+- TODO Phase-2: UI "Promuovi a Pantone" nel Laboratorio (con Artista/Progetto che seguono la ricetta);
+  estendere box disponibilità/qty40/QC al render mobile; codice inchiostro cliccabile.
+
 ## ⚙️ Pannello Trasferimento — architettura Monday_ID (sessione 2026-07-08)
 
 Il pannello trasferimento NON usa più matching fuzzy (formule/nomi). Il collegamento
