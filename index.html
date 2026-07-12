@@ -3048,6 +3048,7 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
   const [caricaOpen, setCaricaOpen] = React.useState(false);
   const [scanOpen, setScanOpen] = React.useState(false);
   const [codiciOpen, setCodiciOpen] = React.useState(false);
+  const [storicoOpen, setStoricoOpen] = React.useState(false);
   const openCarica = code=>{ setCaricaInk(code||null); setCaricaOpen(true); };
   const azzeraTutto = ()=>{ if(typeof confirm!=='undefined'&&!confirm('Azzerare TUTTO il magazzino (ogni inchiostro a 0 g)? Serve per rifare l\'inventario da capo. Lo storico resta.'))return; allInventario.forEach(i=>{i.grammi=0;}); postGAS({action:'azzeraMagazzino'}).catch(()=>{}); if(window._bumpData)window._bumpData(); };
 
@@ -3099,6 +3100,9 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
           </button>
           <button onClick={()=>setCodiciOpen(true)} title="Vedi e correggi i codici a barre" style={{display:'inline-flex',alignItems:'center',gap:6,padding:'0 16px',height:44,borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.sub,background:'transparent',border:`1.4px solid ${rgba(theme.ink,0.22)}`,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
             ⌗ Codici
+          </button>
+          <button onClick={()=>setStoricoOpen(true)} title="Storico inventari per data" style={{display:'inline-flex',alignItems:'center',gap:6,padding:'0 16px',height:44,borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:theme.sub,background:'transparent',border:`1.4px solid ${rgba(theme.ink,0.22)}`,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
+            ⧗ Storico
           </button>
           <button onClick={()=>openCarica(null)} style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 22px',height:44,borderRadius:99,fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:'#fff',background:theme.ink,border:'none',cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
             <IcoPlus size={16} color="#fff"/> Carico
@@ -3173,6 +3177,7 @@ function MagazzinMode({theme, mode, setMode, query, setQuery, onSettings, tare, 
       <CaricaSheet open={caricaOpen} inkCode={caricaInk} onClose={()=>setCaricaOpen(false)} theme={theme} tare={tare}/>
       <ScannerOverlay open={scanOpen} accent={theme.accent} tare={tare} onClose={()=>setScanOpen(false)} onPick={code=>{ setScanOpen(false); openCarica(code); }}/>
       <CodiciManager open={codiciOpen} accent={theme.accent} onClose={()=>setCodiciOpen(false)}/>
+      <StoricoManager open={storicoOpen} accent={theme.accent} onClose={()=>setStoricoOpen(false)}/>
     </div>
   );
 }
@@ -4424,6 +4429,126 @@ function CodiciManager({open, onClose, accent='#0033FF'}){
   );
 }
 
+// Storico inventari: legge il foglio 'InventariStorico' (via gviz) e lo sfoglia
+// per data (ogni 'Chiudi inventario' = una sessione) o per inchiostro (andamento nel tempo).
+function StoricoManager({open, onClose, accent='#0033FF'}){
+  const [rows,setRows]=React.useState(null); // null = caricamento
+  const [tab,setTab]=React.useState('inventari'); // 'inventari' | 'inchiostro'
+  const [sel,setSel]=React.useState(null);   // sessione selezionata
+  const [inkSel,setInkSel]=React.useState(''); // inchiostro selezionato
+  const [q,setQ]=React.useState('');
+  const ink='#0B0B0B', sub='rgba(11,11,11,0.5)', faint='rgba(11,11,11,0.35)';
+
+  React.useEffect(()=>{ if(open){ setRows(null); setSel(null); setInkSel(''); setQ(''); setTab('inventari');
+    fetchSheet('InventariStorico').then(r=>setRows(r||[])).catch(()=>setRows([])); } },[open]);
+
+  const fmtDate=iso=>{ try{ const d=new Date(iso); if(isNaN(d.getTime()))return String(iso); return d.toLocaleString('it-IT',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return String(iso); } };
+  const fmtG=g=>g>=1000?(g/1000).toFixed(2)+' kg':Math.round(g)+' g';
+  const inkName=code=>{ const o=allInchiostri.find(x=>x.Codice===code); return (o&&o.Nome_completo)||code; };
+
+  const sessions=React.useMemo(()=>{
+    if(!rows) return [];
+    const map={};
+    rows.forEach(r=>{ const s=r.Sessione||r.Timestamp; if(!s)return; if(!map[s]) map[s]={sessione:s,ts:r.Timestamp||'',inks:[]}; map[s].inks.push({code:r.Inchiostro,grammi:parseFloat(r.Grammi)||0}); if(!map[s].ts&&r.Timestamp)map[s].ts=r.Timestamp; });
+    return Object.keys(map).map(k=>({...map[k],totG:map[k].inks.reduce((a,i)=>a+i.grammi,0)})).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  },[rows]);
+
+  const inkOptions=React.useMemo(()=>{
+    if(!rows) return [];
+    const set={}; rows.forEach(r=>{ if(r.Inchiostro)set[r.Inchiostro]=1; });
+    const s=q.toLowerCase();
+    return Object.keys(set).filter(c=>!s||c.toLowerCase().includes(s)||inkName(c).toLowerCase().includes(s)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).slice(0,80);
+  },[rows,q]);
+
+  const inkHistory=React.useMemo(()=>{
+    if(!rows||!inkSel) return [];
+    const h=rows.filter(r=>r.Inchiostro===inkSel).map(r=>({ts:r.Timestamp,grammi:parseFloat(r.Grammi)||0})).sort((a,b)=>String(a.ts).localeCompare(String(b.ts)));
+    return h.map((e,i)=>({...e,delta:i>0?e.grammi-h[i-1].grammi:null})).reverse();
+  },[rows,inkSel]);
+
+  if(!open) return null;
+  const selSession=sessions.find(s=>s.sessione===sel);
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:2000,background:'#F4EFE2',display:'flex',flexDirection:'column',fontFamily:'Nebulica,Arial,sans-serif'}}>
+      <div style={{padding:'calc(env(safe-area-inset-top,20px) + 14px) 18px 10px',display:'flex',alignItems:'center',gap:12,flexShrink:0,borderBottom:'1px solid rgba(11,11,11,0.08)'}}>
+        <button onClick={()=>{ if(sel){setSel(null);} else if(inkSel){setInkSel('');} else onClose(); }} style={{width:40,height:40,borderRadius:99,border:'none',background:'rgba(11,11,11,0.06)',color:ink,fontSize:18,cursor:'pointer'}}>{(sel||inkSel)?'‹':'✕'}</button>
+        <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:18,color:ink}}>Storico inventari</div>
+      </div>
+
+      {!sel && !inkSel && (
+        <div style={{padding:'10px 18px 4px',display:'flex',gap:6,flexShrink:0}}>
+          {[['inventari','Per data'],['inchiostro','Per inchiostro']].map(([k,l])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:'9px 10px',borderRadius:12,border:'none',cursor:'pointer',background:tab===k?ink:'rgba(11,11,11,0.06)',color:tab===k?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:13.5}}>{l}</button>
+          ))}
+        </div>
+      )}
+
+      <div style={{flex:1,overflowY:'auto',padding:'12px 14px 40px'}}>
+        {rows===null && <div style={{padding:'48px 0',textAlign:'center',color:faint,fontFamily:'Nebulica',fontSize:14}}>Carico lo storico…</div>}
+        {rows!==null && rows.length===0 && <div style={{padding:'48px 18px',textAlign:'center',color:sub,fontFamily:'Nebulica',fontSize:14,lineHeight:1.5}}>Nessun inventario registrato.<br/>Chiudi il tuo primo inventario per iniziare lo storico.</div>}
+
+        {/* DETTAGLIO SESSIONE */}
+        {rows!==null && selSession && (
+          <>
+            <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:ink,margin:'2px 4px 2px'}}>{fmtDate(selSession.ts)}</div>
+            <div style={{fontFamily:'Nebulica',fontSize:12,color:sub,margin:'0 4px 12px'}}>{selSession.inks.length} inchiostri · {(selSession.totG/1000).toFixed(1)} kg</div>
+            {selSession.inks.slice().sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(it=>(
+              <div key={it.code} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 14px',marginBottom:6,borderRadius:14,background:'#fff',border:'1px solid rgba(11,11,11,0.08)'}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,background:ink,color:'#fff',padding:'5px 10px',borderRadius:99,minWidth:52,textAlign:'center',flexShrink:0}}>{it.code}</div>
+                <div style={{flex:1,fontFamily:'Nebulica',fontSize:13,color:ink,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{inkName(it.code)}</div>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:16,color:ink}}>{fmtG(it.grammi)}</div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* LISTA INVENTARI (per data) */}
+        {rows!==null && rows.length>0 && !sel && !inkSel && tab==='inventari' && sessions.map(s=>(
+          <div key={s.sessione} onClick={()=>setSel(s.sessione)} style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',marginBottom:8,borderRadius:16,background:'#fff',border:'1px solid rgba(11,11,11,0.08)',cursor:'pointer'}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink}}>{fmtDate(s.ts)}</div>
+              <div style={{fontFamily:'Nebulica',fontSize:12,color:sub,marginTop:2}}>{s.inks.length} inchiostri · {(s.totG/1000).toFixed(1)} kg</div>
+            </div>
+            <span style={{color:faint,fontSize:20}}>›</span>
+          </div>
+        ))}
+
+        {/* PER INCHIOSTRO */}
+        {rows!==null && rows.length>0 && !sel && !inkSel && tab==='inchiostro' && (
+          <>
+            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="cerca inchiostro…" style={{width:'100%',boxSizing:'border-box',marginBottom:10,border:'1.5px solid rgba(11,11,11,0.14)',borderRadius:12,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',outline:'none'}}/>
+            {inkOptions.map(c=>(
+              <div key={c} onClick={()=>setInkSel(c)} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',marginBottom:6,borderRadius:14,background:'#fff',border:'1px solid rgba(11,11,11,0.08)',cursor:'pointer'}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,background:ink,color:'#fff',padding:'5px 10px',borderRadius:99,minWidth:52,textAlign:'center'}}>{c}</div>
+                <div style={{flex:1,fontFamily:'Nebulica',fontSize:13,color:ink}}>{inkName(c)}</div>
+                <span style={{color:faint,fontSize:18}}>›</span>
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* STORIA DI UN INCHIOSTRO */}
+        {rows!==null && inkSel && (
+          <>
+            <div style={{display:'flex',alignItems:'center',gap:10,margin:'2px 4px 12px'}}>
+              <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,background:ink,color:'#fff',padding:'5px 11px',borderRadius:99}}>{inkSel}</div>
+              <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:ink}}>{inkName(inkSel)}</div>
+            </div>
+            {inkHistory.map((e,i)=>(
+              <div key={e.ts+i} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 14px',marginBottom:6,borderRadius:14,background:'#fff',border:'1px solid rgba(11,11,11,0.08)'}}>
+                <div style={{flex:1,minWidth:0,fontFamily:'Nebulica',fontSize:13,color:ink}}>{fmtDate(e.ts)}</div>
+                {e.delta!=null && <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:e.delta<0?'#E4002B':e.delta>0?'#1F8A5B':faint}}>{e.delta<0?'▼ ':e.delta>0?'▲ ':''}{fmtG(Math.abs(e.delta))}</div>}
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:16,color:ink,minWidth:70,textAlign:'right'}}>{fmtG(e.grammi)}</div>
+              </div>
+            ))}
+            <div style={{fontFamily:'Nebulica',fontSize:11.5,color:faint,margin:'8px 4px',lineHeight:1.5}}>▼ rosso = calo tra due inventari (consumo) · ▲ verde = aumento (carico/nuovo).</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════ MAGAZZINO MOBILE ═══════════════════ */
 // Modello: UN numero (grammi totali) per inchiostro. Da lì si deriva kg + "X pieni / Yg avviato".
 // Inventario = barattoli sigillati (stepper, 1 = 1kg) + barattolo aperto pesato (lordo − tara).
@@ -4434,6 +4559,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=107, alertThresho
   const [caricaInk,setCaricaInk]=React.useState(null);
   const [scanOpen,setScanOpen]=React.useState(false);
   const [codiciOpen,setCodiciOpen]=React.useState(false);
+  const [storicoOpen,setStoricoOpen]=React.useState(false);
   const ink='#0B0B0B', sub='rgba(11,11,11,0.5)', faint='rgba(11,11,11,0.35)', line='rgba(11,11,11,0.10)';
   const azzeraTutto=()=>{ if(typeof confirm!=='undefined'&&!confirm('Azzerare TUTTO il magazzino (ogni inchiostro a 0 g)? Serve per rifare l\'inventario da capo. Lo storico resta.'))return; allInventario.forEach(i=>{i.grammi=0;}); postGAS({action:'azzeraMagazzino'}).catch(()=>{}); if(window._bumpData)window._bumpData(); };
 
@@ -4481,6 +4607,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=107, alertThresho
           <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="cerca inchiostro…" style={{flex:1,minWidth:0,boxSizing:'border-box',border:'1.5px solid rgba(11,11,11,0.14)',borderRadius:14,padding:'11px 14px',fontSize:16,fontFamily:'Nebulica',background:'#fff',color:ink,outline:'none'}}/>
           <button onClick={()=>setScanOpen(true)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'0 16px',borderRadius:14,border:'none',background:ink,color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>📷 Scansiona</button>
           <button onClick={()=>setCodiciOpen(true)} title="Codici a barre" style={{flexShrink:0,width:46,borderRadius:14,border:`1.5px solid rgba(11,11,11,0.14)`,background:'#fff',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:16,cursor:'pointer'}}>⌗</button>
+          <button onClick={()=>setStoricoOpen(true)} title="Storico inventari" style={{flexShrink:0,width:46,borderRadius:14,border:`1.5px solid rgba(11,11,11,0.14)`,background:'#fff',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:16,cursor:'pointer'}}>⧗</button>
         </div>
         <div style={{display:'flex',gap:7,padding:'12px 0'}}>
           {[['tutti','Tutti'],['in_mag','In magazzino'],['basso','Sotto soglia'],['no_code','Senza codice']].map(([k,l])=>{
@@ -4535,6 +4662,7 @@ function MagazzinoMobile({accent='#0033FF', bg='#F4EFE2', tare=107, alertThresho
       <CaricaMobileSheet code={caricaInk} onClose={()=>setCaricaInk(null)} tare={tare} accent={accent}/>
       <ScannerOverlay open={scanOpen} accent={accent} tare={tare} onClose={()=>setScanOpen(false)} onPick={code=>{ setScanOpen(false); setCaricaInk(code); }}/>
       <CodiciManager open={codiciOpen} accent={accent} onClose={()=>setCodiciOpen(false)}/>
+      <StoricoManager open={storicoOpen} accent={accent} onClose={()=>setStoricoOpen(false)}/>
       <BottomNav activeKey="magazzino" accent={accent} restColor="#0B0B0B" bg={bg} onNuova={onNuova} onTabChange={onTabChange}/>
     </div>
   );
