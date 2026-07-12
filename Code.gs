@@ -533,26 +533,36 @@ function promuoviSperimentazione(data) {
     }
   }
 
-  // Aggiungi ricetta
-  ricette.appendRow([
-    data.Pantone_ID  || '',
-    data.HEX         || '',
-    data.Categoria   || '',
-    data.Temperatura || '',
-    data.Copertura   || '',
-    data.Note        || '',
-    data.Pagina      || '',
-    data.Progetti    || ''
-  ]);
+  // Aggiungi ricetta — scrittura guidata dall'intestazione (come addRicetta),
+  // così sopravvive a colonne extra (Monday_ID, Preferiti, ...) e ne aggiunge una per l'Artista.
+  let rHeaders = ricette.getRange(1, 1, 1, ricette.getLastColumn()).getValues()[0];
+  if (rHeaders.indexOf('Artista') === -1) {
+    ricette.getRange(1, ricette.getLastColumn() + 1).setValue('Artista');
+    rHeaders = rHeaders.concat('Artista');
+  }
+  const rMap = {
+    'Pantone_ID':  data.Pantone_ID  || '',
+    'HEX':         data.HEX         || '',
+    'Categoria':   data.Categoria   || '',
+    'Temperatura': data.Temperatura || '',
+    'Copertura':   data.Copertura   || '',
+    'Note':        data.Note        || '',
+    'Pagina':      data.Pagina      || '',
+    'Progetti':    data.Progetti    || '',
+    'Artista':     data.Artista     || ''
+  };
+  ricette.appendRow(rHeaders.map(function(h){ return rMap.hasOwnProperty(h) ? rMap[h] : ''; }));
 
-  // Aggiungi componenti
+  // Aggiungi componenti — anch'essi guidati dall'intestazione
+  const cHeaders = comp.getRange(1, 1, 1, comp.getLastColumn()).getValues()[0];
   const componenti = data.componenti || [];
-  componenti.forEach(c => {
-    comp.appendRow([
-      data.Pantone_ID,
-      c.Inchiostro,
-      toDose(c['Dose_40g (g)'])
-    ]);
+  componenti.forEach(function(c){
+    const cMap = {
+      'Pantone_ID':   data.Pantone_ID  || '',
+      'Inchiostro':   c.Inchiostro     || '',
+      'Dose_40g (g)': toDose(c['Dose_40g (g)'])
+    };
+    comp.appendRow(cHeaders.map(function(h){ return cMap.hasOwnProperty(h) ? cMap[h] : ''; }));
   });
 
   return { ok: true };

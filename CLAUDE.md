@@ -40,8 +40,15 @@
 - **Senza redeploy**: ID (famiglia via sigla), formula, progetto, note **persistono comunque**;
   solo i tag catalogo (HEX/Tone/Intensity/Fluo/Pastel/Artista) non sopravvivono al reload finché
   l'utente non fa Deploy → Nuova versione. `sperimAttrs` recupera famiglia dalla sigla dell'ID.
-- TODO Phase-2: UI "Promuovi a Pantone" nel Laboratorio (con Artista/Progetto che seguono la ricetta);
-  estendere box disponibilità/qty40/QC al render mobile; codice inchiostro cliccabile.
+- **Promuovi a Pantone** (`SperimPromoSheet`, FATTO): bottone verde su ogni card archivio non-promossa →
+  sheet con codice Pantone (blocco duplicati vs allRicette), HEX, Categoria (=famiglia), Copertura/Temperatura/
+  Pagina, formula a 40 g. Conferma → `promuoviSperimentazione` (backend header-driven, aggiunge colonna
+  `Artista` a Ricette; Artista+Progetto seguono la ricetta) + update ottimistico allRicette/allComponenti +
+  `_bumpData`; l'esperimento resta in archivio come "promosso".
+- **Confronta** (`SperimCompare`, FATTO): bottone "⧉ Confronta (N)" quando una linea colore ha >1 variazione
+  (`lineKey`=sigla+contatore+data, senza lettera) → overlay con le formule delle varianti A/B/C affiancate
+  in colonne (righe inchiostro allineate sull'unione ordinata), scroll orizzontale mobile.
+- TODO Phase-2: estendere box disponibilità/qty40/QC al render mobile; codice inchiostro cliccabile.
 
 ## ⚙️ Pannello Trasferimento — architettura Monday_ID (sessione 2026-07-08)
 

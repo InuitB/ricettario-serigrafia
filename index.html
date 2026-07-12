@@ -5424,6 +5424,8 @@ function EsperimentiPage(){
   const [saving,setSaving]=React.useState(false);
   const [msg,setMsg]=React.useState('');
   const [savedId,setSavedId]=React.useState(null);
+  const [promo,setPromo]=React.useState(null);      // esperimento in promozione (o null)
+  const [compareKey,setCompareKey]=React.useState(null); // linea colore da confrontare (o null)
   const ink='#0B0B0B', sub='rgba(11,11,11,0.55)', faint='rgba(11,11,11,0.4)', line='rgba(11,11,11,0.12)', accent='#5856D6';
   const back=()=>{ window.location.href=window.location.pathname; };
   const inkOpts=React.useMemo(()=>allInchiostri.map(x=>x.Codice).filter(Boolean),[]);
@@ -5454,6 +5456,10 @@ function EsperimentiPage(){
   const normalizza=()=>{ setInks(a=>a.map((r,i)=>({...r,g:String(Math.round(solved.rows[i].g40*100)/100)}))); };
   const fmt=g=>{const n=Math.round(g*100)/100; return n%1===0?n.toFixed(0):n.toFixed(2);};
   const resetColore=()=>{ setInks([{id:idRef.current++,name:'',g:'',locked:false},{id:idRef.current++,name:'',g:'',locked:false}]); setProgetto(''); setArtista(''); setNote(''); setHex(''); setFamiglia(''); setTone(''); setIntensity(''); setFluo(false); setPastel(false); setVariationParent(null); setSavedId(null); setMsg(''); };
+  // Linea colore = sigla+contatore+data (senza la lettera) → raggruppa le variazioni A/B/C
+  const lineKey=(id)=>{ const p=parseSperimId(id); return p?(p.sigla+p.counter+'-'+p.date):('_'+String(id)); };
+  const lineCounts=React.useMemo(()=>{ const m={}; (rows||[]).forEach(s=>{ const k=lineKey(s.Sperim_ID); m[k]=(m[k]||0)+1; }); return m; },[rows]);
+  const onPromoted=(sid,pantone)=>{ const rec=allSperimentazioni.find(x=>String(x.Sperim_ID)===String(sid)); if(rec){ rec.Stato='Promossa'; rec.Pantone_ID_assegnato=pantone; } setRows([...allSperimentazioni]); setPromo(null); };
 
   const salva=async()=>{
     if(!sperimId){ setMsg('Scegli una famiglia per generare l’ID.'); return; }
@@ -5632,12 +5638,155 @@ function EsperimentiPage(){
                       <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:ink,minWidth:52,textAlign:'right'}}>{fmt(it.g40)}<span style={{fontSize:10,color:faint,fontWeight:400}}> g</span></span>
                     </div>
                   ))}
-                  <button onClick={()=>variazione(s)} style={{marginTop:12,height:44,padding:'0 18px',borderRadius:12,border:`1.5px solid ${ink}`,background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>↳ Crea variazione</button>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:12}}>
+                    <button onClick={()=>variazione(s)} style={{height:44,padding:'0 16px',borderRadius:12,border:`1.5px solid ${ink}`,background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>↳ Crea variazione</button>
+                    {lineCounts[lineKey(s.Sperim_ID)]>1&&<button onClick={()=>setCompareKey(lineKey(s.Sperim_ID))} style={{height:44,padding:'0 16px',borderRadius:12,border:`1.5px solid ${line}`,background:'transparent',color:sub,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>⧉ Confronta ({lineCounts[lineKey(s.Sperim_ID)]})</button>}
+                    {!promoted&&<button onClick={()=>setPromo(s)} style={{height:44,padding:'0 16px',borderRadius:12,border:'none',background:'#1F8A5B',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>→ Promuovi a Pantone</button>}
+                  </div>
                 </div>
               );
             })}
           </>
         )}
+        </div>
+      </div>
+      {promo&&<SperimPromoSheet exp={promo} onClose={()=>setPromo(null)} onDone={onPromoted}/>}
+      {compareKey&&<SperimCompare rows={rows||[]} lineKey={lineKey} keyStr={compareKey} onClose={()=>setCompareKey(null)}/>}
+    </div>
+  );
+}
+
+// ── Confronto variazioni della stessa linea colore (formule affiancate) ────
+function SperimCompare({rows,lineKey,keyStr,onClose}){
+  const ink='#0B0B0B', sub='rgba(11,11,11,0.55)', faint='rgba(11,11,11,0.4)', line='rgba(11,11,11,0.12)', accent='#5856D6';
+  const fmt=g=>{const n=Math.round(g*100)/100; return n%1===0?n.toFixed(0):n.toFixed(2);};
+  const vars=rows.filter(s=>lineKey(s.Sperim_ID)===keyStr).sort((a,b)=>String(a.Sperim_ID).localeCompare(String(b.Sperim_ID)));
+  // unione ordinata degli inchiostri presenti in tutta la linea (righe allineate fra colonne)
+  const inkOrder=[]; vars.forEach(s=>sperimInks(s).forEach(k=>{ if(!inkOrder.includes(k.name)) inkOrder.push(k.name); }));
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:2100,background:'#F4EFE2',display:'flex',flexDirection:'column',fontFamily:'Nebulica,Arial,sans-serif'}}>
+      <div style={{padding:'calc(env(safe-area-inset-top,20px) + 14px) 18px 10px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+        <button onClick={onClose} style={{width:44,height:44,borderRadius:99,border:'none',background:'rgba(11,11,11,0.06)',color:ink,fontSize:22,cursor:'pointer'}}>←</button>
+        <div><div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:20,letterSpacing:-0.5,color:ink}}>Confronto</div>
+        <div style={{fontFamily:'"JetBrains Mono",monospace',fontSize:12,color:faint}}>{keyStr} · {vars.length} varianti</div></div>
+      </div>
+      <div style={{flex:1,overflow:'auto',WebkitOverflowScrolling:'touch',padding:'8px 18px 40px'}}>
+        <div style={{display:'flex',gap:12,minWidth:'min-content'}}>
+          {vars.map(s=>{ const its=sperimInks(s); const at=sperimAttrs(s); const byName={}; its.forEach(k=>byName[k.name]=k.g40); const tot=its.reduce((a,k)=>a+k.g40,0);
+            return (
+              <div key={s.Sperim_ID} style={{flex:'0 0 auto',width:210,background:'#fff',borderRadius:18,border:`1px solid ${line}`,padding:'14px 15px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  {at.fam&&FAM_BY_KEY[at.fam]&&<span style={{width:14,height:14,borderRadius:99,background:FAM_BY_KEY[at.fam].dot,boxShadow:'inset 0 0 0 1px rgba(0,0,0,0.14)'}}/>}
+                  <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,fontSize:16,color:ink}}>{s.Sperim_ID}</span>
+                </div>
+                {inkOrder.map(nm=>{ const g=byName[nm]; return (
+                  <div key={nm} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',opacity:g?1:0.32}}>
+                    <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:11,background:g?ink:'transparent',color:g?'#fff':faint,border:g?'none':`1px solid ${line}`,padding:'3px 7px',borderRadius:99,minWidth:44,textAlign:'center'}}>{nm}</span>
+                    <div style={{flex:1,height:6,borderRadius:99,background:'rgba(11,11,11,0.07)',overflow:'hidden'}}><div style={{height:'100%',width:Math.min(100,((g||0)/40*100*2.5))+'%',background:accent,borderRadius:99}}/></div>
+                    <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:13,color:g?ink:faint,minWidth:34,textAlign:'right'}}>{g?fmt(g):'–'}</span>
+                  </div>
+                );})}
+                <div style={{borderTop:`1px solid ${line}`,marginTop:8,paddingTop:8,display:'flex',justifyContent:'space-between'}}>
+                  <span style={{fontFamily:'Nebulica',fontSize:12,color:sub}}>totale</span>
+                  <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:Math.abs(tot-40)<0.05?'#1F8A5B':ink}}>{fmt(tot)} g</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Promuovi esperimento → ricetta Pantone ────────────────────────────────
+function SperimPromoSheet({exp,onClose,onDone}){
+  const ink='#0B0B0B', sub='rgba(11,11,11,0.55)', faint='rgba(11,11,11,0.4)', line='rgba(11,11,11,0.12)';
+  const at=sperimAttrs(exp);
+  const [code,setCode]=React.useState('');
+  const [hex,setHex]=React.useState(at.hex?at.hex.replace('#',''):'');
+  const [categoria,setCategoria]=React.useState(at.fam||'');
+  const [copertura,setCopertura]=React.useState('');
+  const [temperatura,setTemperatura]=React.useState('');
+  const [pagina,setPagina]=React.useState('');
+  const [saving,setSaving]=React.useState(false);
+  const [err,setErr]=React.useState('');
+  const fmt=g=>{const n=Math.round(g*100)/100; return n%1===0?n.toFixed(0):n.toFixed(2);};
+  const its=sperimInks(exp);
+  const norm=x=>String(x||'').trim().toUpperCase().replace(/\s+/g,' ');
+  const dupCode=code.trim()&&allRicette.some(r=>norm(r.Pantone_ID)===norm(code));
+  const dupHex=hex.replace('#','').length>=6&&allRicette.some(r=>norm(r.HEX)===norm('#'+hex.replace('#','')));
+  const inp={width:'100%',boxSizing:'border-box',border:`1.5px solid ${line}`,borderRadius:14,padding:'13px 15px',fontSize:16,fontFamily:'Nebulica',background:'#fff',outline:'none',color:ink};
+  const lbl={fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:1.2,color:faint,margin:'12px 2px 6px'};
+  const salva=async()=>{
+    if(!code.trim()){ setErr('Inserisci il codice Pantone.'); return; }
+    if(dupCode){ setErr('"'+code.trim()+'" esiste già — usa un codice diverso.'); return; }
+    if(!categoria){ setErr('Scegli una categoria.'); return; }
+    setSaving(true); setErr('');
+    const HX=hex.replace('#','').length>=3?('#'+hex.replace('#','')):'';
+    const componenti=its.map(k=>({Inchiostro:k.name,'Dose_40g (g)':Math.round(k.g40*100)/100}));
+    const payload={action:'promuoviSperimentazione',Sperim_ID:exp.Sperim_ID,Pantone_ID:code.trim(),HEX:HX,
+      Categoria:categoria,Temperatura:temperatura,Copertura:copertura,Note:exp.Note||'',Pagina:pagina,
+      Progetti:exp.Progetto||'',Artista:exp.Artista||'',componenti};
+    try{ await postGAS(payload);
+      allRicette.push({Pantone_ID:code.trim(),HEX:HX,Categoria:categoria,Temperatura:temperatura,Copertura:copertura,Note:exp.Note||'',Pagina:pagina,Progetti:exp.Progetto||'',Artista:exp.Artista||''});
+      componenti.forEach(c=>allComponenti.push({Pantone_ID:code.trim(),Inchiostro:c.Inchiostro,'Dose_40g (g)':c['Dose_40g (g)']}));
+      if(window._bumpData) window._bumpData();
+      onDone(exp.Sperim_ID, code.trim());
+    }catch(e){ setErr('Errore di salvataggio.'); setSaving(false); }
+  };
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:2100,background:'rgba(0,0,0,0.34)',backdropFilter:'blur(3px)',display:'flex',flexDirection:'column',justifyContent:'flex-end'}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'#F7F6F3',borderRadius:'24px 24px 0 0',padding:'8px 18px calc(env(safe-area-inset-bottom,16px) + 18px)',maxHeight:'92vh',overflowY:'auto',fontFamily:'Nebulica,Arial,sans-serif'}}>
+        <div style={{width:40,height:5,borderRadius:99,background:'rgba(11,11,11,0.18)',margin:'8px auto 14px'}}/>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+          <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:20,color:ink}}>Promuovi a Pantone</div>
+          <div style={{flex:1}}/>
+          <span style={{fontFamily:'"JetBrains Mono",monospace',fontSize:13,color:faint}}>{exp.Sperim_ID}</span>
+        </div>
+        <div style={{fontFamily:'Nebulica',fontSize:13,color:sub,lineHeight:1.45,marginBottom:6}}>La formula a 40 g diventa una ricetta ufficiale. L'esperimento resta in archivio come "promosso".</div>
+
+        <div style={lbl}>CODICE PANTONE *</div>
+        <input value={code} onChange={e=>setCode(e.target.value)} placeholder="es. 166 U" style={{...inp,borderColor:dupCode?'#E4002B':line}}/>
+        {dupCode&&<div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12.5,color:'#E4002B',margin:'6px 2px 0'}}>⚠ esiste già una ricetta con questo codice</div>}
+
+        <div style={{display:'flex',gap:10}}>
+          <div style={{flex:1}}>
+            <div style={lbl}>HEX</div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{width:40,height:40,borderRadius:11,flexShrink:0,background:hex.replace('#','').length>=3?('#'+hex.replace('#','')):'#fff',border:`1.5px solid ${line}`}}/>
+              <input value={hex} onChange={e=>setHex(e.target.value.replace('#','').slice(0,6))} placeholder="HEX" style={{...inp,padding:'13px 12px'}}/>
+            </div>
+          </div>
+          <div style={{flex:1}}>
+            <div style={lbl}>CATEGORIA *</div>
+            <select value={categoria} onChange={e=>setCategoria(e.target.value)} style={{...inp,appearance:'auto'}}>
+              <option value="">—</option>
+              {COLOR_FAMILIES.map(f=><option key={f.key} value={f.key}>{f.it}</option>)}
+            </select>
+          </div>
+        </div>
+        {dupHex&&<div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:12,color:'#B26A00',margin:'6px 2px 0'}}>⚠ questo HEX è già usato da un'altra ricetta (puoi comunque procedere)</div>}
+
+        <div style={{display:'flex',gap:10}}>
+          <div style={{flex:1}}><div style={lbl}>COPERTURA</div><input value={copertura} onChange={e=>setCopertura(e.target.value)} placeholder="coprente…" style={inp}/></div>
+          <div style={{flex:1}}><div style={lbl}>TEMPERATURA</div><input value={temperatura} onChange={e=>setTemperatura(e.target.value)} placeholder="—" style={inp}/></div>
+        </div>
+
+        <div style={lbl}>FORMULA · 40 g</div>
+        <div style={{background:'#fff',borderRadius:14,border:`1px solid ${line}`,padding:'10px 14px'}}>
+          {its.map((k,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'4px 0'}}>
+              <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink}}>{k.name}</span>
+              <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:sub}}>{fmt(k.g40)} g</span>
+            </div>
+          ))}
+        </div>
+
+        {err&&<div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:'#E4002B',margin:'12px 2px 0'}}>{err}</div>}
+        <div style={{display:'flex',gap:10,marginTop:16}}>
+          <button onClick={onClose} style={{flex:1,height:54,borderRadius:15,border:`1.5px solid ${line}`,background:'transparent',color:sub,fontFamily:'Nebulica',fontWeight:700,fontSize:16,cursor:'pointer'}}>Annulla</button>
+          <button onClick={salva} disabled={saving||dupCode} style={{flex:2,height:54,borderRadius:15,border:'none',background:'#1F8A5B',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:16,cursor:'pointer',opacity:(saving||dupCode)?0.6:1}}>{saving?'Promuovo…':'Conferma promozione'}</button>
         </div>
       </div>
     </div>
