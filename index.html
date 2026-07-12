@@ -5340,6 +5340,7 @@ function EsperimentiPage(){
   const [saving,setSaving]=React.useState(false);
   const [msg,setMsg]=React.useState('');
   const [sperimId,setSperimId]=React.useState('');
+  const [savedId,setSavedId]=React.useState(null);
   const ink='#0B0B0B', sub='rgba(11,11,11,0.55)', faint='rgba(11,11,11,0.4)', line='rgba(11,11,11,0.12)', accent='#5856D6';
   const back=()=>{ window.location.href=window.location.pathname; };
   const inkOpts=React.useMemo(()=>allInchiostri.map(x=>x.Codice).filter(Boolean),[]);
@@ -5366,13 +5367,13 @@ function EsperimentiPage(){
     try{ await postGAS(payload);
       const rec={Sperim_ID:sperimId,Timestamp:ts,Progetto:progetto,Note:note,Stato:'Aperta'};
       valid.forEach((k,i)=>{rec['Inchiostro_'+(i+1)]=k.name;rec['Dose_reale_'+(i+1)]=payload.dose_reali[i];rec['Dose_40g_'+(i+1)]=payload.dose_40g[i];});
-      allSperimentazioni.push(rec);
-      setMsg('Esperimento '+sperimId+' salvato ✓');
-      setTimeout(()=>{ setInks([{id:idRef.current++,name:'',g:'',locked:false},{id:idRef.current++,name:'',g:'',locked:false}]); setProgetto(''); setNote(''); setSperimId(computeId(allSperimentazioni)); setMsg(''); setRows([...allSperimentazioni]); setTab('lista'); },1100);
+      allSperimentazioni.push(rec); setRows([...allSperimentazioni]);
+      // resta nel composer, pronto a incatenare la variazione successiva (inchiostri tenuti)
+      setSavedId(sperimId); setSperimId(computeId(allSperimentazioni)); setMsg('');
     }catch(e){ setMsg('Errore di salvataggio.'); }
     setSaving(false);
   };
-  const variazione=(s)=>{ const ni=sperimInks(s).map(k=>({id:idRef.current++,name:k.name,g:String(k.real||k.g40||''),locked:false})); if(ni.length){ setInks(ni); setProgetto(s.Progetto||''); setNote('da '+s.Sperim_ID); setSperimId(computeId(allSperimentazioni)); setTab('nuovo'); window.scrollTo(0,0); } };
+  const variazione=(s)=>{ const ni=sperimInks(s).map(k=>({id:idRef.current++,name:k.name,g:String(k.real||k.g40||''),locked:false})); if(ni.length){ setInks(ni); setProgetto(s.Progetto||''); setNote('da '+s.Sperim_ID); setSperimId(computeId(allSperimentazioni)); setSavedId(null); setTab('nuovo'); window.scrollTo(0,0); } };
 
   const inp={width:'100%',boxSizing:'border-box',border:`1.5px solid ${line}`,borderRadius:14,padding:'14px 16px',fontSize:17,fontFamily:'Nebulica',background:'#fff',outline:'none',color:ink};
   const okA40=Math.abs(solved.rows.reduce((s,r)=>s+r.g40,0)-40)<0.05 && !solved.invalid;
@@ -5395,10 +5396,20 @@ function EsperimentiPage(){
         <div style={{maxWidth:640,margin:'0 auto'}}>
         {tab==='nuovo' ? (
           <>
+            {savedId&&(
+              <div style={{background:'rgba(31,138,91,0.10)',border:'1px solid rgba(31,138,91,0.32)',borderRadius:16,padding:'14px 16px',margin:'6px 0 16px'}}>
+                <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:'#1F8A5B'}}>✓ {savedId} salvato</div>
+                <div style={{fontFamily:'Nebulica',fontSize:13.5,color:sub,marginTop:4,lineHeight:1.45}}>Stai preparando <b style={{color:ink}}>{sperimId}</b> come variazione: modifica le dosi e premi Salva. Oppure:</div>
+                <div style={{display:'flex',gap:8,marginTop:12}}>
+                  <button onClick={()=>{ setInks([{id:idRef.current++,name:'',g:'',locked:false},{id:idRef.current++,name:'',g:'',locked:false}]); setProgetto(''); setNote(''); setSavedId(null); }} style={{flex:1,height:46,borderRadius:12,border:`1.5px solid ${ink}`,background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>+ Nuovo vuoto</button>
+                  <button onClick={()=>{ setSavedId(null); setTab('lista'); }} style={{flex:1,height:46,borderRadius:12,border:`1.5px solid ${line}`,background:'transparent',color:sub,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>Vai all'Archivio</button>
+                </div>
+              </div>
+            )}
             <div style={{display:'flex',alignItems:'baseline',gap:10,margin:'6px 2px 14px'}}>
               <span style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:1.2,color:faint}}>ID</span>
               <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,fontSize:26,color:ink,letterSpacing:1}}>{sperimId}</span>
-              <span style={{fontFamily:'Nebulica',fontSize:12,color:faint}}>generato dalla data</span>
+              <span style={{fontFamily:'Nebulica',fontSize:12,color:faint}}>{savedId?'variazione':'generato dalla data'}</span>
             </div>
             <input value={progetto} onChange={e=>setProgetto(e.target.value)} placeholder="Progetto (facoltativo)" style={{...inp,marginBottom:10}}/>
 
