@@ -617,6 +617,7 @@ function deriveTheme(t) {
     btnStyle: t.btnStyle||'B',
     menuStart: t.menuStart||'chiuso',   // 'chiuso' = orb collassabile · 'aperto' = liquid pill dock
     stockCheck: !!t.stockCheck,          // opt-in: mostra disponibilità inchiostri nella formula (margine 120%)
+    qty40: !!t.qty40,                    // opt-in: aggiunge la quinta pillola quantità 40 g (dose minima)
     blobShape: t.blobShape||'morbide', blobSpeed: t.blobSpeed!=null?t.blobSpeed:1,
     blobAnim: t.blobAnim!=null?t.blobAnim:true,
   };
@@ -785,10 +786,11 @@ function IcoCheckSeal({size=16,color='currentColor'}){
 
 /* ═══════════════════ DESKTOP RECIPE COMPONENTS ═══════════════════ */
 function QuantityPicker({value, onChange, theme}) {
+  const QS = theme.qty40 ? [{label:'40 g',grams:40},...QUANTITIES] : QUANTITIES;
   return (
-    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
-      {QUANTITIES.map(q=>{const on=q.grams===value; return (
-        <button key={q.grams} onClick={()=>onChange(q.grams)} style={{padding:'12px 0',textAlign:'center',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:15,letterSpacing:-0.2,color:on?'#fff':theme.ink,...glass(theme,{active:on})}}>{q.label}</button>
+    <div style={{display:'grid',gridTemplateColumns:`repeat(${QS.length},1fr)`,gap:8}}>
+      {QS.map(q=>{const on=q.grams===value; return (
+        <button key={q.grams} onClick={()=>onChange(q.grams)} style={{padding:'12px 0',textAlign:'center',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:theme.qty40?14:15,letterSpacing:-0.2,color:on?'#fff':theme.ink,...glass(theme,{active:on})}}>{q.label}</button>
       );})}
     </div>
   );
@@ -1202,6 +1204,8 @@ function SettingsPanel({open, onClose, settings, setSetting, theme}) {
         <Row label="Spessore bordo"><ISlider value={settings.borderWidth} min={0.5} max={4} step={0.5} unit="px" onChange={v=>setSetting('borderWidth',v)} theme={theme}/></Row>
         <Block label="Superficie scheda"><Pills value={settings.cardSurface} options={[{k:'opaco',l:'Opaca'},{k:'frosted',l:'Frosted'},{k:'trasparente',l:'Trasparente'}]} onChange={v=>setSetting('cardSurface',v)}/></Block>
         <Block label="Stile pulsanti"><Pills value={settings.btnStyle||'B'} options={[{k:'A',l:'A · Pieno'},{k:'B',l:'B · Contorno'},{k:'C',l:'C · Tenue'},{k:'D',l:'D · Nero'}]} onChange={v=>setSetting('btnStyle',v)}/></Block>
+        <Row label="Quantità 40 g (dose minima)"><IToggle value={!!settings.qty40} onChange={v=>setSetting('qty40',v)} theme={theme}/></Row>
+        <div style={{fontFamily:'Nebulica',fontSize:11.5,color:theme.faint,margin:'-6px 2px 8px',lineHeight:1.45}}>Aggiunge una quinta pillola "40 g" nel selettore quantità della ricetta.</div>
         {Head('SFONDO · BLOB')}
         <Block label="Forme blob"><Pills value={settings.blobShape} options={shapes} onChange={v=>setSetting('blobShape',v)}/></Block>
         <Row label="Grana"><IToggle value={settings.grain} onChange={v=>setSetting('grain',v)} theme={theme}/></Row>
@@ -3219,7 +3223,7 @@ const DESK_DEFAULTS = {
   theme:'bianco', accent:'#5856D6', display:'Nebulica', grain:true, borders:true,
   borderWidth:2, cardSurface:'opaco', btnStyle:'B', blobShape:'morbide', blobSpeed:1, blobAnim:true,
   modeTransition:'liquido', masterAnim:'morph', cardEnter:'deck', walletVariant:'row',
-  bgTone:'puro', colorGlow:true, menuStart:'chiuso', stockCheck:false, tare:107, alertThreshold:1000,
+  bgTone:'puro', colorGlow:true, menuStart:'chiuso', stockCheck:false, qty40:false, tare:107, alertThreshold:1000,
 };
 
 function PaletteModeDesktop({theme, mode, setMode, onNuova}) {
@@ -3303,7 +3307,7 @@ function DesktopApp({defaults}) {
     defaults.borderWidth,defaults.cardSurface,defaults.blobShape,defaults.blobSpeed,
     defaults.blobAnim,defaults.modeTransition]);
   const setSetting = (k,v)=>setSettings(s=>({...s,[k]:v}));
-  const theme = React.useMemo(()=>deriveTheme(settings),[settings.theme,settings.accent,settings.display,settings.grain,settings.borders,settings.borderWidth,settings.cardSurface,settings.btnStyle,settings.blobShape,settings.blobSpeed,settings.blobAnim,settings.bgTone,settings.colorGlow,settings.menuStart,settings.stockCheck]);
+  const theme = React.useMemo(()=>deriveTheme(settings),[settings.theme,settings.accent,settings.display,settings.grain,settings.borders,settings.borderWidth,settings.cardSurface,settings.btnStyle,settings.blobShape,settings.blobSpeed,settings.blobAnim,settings.bgTone,settings.colorGlow,settings.menuStart,settings.stockCheck,settings.qty40]);
   const [mode, setMode] = React.useState('master');
   const [query, setQuery] = React.useState('');
   const [settingsOpen, setSettingsOpen] = React.useState(false);
@@ -3887,7 +3891,7 @@ function MobileSettingsPanel({open, onClose, settings, setSetting}) {
 const MOBILE_DEFAULTS = {
   theme:'cream', accent:'#0033FF', borders:true, borderWidth:1.5,
   grain:true, blobAnim:true, blobShape:'morbide', blobSpeed:1, cardStyle:'unified',
-  stockCheck:false, tare:107, alertThreshold:1000,
+  stockCheck:false, qty40:false, tare:107, alertThreshold:1000,
 };
 
 /* ═══════════════════ PALETTE VIEW (mobile) ═══════════════════ */
@@ -4800,8 +4804,8 @@ function MobileApp() {
     borders:settings.borders, borderWidth:settings.borderWidth,
     grain:settings.grain, blobAnim:settings.blobAnim,
     blobShape:settings.blobShape, blobSpeed:settings.blobSpeed,
-    cardSurface:'opaco', stockCheck:settings.stockCheck,
-  }),[settings.theme,settings.accent,settings.borders,settings.borderWidth,settings.grain,settings.blobAnim,settings.blobShape,settings.blobSpeed,settings.stockCheck]);
+    cardSurface:'opaco', stockCheck:settings.stockCheck, qty40:settings.qty40,
+  }),[settings.theme,settings.accent,settings.borders,settings.borderWidth,settings.grain,settings.blobAnim,settings.blobShape,settings.blobSpeed,settings.stockCheck,settings.qty40]);
   React.useEffect(()=>{
     let m=document.querySelector('meta[name="theme-color"]');
     if(!m){m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m);}
