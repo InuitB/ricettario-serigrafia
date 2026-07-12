@@ -4314,6 +4314,8 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
   },[unknown,purpose,effSub]);
 
   const confirmWeigh=()=>{ const g=parseFloat(String(gross).replace(',','.')); const net=(!isNaN(g)&&g>0)?Math.max(0,Math.round(g-tare)):0; if(weighFor){ bump(weighFor,0,net); doToast(weighFor+': '+net+'g aperto'); playBeep('saved'); } setWeighFor(null); setGross(''); };
+  // Tastierino interno: NON dipende dalla tastiera iOS (che sparisce col lettore HID collegato)
+  const grossKey=(k)=>{ if(k==='⌫'){ setGross(g=>String(g).slice(0,-1)); return; } if(k===','){ setGross(g=>(String(g).includes(',')||String(g).includes('.'))?g:((g||'0')+',')); return; } setGross(g=>(String(g||'')+k).replace(/^0+(\d)/,'$1')); };
 
   const tallyRows=React.useMemo(()=>Object.keys(tally).map(k=>({ink:k,jars:tally[k].jars,open:tally[k].open,ord:tally[k].ord||0,grammi:tally[k].jars*1000+tally[k].open}))
     .filter(r=>r.jars>0||r.open>0).sort((a,b)=>b.ord-a.ord),[tally]);
@@ -4413,11 +4415,19 @@ function ScannerOverlay({open, onPick, onClose, accent='#0033FF', tare=107}){
               <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:16,color:ink}}>{inkName(weighFor)}</div>
             </div>
             <div style={{fontFamily:'Nebulica',fontSize:13,color:'rgba(11,11,11,0.55)',marginBottom:6}}>Peso <b>lordo</b> del barattolo aperto (g):</div>
-            <input autoFocus value={gross} onChange={e=>setGross(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')confirmWeigh();}} inputMode="decimal" placeholder="es. 640" style={{width:'100%',boxSizing:'border-box',border:'1.5px solid rgba(11,11,11,0.16)',borderRadius:12,padding:'13px 14px',fontSize:22,fontFamily:'Nebulica',fontWeight:700,background:'#fff',outline:'none',color:ink}}/>
-            <div style={{fontFamily:'Nebulica',fontSize:13,color:'rgba(11,11,11,0.55)',marginTop:10}}>Tara {tare}g → <b style={{color:ink,fontSize:16}}>{net}g</b> netti</div>
-            <div style={{display:'flex',gap:10,marginTop:18}}>
-              <button onClick={()=>{setWeighFor(null);setGross('');}} style={{flex:1,height:50,borderRadius:14,border:'1.5px solid rgba(11,11,11,0.2)',background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:15,cursor:'pointer'}}>Annulla</button>
-              <button onClick={confirmWeigh} style={{flex:2,height:50,borderRadius:14,border:'none',background:accent,color:textOnDesk(accent),fontFamily:'Nebulica',fontWeight:700,fontSize:15,cursor:'pointer'}}>Aggiungi {net}g</button>
+            <div style={{width:'100%',boxSizing:'border-box',border:'1.5px solid rgba(11,11,11,0.16)',borderRadius:12,padding:'13px 16px',minHeight:34,fontSize:26,fontFamily:'Nebulica',fontWeight:700,background:'#fff',color:gross?ink:'rgba(11,11,11,0.32)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <span>{gross||'0'}</span><span style={{fontSize:14,color:'rgba(11,11,11,0.4)'}}>g lordi</span>
+            </div>
+            <div style={{fontFamily:'Nebulica',fontSize:13,color:'rgba(11,11,11,0.55)',marginTop:8}}>Tara {tare}g → <b style={{color:ink,fontSize:16}}>{net}g</b> netti</div>
+            {/* tastierino interno — indipendente dalla tastiera iOS (col lettore HID collegato non compare) */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginTop:14}}>
+              {['1','2','3','4','5','6','7','8','9',',','0','⌫'].map(k=>(
+                <button key={k} onClick={()=>grossKey(k)} style={{height:58,borderRadius:14,border:'1.5px solid rgba(11,11,11,0.14)',background:'#fff',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:23,cursor:'pointer',WebkitTapHighlightColor:'transparent'}}>{k}</button>
+              ))}
+            </div>
+            <div style={{display:'flex',gap:10,marginTop:14}}>
+              <button onClick={()=>{setWeighFor(null);setGross('');}} style={{flex:1,height:52,borderRadius:14,border:'1.5px solid rgba(11,11,11,0.2)',background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:15,cursor:'pointer'}}>Annulla</button>
+              <button onClick={confirmWeigh} style={{flex:2,height:52,borderRadius:14,border:'none',background:accent,color:textOnDesk(accent),fontFamily:'Nebulica',fontWeight:700,fontSize:15,cursor:'pointer'}}>Aggiungi {net}g</button>
             </div>
           </div>
         </div>
