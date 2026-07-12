@@ -616,9 +616,21 @@ function deriveTheme(t) {
     cardSurface: t.cardSurface||'opaco',
     btnStyle: t.btnStyle||'B',
     menuStart: t.menuStart||'chiuso',   // 'chiuso' = orb collassabile · 'aperto' = liquid pill dock
+    stockCheck: !!t.stockCheck,          // opt-in: mostra disponibilità inchiostri nella formula (margine 120%)
     blobShape: t.blobShape||'morbide', blobSpeed: t.blobSpeed!=null?t.blobSpeed:1,
     blobAnim: t.blobAnim!=null?t.blobAnim:true,
   };
+}
+// Disponibilità di un inchiostro per il fabbisogno 'need' (g), con margine di sicurezza 120%.
+// Ritorna {status:'green'|'orange'|'red'|'unknown', stock, need, manca}. 'unknown' = magazzino a 0 (non inventariato).
+function inkAvailability(name, need){
+  const anyStock = allInventario.some(i=>(i.grammi||0)>0);
+  if(!anyStock) return {status:'unknown', stock:0, need, manca:0};
+  const inv = allInventario.find(i=>i.inchiostro===name);
+  const stock = inv ? (inv.grammi||0) : 0;
+  if(stock < need) return {status:'red', stock, need, manca:need-stock};
+  if(stock < need*1.2) return {status:'orange', stock, need, manca:0};
+  return {status:'green', stock, need, manca:0};
 }
 // Stile pulsanti d'azione A/B/C/D (handoff) — role: primary|secondary|icon
 function actionStyle(theme, role='primary') {
@@ -785,8 +797,23 @@ function QuantityPicker({value, onChange, theme}) {
 function InkFormula({pantone, recipe, qty, theme, big=false, anim='none', play=true, sortInk='pct_desc', onSortChange=null}) {
   const inks = sortInkFormula(recipe.inks, sortInk);
   const sortOpts=[['pct_desc','↓g'],['pct_asc','↑g'],['name_asc','A–Z'],['name_desc','Z–A']];
+  const stockOn = theme.stockCheck;
+  const fmtSt = g=> g>=1000 ? (g/1000).toFixed(2)+' kg' : Math.round(g)+' g';
+  const avail = stockOn ? inks.map(ink=>inkAvailability(ink.name,(ink.pct/100)*qty)) : null;
+  const anyUnknown = avail && avail.length>0 && avail.every(a=>a.status==='unknown');
+  const reds = avail ? inks.map((ink,i)=>({ink,a:avail[i]})).filter(x=>x.a.status==='red') : [];
+  const oranges = avail ? inks.map((ink,i)=>({ink,a:avail[i]})).filter(x=>x.a.status==='orange') : [];
+  const DOT={green:'#1F8A5B',orange:'#FF8C00',red:'#E4002B',unknown:'rgba(11,11,11,0.28)'};
+  let box=null;
+  if(stockOn){
+    if(anyUnknown) box={c:theme.sub,bg:rgba(theme.ink,0.05),bd:rgba(theme.ink,0.12),txt:'ⓘ Magazzino non ancora inventariato — disponibilità non calcolabile.'};
+    else if(reds.length) box={c:'#E4002B',bg:rgba('#E4002B',0.08),bd:rgba('#E4002B',0.28),txt:`⚠️ Per ${qty.toFixed(0)} g non basta: `+reds.map(r=>`${r.ink.name} (−${fmtSt(r.a.manca)})`).join('  ·  ')};
+    else if(oranges.length) box={c:'#B26A00',bg:rgba('#FF8C00',0.11),bd:rgba('#FF8C00',0.30),txt:`🟠 Scorte giuste per ${qty.toFixed(0)} g (meno del +20% di margine): `+oranges.map(o=>o.ink.name).join('  ·  ')};
+    else box={c:'#1F8A5B',bg:rgba('#1F8A5B',0.09),bd:rgba('#1F8A5B',0.25),txt:`✅ Inchiostri sufficienti per ${qty.toFixed(0)} g`};
+  }
   return (
     <div>
+      {box&&<div style={{margin:'0 0 12px',padding:'10px 14px',borderRadius:14,background:box.bg,border:`1px solid ${box.bd}`,fontFamily:'Nebulica',fontWeight:700,fontSize:12.5,color:box.c,lineHeight:1.5}}>{box.txt}</div>}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontFamily:'Nebulica',fontSize:11,letterSpacing:1.5,fontWeight:700,color:theme.sub,marginBottom:4}}>
         <span>FORMULA · {inks.length} INK</span>
         <div style={{display:'flex',alignItems:'center',gap:4}}>
@@ -799,12 +826,16 @@ function InkFormula({pantone, recipe, qty, theme, big=false, anim='none', play=t
       <div>
         {inks.map((ink,idx)=>{
           const grams = (ink.pct/100)*qty;
+          const a = avail ? avail[idx] : null;
           const delay = anim==='stagger' ? idx*90 : 0;
           return (
             <div key={ink.name} style={{display:'flex',alignItems:'center',gap:16,padding:big?'10px 0':'12px 0',borderTop:`1px solid ${theme.line}`,animation:(play&&anim==='stagger')?`dkpop .5s ${SPRING_SOFT} ${delay}ms both`:'none'}}>
               <div style={{minWidth:big?132:116}}>
-                <span style={{padding:'7px 14px',borderRadius:99,background:theme.ink,color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:big?14:12.5,whiteSpace:'nowrap',display:'inline-block'}}>{ink.name}</span>
-                <div style={{fontFamily:'Nebulica',fontSize:11,color:theme.faint,marginTop:5,paddingLeft:3}}>{ink.label}</div>
+                <span style={{display:'inline-flex',alignItems:'center',gap:7}}>
+                  {a&&<span title={a.status} style={{width:9,height:9,borderRadius:99,background:DOT[a.status],flexShrink:0}}/>}
+                  <span style={{padding:'7px 14px',borderRadius:99,background:theme.ink,color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:big?14:12.5,whiteSpace:'nowrap',display:'inline-block'}}>{ink.name}</span>
+                </span>
+                <div style={{fontFamily:'Nebulica',fontSize:11,color:a&&a.status==='red'?'#E4002B':theme.faint,marginTop:5,paddingLeft:3}}>{a&&a.status!=='unknown' ? (a.status==='red' ? `in mag ${fmtSt(a.stock)} · mancano ${fmtSt(a.manca)}` : `in mag ${fmtSt(a.stock)}`) : ink.label}</div>
               </div>
               <div style={{flex:1,height:8,borderRadius:99,background:theme.line,overflow:'hidden'}}>
                 <div style={{height:'100%',width:play?`${ink.pct}%`:'0%',background:pantone.hex,borderRadius:99,boxShadow:`inset 0 0 0 1px ${rgba('#000',0.05)}`,transition:`width .65s ${SPRING_SOFT} ${delay+60}ms`}}/>
@@ -1192,6 +1223,8 @@ function SettingsPanel({open, onClose, settings, setSetting, theme}) {
           );})}
         </div>
         {Head('MAGAZZINO')}
+        <Row label="Disponibilità in ricetta"><IToggle value={!!settings.stockCheck} onChange={v=>setSetting('stockCheck',v)} theme={theme}/></Row>
+        <div style={{fontFamily:'Nebulica',fontSize:11.5,color:theme.faint,margin:'-6px 2px 8px',lineHeight:1.45}}>Mostra nella formula se hai abbastanza inchiostro per la quantità scelta (margine di sicurezza +20%). Serve il magazzino aggiornato.</div>
         <Row label="Tara barattolo"><ISlider value={settings.tare??107} min={50} max={300} step={1} unit="g" onChange={v=>setSetting('tare',v)} theme={theme}/></Row>
         <Row label="Soglia alert"><ISlider value={settings.alertThreshold??1000} min={100} max={5000} step={50} unit="g" onChange={v=>setSetting('alertThreshold',v)} theme={theme}/></Row>
       </div>
@@ -3186,7 +3219,7 @@ const DESK_DEFAULTS = {
   theme:'bianco', accent:'#5856D6', display:'Nebulica', grain:true, borders:true,
   borderWidth:2, cardSurface:'opaco', btnStyle:'B', blobShape:'morbide', blobSpeed:1, blobAnim:true,
   modeTransition:'liquido', masterAnim:'morph', cardEnter:'deck', walletVariant:'row',
-  bgTone:'puro', colorGlow:true, menuStart:'chiuso', tare:107, alertThreshold:1000,
+  bgTone:'puro', colorGlow:true, menuStart:'chiuso', stockCheck:false, tare:107, alertThreshold:1000,
 };
 
 function PaletteModeDesktop({theme, mode, setMode, onNuova}) {
@@ -3270,7 +3303,7 @@ function DesktopApp({defaults}) {
     defaults.borderWidth,defaults.cardSurface,defaults.blobShape,defaults.blobSpeed,
     defaults.blobAnim,defaults.modeTransition]);
   const setSetting = (k,v)=>setSettings(s=>({...s,[k]:v}));
-  const theme = React.useMemo(()=>deriveTheme(settings),[settings.theme,settings.accent,settings.display,settings.grain,settings.borders,settings.borderWidth,settings.cardSurface,settings.btnStyle,settings.blobShape,settings.blobSpeed,settings.blobAnim,settings.bgTone,settings.colorGlow,settings.menuStart]);
+  const theme = React.useMemo(()=>deriveTheme(settings),[settings.theme,settings.accent,settings.display,settings.grain,settings.borders,settings.borderWidth,settings.cardSurface,settings.btnStyle,settings.blobShape,settings.blobSpeed,settings.blobAnim,settings.bgTone,settings.colorGlow,settings.menuStart,settings.stockCheck]);
   const [mode, setMode] = React.useState('master');
   const [query, setQuery] = React.useState('');
   const [settingsOpen, setSettingsOpen] = React.useState(false);
@@ -3854,7 +3887,7 @@ function MobileSettingsPanel({open, onClose, settings, setSetting}) {
 const MOBILE_DEFAULTS = {
   theme:'cream', accent:'#0033FF', borders:true, borderWidth:1.5,
   grain:true, blobAnim:true, blobShape:'morbide', blobSpeed:1, cardStyle:'unified',
-  tare:107, alertThreshold:1000,
+  stockCheck:false, tare:107, alertThreshold:1000,
 };
 
 /* ═══════════════════ PALETTE VIEW (mobile) ═══════════════════ */
@@ -4767,8 +4800,8 @@ function MobileApp() {
     borders:settings.borders, borderWidth:settings.borderWidth,
     grain:settings.grain, blobAnim:settings.blobAnim,
     blobShape:settings.blobShape, blobSpeed:settings.blobSpeed,
-    cardSurface:'opaco',
-  }),[settings.theme,settings.accent,settings.borders,settings.borderWidth,settings.grain,settings.blobAnim,settings.blobShape,settings.blobSpeed]);
+    cardSurface:'opaco', stockCheck:settings.stockCheck,
+  }),[settings.theme,settings.accent,settings.borders,settings.borderWidth,settings.grain,settings.blobAnim,settings.blobShape,settings.blobSpeed,settings.stockCheck]);
   React.useEffect(()=>{
     let m=document.querySelector('meta[name="theme-color"]');
     if(!m){m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m);}
