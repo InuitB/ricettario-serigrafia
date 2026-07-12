@@ -45,6 +45,74 @@ Monday ⇄ ricetta è **esplicito e memorizzato**:
 - Bug residuo innocuo: `salvaVerifica` (Code.gs) azzera la colonna `Done` quando il POST non manda
   `done` — ma il concetto `done` è stato RIMOSSO dal frontend, quindi è ininfluente.
 
+## 📦 Magazzino & Inventario — architettura (sessione 2026-07-12)
+
+Sistema completo di magazzino inchiostri con scanner barcode, conteggio a sessione e storico datato.
+Presente **identico su desktop (`MagazzinMode`) e mobile (`MagazzinoMobile`)** — parità piena.
+
+### Scanner (`ScannerOverlay`) — 3 scopi + sottomodalità
+- **📦 Inventario**: conta in sessione. Sottomodalità **Sigillato +1kg** (scan → +1 barattolo = 1000g)
+  e **⚖️ Pesa aperto** (scan → input peso lordo → netto = lordo − tara). Per lo stesso inchiostro si
+  sommano (N×1000 + netto aperto). Salva = **SOSTITUISCE** lo stock (assoluto).
+- **➕ Nuovi barattoli**: solo sigillati; Salva = **AGGIUNGE** allo stock (`aggiungiCarico`).
+- **⌗ Impara codici**: mappa i barcode→inchiostro **senza contare kg**, con registro live.
+- **Mac/desktop (no touch → `navigator.maxTouchPoints===0`)**: SOLO lettore esterno (HID) + campo
+  manuale, la fotocamera NON si attiva. iPhone/iPad: camera + HID.
+- **Tara default = 107 g** (misurata: media di 10 barattoli vuoti = 106,7g). Slider 50–300g nei settings.
+- Virgola e punto equivalenti in TUTTI gli input peso (`.replace(',','.')`). Magazzino salva **grammi
+  interi** (`Math.round`) → nessun decimale ambiguo va al foglio.
+
+### Sessione conteggio: Pausa vs Chiudi (multi-dispositivo)
+- Lista live ordinata per **ultimo-scansionato in cima** (campo `ord` + `seqRef`). +/− per riga.
+- **⏸ Pausa** (e la ✕): salva la bozza in `localStorage` (`mag_inv_session`) **e** sul server condiviso
+  (`saveInvDraft` → ScriptProperties). NON tocca il magazzino. Riprendibile da qualsiasi dispositivo.
+- **Chiudi inventario**: `chiudiInventario` = scrive stock assoluto + **fotografia datata** nel foglio
+  `InventariStorico`. Fallback a `aggiornaStock` per-inchiostro se il backend non è aggiornato.
+- All'apertura ripristina la bozza **più recente** tra locale e remota (confronto `ts`). Banner
+  "⏸ Inventario in corso — Riprendi" in Magazzino (via `readInvSession`).
+- **↺ Ricomincia** svuota; **⟲ Azzera** (`azzeraMagazzino`) azzera tutti gli inchiostri (per rifare
+  da capo — lo storico resta).
+- ⚠️ Regola d'oro: conta **ogni inchiostro tutto in una volta**; non spezzarlo tra due salvataggi in
+  modalità Inventario (che sostituisce il totale di quell'inchiostro).
+
+### Barcode → inchiostro (condiviso, multipiattaforma)
+- Foglio **`Barcode`** (Barcode, Inchiostro, Timestamp). `mapBarcode`/`getBarcodeMap`. Global `allBarcodes`.
+- **Un codice = UN inchiostro** (enforced: `mapBarcode` sovrascrive; i codici già noti non si richiedono).
+  Due codici diversi → stesso inchiostro è OK e voluto (barattoli a doppio codice).
+- La sigla "AS 40" si riconosce da sola dal foglio Inchiostri (non serve mapparla). Vale la pena mappare
+  gli **EAN numerici** e i codici muti.
+- **`CodiciManager` (⌗ Codici)**: vedi quali inchiostri hanno 0/1/2 codici, cerca un codice, **riassegna**
+  (fix mis-scan). Badge **⌗N** per inchiostro nella lista + filtro **"Senza codice"**.
+
+### Storico (`StoricoManager`, ⧗ Storico)
+- Legge il foglio **`InventariStorico`** via **gviz** (`fetchSheet`) → **NESSUN redeploy** per leggerlo.
+- Tab **Per data**: elenco inventari chiusi → dettaglio stock per inchiostro di quella sessione.
+- Tab **Per inchiostro**: andamento nel tempo con **delta** (▼ calo=consumo, ▲ aumento=carico).
+- `jarsLabel(g)`: 1kg=1 barattolo → "N pieni + Xg avviato". Presente su desktop e mobile.
+
+### Fogli Google & ScriptProperties nuovi
+- `Barcode`, `InventariStorico` (Timestamp, Sessione, Inchiostro, Grammi, Barattoli, Aperto_g, Note).
+- ScriptProperties key `invDraft` (bozza inventario JSON).
+
+### Code.gs — azioni aggiunte (file = 836 righe, **GIÀ DEPLOYATO dall'utente il 2026-07-12**)
+`getBarcodeMap`, `mapBarcode`, `getInvDraft`, `saveInvDraft`, `clearInvDraft`, `chiudiInventario`,
+`azzeraMagazzino`. Deploy confermato: dopo Azzera + reload lo stock resta a 0.
+⚠️ Regola: lo Storico NON serve deploy (gviz); il resto sì. Dire all'utente esplicitamente quando
+serve un redeploy (nuove azioni Code.gs), altrimenti no.
+
+### Altre modifiche 2026-07-12
+- **Sfondo bianco**: `THEME_BG` con `bianco` (#F7F6F3); terzo swatch in "Sfondo" (settings desktop+mobile).
+- **DESK_DEFAULTS aggiornati**: theme `bianco`, bgTone `puro`, colorGlow `true`, masterAnim `morph`.
+- **Palette Lab desktop**: aggiunto `ModeOrb` + `TransferBtn` (prima si restava bloccati, non riceveva
+  mode/setMode).
+
+### ⚠️ Backlog CORRETTO (verificato nel codice)
+- **"Modificare inchiostri di una ricetta esistente" È GIÀ FATTO** — `EditSheet` (desktop+mobile) ha la
+  sezione "FORMULA · dose a 40 g" con aggiungi/rimuovi/modifica inchiostri e dosi. Voce vecchia, ignorare.
+- Restano davvero: codice inchiostro cliccabile dal dettaglio → scheda inchiostro; sheet filtro ricette
+  (Categoria/Copertura/Temperatura); sezione "Da completare"; scelta layout etichetta PDF; fix overscroll
+  iOS; **consumo per lavoro + stime** (feature grande, sensata solo con storico popolato).
+
 ## Panoramica
 
 App web mobile-first per la gestione delle formule di inchiostri serigrafia (SICO · Pantone).
