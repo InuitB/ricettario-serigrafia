@@ -615,7 +615,27 @@ function stampaPDF(pantone, recipe, qty) {
   else stampaSmall(doc, pantone, recipe, qty);
   doc.save(`etichetta_${pantone.code.replace(/ /g,'_')}.pdf`);
 }
-const FAMILIES = ['tutti','blu','azzurro','verde','giallo','arancio','rosso','rosa','viola','marrone','beige','nero','bianco','neutro','fluo'];
+// ── Famiglie colore — UNICA fonte di verità (wallet + creazione identici) ──
+// key = categoria salvata (minuscolo IT) · it = etichetta · en = sigla ID · dot = pallino
+const COLOR_FAMILIES = [
+  {key:'rosso',   it:'Rosso',   en:'RED', dot:'#E4342B'},
+  {key:'rosa',    it:'Rosa',    en:'PNK', dot:'#EF7FA8'},
+  {key:'arancio', it:'Arancio', en:'ORG', dot:'#F08A24'},
+  {key:'giallo',  it:'Giallo',  en:'YEL', dot:'#F4C518'},
+  {key:'verde',   it:'Verde',   en:'GRN', dot:'#3FA24A'},
+  {key:'azzurro', it:'Azzurro', en:'CYN', dot:'#35B6C9'},
+  {key:'blu',     it:'Blu',     en:'BLU', dot:'#2C55C4'},
+  {key:'viola',   it:'Viola',   en:'PUR', dot:'#7A3FB0'},
+  {key:'marrone', it:'Marrone', en:'BRN', dot:'#7A4B2A'},
+  {key:'beige',   it:'Beige',   en:'BEI', dot:'#D9C29A'},
+  {key:'grigio',  it:'Grigio',  en:'GRY', dot:'#9AA0A6'},
+  {key:'neutro',  it:'Neutro',  en:'NEU', dot:'#B8B2A6'},
+  {key:'nero',    it:'Nero',    en:'BLK', dot:'#1A1A1A'},
+  {key:'bianco',  it:'Bianco',  en:'WHT', dot:'#F2F0EA'},
+];
+const FAM_BY_KEY = Object.fromEntries(COLOR_FAMILIES.map(f=>[f.key,f]));
+const FAM_BY_EN  = Object.fromEntries(COLOR_FAMILIES.map(f=>[f.en,f]));
+const FAMILIES = ['tutti', ...COLOR_FAMILIES.map(f=>f.key)];
 
 
 /* ═══════════════════ THEME ═══════════════════ */
@@ -1300,30 +1320,44 @@ function SettingsPanel({open, onClose, settings, setSetting, theme}) {
 
 
 /* ═══════════════════ DESKTOP NUOVA / EDIT SHEETS ═══════════════════ */
-function guessFamily(hexStr) {
-  const h = hexStr.replace('#','');
-  if (h.length < 6) return '';
-  const r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
-  const rf=r/255, gf=g/255, bf=b/255;
-  const max=Math.max(rf,gf,bf), min=Math.min(rf,gf,bf), l=(max+min)/2;
-  if (max===min) { return l<0.18?'nero':l>0.86?'bianco':'neutro'; }
-  const d=max-min, s=l>0.5?d/(2-max-min):d/(max+min);
+// HSL(+croma) da hex. La saturazione HSL "esplode" vicino a bianco/nero →
+// per le zone spente/neutre usiamo la CROMA (c = max-min), non la s HSL.
+function hexHSLc(hexStr){
+  let h=String(hexStr||'').replace('#','').trim();
+  if(h.length===3) h=h.split('').map(c=>c+c).join('');
+  if(h.length<6) return null;
+  const r=parseInt(h.slice(0,2),16)/255, g=parseInt(h.slice(2,4),16)/255, b=parseInt(h.slice(4,6),16)/255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b), l=(max+min)/2, ch=max-min;
+  if(ch===0) return {h:0,s:0,l,c:0};
+  const s=l>0.5?ch/(2-max-min):ch/(max+min);
   let hue=0;
-  if(max===rf) hue=((gf-bf)/d+(gf<bf?6:0));
-  else if(max===gf) hue=(bf-rf)/d+2;
-  else hue=(rf-gf)/d+4;
-  hue=hue/6*360;
-  if (s<0.13) { return l<0.18?'nero':l>0.86?'bianco':l<0.5&&hue>28&&hue<65?'beige':'neutro'; }
-  if (hue<18||hue>=345) return 'rosso';
-  if (hue<40) return 'arancio';
-  if (hue<65) return 'giallo';
-  if (hue<150) return 'verde';
-  if (hue<195) return 'azzurro';
-  if (hue<260) return 'blu';
-  if (hue<290) return 'viola';
-  if (hue<325) return 'rosa';
-  return 'rosso';
+  if(max===r) hue=((g-b)/ch+(g<b?6:0));
+  else if(max===g) hue=(b-r)/ch+2;
+  else hue=(r-g)/ch+4;
+  return {h:hue/6*360, s, l, c:ch};
 }
+function guessFamily(hexStr) {
+  const co=hexHSLc(hexStr); if(!co) return '';
+  const {h,l,c}=co;
+  if(c<0.06) return l<0.15?'nero':l>0.90?'bianco':'grigio';   // asse grigio puro
+  if(l>0.85 && c<0.16) return 'neutro';                       // bianco sporco / tinta pallidissima
+  if(l<0.12) return 'nero';
+  if(h>=18 && h<70 && c<0.33) return l<0.5?'marrone':'beige'; // caldo spento
+  if(c<0.14) return 'grigio';                                 // poca croma, non caldo
+  if(h<15||h>=346) return 'rosso';
+  if(h<45)  return l<0.42?'marrone':'arancio';                // arancio scuro/spento → marrone
+  if(h<66)  return l<0.38?'marrone':'giallo';                 // giallo scuro → bruno
+  if(h<150) return 'verde';
+  if(h<195) return 'azzurro';
+  if(h<255) return 'blu';
+  if(h<300) return 'viola';
+  return 'rosa';                                              // 300..346
+}
+// Attributi catalogo dedotti dall'HEX (solo suggerimenti — l'utente conferma)
+function classifyTone(hexStr){ const c=hexHSLc(hexStr); if(!c) return ''; return c.l>=0.66?'chiaro':(c.l<=0.36?'scuro':'medio'); }
+function classifyIntensity(hexStr){ const c=hexHSLc(hexStr); if(!c) return ''; return (c.s>=0.55 && c.c>=0.25)?'intenso':'tenue'; }
+function isPastelHex(hexStr){ const c=hexHSLc(hexStr); if(!c) return false; return c.l>=0.72 && c.c>=0.05 && c.c<=0.30; }
+function isFluoHex(hexStr){ const c=hexHSLc(hexStr); if(!c) return false; return c.s>=0.80 && c.c>=0.55 && c.l>=0.50 && c.l<=0.72; }
 
 function InkSearchField({value, onChange, options, style, onConfirm}) {
   const [q, setQ] = React.useState(value||'');
@@ -5331,24 +5365,87 @@ const IcoDocPlus=({size=18,color='currentColor'})=>(<svg width={size} height={si
 const IcoList=({size=18,color='currentColor'})=>(<svg width={size} height={size} viewBox="0 0 23.4906 18.2316" fill={color}><path d="M3.20351 18.2316L19.9258 18.2316C22.0416 18.2316 23.1293 17.1519 23.1293 15.0682L23.1293 3.17499C23.1293 1.08945 22.0416 0.00351548 19.9258 0.00351548L3.20351 0.00351548C1.0957 0.00351548 0 1.08945 0 3.17499L0 15.0682C0 17.1519 1.0957 18.2316 3.20351 18.2316ZM3.31444 16.3184C2.40643 16.3184 1.91327 15.8482 1.91327 14.8994L1.91327 3.34198C1.91327 2.39315 2.40643 1.91678 3.31444 1.91678L19.8148 1.91678C20.7149 1.91678 21.216 2.39315 21.216 3.34198L21.216 14.8994C21.216 15.8482 20.7149 16.3184 19.8148 16.3184Z"/><path d="M4.89433 5.60897C5.4039 5.60897 5.80604 5.20057 5.80604 4.70077C5.80604 4.19296 5.4039 3.79081 4.89433 3.79081C4.40429 3.79081 3.98436 4.20272 3.98436 4.70077C3.98436 5.19081 4.40429 5.60897 4.89433 5.60897Z"/><path d="M7.69765 5.3246L18.5479 5.3246C18.9135 5.3246 19.1895 5.04686 19.1895 4.70077C19.1895 4.34667 18.902 4.06093 18.5479 4.06093L7.69765 4.06093C7.34355 4.06093 7.05781 4.34667 7.05781 4.70077C7.05781 5.04686 7.33378 5.3246 7.69765 5.3246Z"/><path d="M4.89433 8.50761C5.4039 8.50761 5.80604 8.09394 5.80604 7.59589C5.80604 7.08808 5.4039 6.68593 4.89433 6.68593C4.40429 6.68593 3.98436 7.09609 3.98436 7.59589C3.98436 8.08593 4.40429 8.50761 4.89433 8.50761Z"/><path d="M7.69765 8.22948L13.7695 8.22948C14.1156 8.22948 14.4031 7.94198 14.4031 7.59589C14.4031 7.2498 14.1191 6.95429 13.7695 6.95429L7.69765 6.95429C7.34179 6.95429 7.05781 7.2498 7.05781 7.59589C7.05781 7.94198 7.34355 8.22948 7.69765 8.22948Z"/><path d="M4.89433 11.3912C5.4039 11.3912 5.80604 10.9908 5.80604 10.4812C5.80604 9.9832 5.40565 9.58105 4.89433 9.58105C4.39452 9.58105 3.98436 9.99121 3.98436 10.4812C3.98436 10.9908 4.39452 11.3912 4.89433 11.3912Z"/><path d="M7.69765 11.1228L18.5479 11.1228C18.9135 11.1228 19.1895 10.8434 19.1895 10.4812C19.1895 10.1334 18.9135 9.85918 18.5479 9.85918L7.69765 9.85918C7.33378 9.85918 7.05781 10.1334 7.05781 10.4812C7.05781 10.8434 7.33378 11.1228 7.69765 11.1228Z"/><path d="M4.89433 14.4311C5.4039 14.4311 5.80604 14.0209 5.80604 13.5211C5.80604 13.0115 5.4039 12.6031 4.89433 12.6031C4.40429 12.6031 3.98436 13.023 3.98436 13.5211C3.98436 14.0111 4.40429 14.4311 4.89433 14.4311Z"/><path d="M7.69765 14.1529L13.7695 14.1529C14.1156 14.1529 14.4031 13.8672 14.4031 13.5211C14.4031 13.167 14.1271 12.8875 13.7695 12.8875L7.69765 12.8875C7.33378 12.8875 7.05781 13.167 7.05781 13.5211C7.05781 13.8672 7.34355 14.1529 7.69765 14.1529Z"/></svg>);
 const IcoStack=({size=18,color='currentColor'})=>(<svg width={size} height={size} viewBox="0 0 24.1775 25.2707" fill={color}><path d="M18.0952 2.88261L5.72099 2.88261C5.75663 2.04585 6.28265 1.56055 7.15234 1.56055L16.6639 1.56055C17.5336 1.56055 18.0596 2.04585 18.0952 2.88261Z"/><path d="M20.07 5.78717C19.7399 5.73352 19.3903 5.70644 19.0228 5.70644L4.79335 5.70644C4.42595 5.70644 4.07642 5.73351 3.74638 5.78715C3.85387 4.80443 4.52056 4.24765 5.59745 4.24765L18.2268 4.24765C19.3037 4.24765 19.9637 4.80444 20.07 5.78717Z"/><path d="M4.79335 23.6826L19.0228 23.6826C21.1307 23.6826 22.2264 22.5949 22.2264 20.5111L22.2264 10.4678C22.2264 8.38221 21.1307 7.29628 19.0228 7.29628L4.79335 7.29628C2.68379 7.29628 1.58984 8.38221 1.58984 10.4678L1.58984 20.5111C1.58984 22.5949 2.68379 23.6826 4.79335 23.6826ZM4.91229 21.7693C4.00428 21.7693 3.50311 21.293 3.50311 20.3424L3.50311 10.6347C3.50311 9.68592 4.00428 9.20955 4.91229 9.20955L18.9119 9.20955C19.8039 9.20955 20.3131 9.68592 20.3131 10.6347L20.3131 20.3424C20.3131 21.293 19.8039 21.7693 18.9119 21.7693Z"/></svg>);
 function sperimInks(s){ const out=[]; for(let i=1;i<=6;i++){ const nm=s['Inchiostro_'+i]; if(nm) out.push({name:String(nm),real:parseFloat(String(s['Dose_reale_'+i]||'').replace(',','.'))||0,g40:parseFloat(String(s['Dose_40g_'+i]||'').replace(',','.'))||0}); } return out; }
+
+// ── ID esperimenti: SIGLA[contatore]-ddmmyy+LETTERA ────────────────────────
+// La lettera = variazione della stessa ricetta (A,B,C…). Il contatore (RED2)
+// distingue due colori DIVERSI della stessa famiglia nello stesso giorno.
+function parseSperimId(id){
+  const m=/^([A-Z]+?)(\d*)-(\d{6})([A-Z])$/.exec(String(id||'').trim());
+  if(!m) return null;
+  return {sigla:m[1], counter:m[2]?parseInt(m[2],10):1, date:m[3], letter:m[4]};
+}
+function _idStr(sigla,counter,date,letter){ return sigla+(counter===1?'':String(counter))+'-'+date+letter; }
+function todayBase(){ const d=new Date(); return String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')+String(d.getFullYear()).slice(-2); }
+// nuovo colore distinto della famiglia famKey, oggi = dateBase
+function nextNewSperimId(famKey, list, dateBase){
+  const fam=FAM_BY_KEY[famKey]; if(!fam) return '';
+  const used=new Set();
+  (list||[]).forEach(s=>{const p=parseSperimId(s.Sperim_ID); if(p&&p.sigla===fam.en&&p.date===dateBase) used.add(p.counter);});
+  let c=1; while(used.has(c)) c++;
+  return _idStr(fam.en,c,dateBase,'A');
+}
+// variazione di un colore esistente: stessa sigla+contatore+data, prossima lettera libera
+function nextVariationSperimId(parentId, list){
+  const p=parseSperimId(parentId); if(!p) return null;
+  const letters=new Set();
+  (list||[]).forEach(s=>{const q=parseSperimId(s.Sperim_ID); if(q&&q.sigla===p.sigla&&q.counter===p.counter&&q.date===p.date) letters.add(q.letter);});
+  for(let i=0;i<26;i++){const L=String.fromCharCode(65+i); if(!letters.has(L)) return _idStr(p.sigla,p.counter,p.date,L);}
+  return _idStr(p.sigla,p.counter,p.date,'Z');
+}
+// attributi catalogo di un esperimento (da campi salvati, con fallback dedotto da HEX / ID)
+function sperimAttrs(s){
+  const hex=String(s.HEX||'').trim();
+  const famFromId=(()=>{const p=parseSperimId(s.Sperim_ID); return p&&FAM_BY_EN[p.sigla]?FAM_BY_EN[p.sigla].key:'';})();
+  const fam=s.Famiglia || (hex?guessFamily(hex):'') || famFromId;
+  return {
+    hex,
+    fam,
+    tone: s.Tone || (hex?classifyTone(hex):''),
+    intensity: s.Intensity || (hex?classifyIntensity(hex):''),
+    fluo: s.Fluo?true:(hex?isFluoHex(hex):false),
+    pastel: s.Pastel?true:(hex?isPastelHex(hex):false),
+  };
+}
 function EsperimentiPage(){
   const [tab,setTab]=React.useState('nuovo');
   const [rows,setRows]=React.useState(null);
   const [progetto,setProgetto]=React.useState('');
+  const [artista,setArtista]=React.useState('');
   const [note,setNote]=React.useState('');
+  const [hex,setHex]=React.useState('');
+  const [famiglia,setFamiglia]=React.useState('');
+  const [tone,setTone]=React.useState('');
+  const [intensity,setIntensity]=React.useState('');
+  const [fluo,setFluo]=React.useState(false);
+  const [pastel,setPastel]=React.useState(false);
+  const [variationParent,setVariationParent]=React.useState(null);
   const [inks,setInks]=React.useState([{id:1,name:'',g:'',locked:false},{id:2,name:'',g:'',locked:false}]);
   const idRef=React.useRef(3);
   const [saving,setSaving]=React.useState(false);
   const [msg,setMsg]=React.useState('');
-  const [sperimId,setSperimId]=React.useState('');
   const [savedId,setSavedId]=React.useState(null);
   const ink='#0B0B0B', sub='rgba(11,11,11,0.55)', faint='rgba(11,11,11,0.4)', line='rgba(11,11,11,0.12)', accent='#5856D6';
   const back=()=>{ window.location.href=window.location.pathname; };
   const inkOpts=React.useMemo(()=>allInchiostri.map(x=>x.Codice).filter(Boolean),[]);
-  const computeId=(list)=>{ const d=new Date(); const base=String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')+String(d.getFullYear()).slice(-2);
-    const used=(list||allSperimentazioni).map(s=>String(s.Sperim_ID||'')).filter(x=>x.startsWith(base));
-    for(let i=0;i<26;i++){ const L=String.fromCharCode(65+i); if(!used.includes(base+L)) return base+L; } return base+'Z'; };
-  React.useEffect(()=>{ loadSperimentazioni().then(l=>{ setRows(l||[]); setSperimId(computeId(l||[])); }).catch(()=>{ setRows([]); setSperimId(computeId([])); }); },[]);
+  React.useEffect(()=>{ loadSperimentazioni().then(l=>{ setRows(l||[]); }).catch(()=>{ setRows([]); }); },[]);
+
+  // ID derivato: variazione → prossima lettera del colore-padre · nuovo → dalla famiglia
+  const sperimId=React.useMemo(()=>{
+    if(variationParent) return nextVariationSperimId(variationParent, allSperimentazioni)||'';
+    if(famiglia) return nextNewSperimId(famiglia, allSperimentazioni, todayBase());
+    return '';
+  },[variationParent, famiglia, rows]);
+
+  // Auto-suggerimento attributi quando arriva un HEX valido (l'utente può correggere)
+  React.useEffect(()=>{
+    const clean=hex.replace('#','').trim();
+    if(clean.length<3) return;
+    const H='#'+clean;
+    const t=classifyTone(H); if(t) setTone(t);
+    const it=classifyIntensity(H); if(it) setIntensity(it);
+    setFluo(isFluoHex(H)); setPastel(isPastelHex(H));
+    setFamiglia(f=>f||guessFamily(H));
+  },[hex]);
 
   const solved=solve40(inks);
   const setInk=(id,patch)=>setInks(a=>a.map(r=>r.id===id?{...r,...patch}:r));
@@ -5356,27 +5453,38 @@ function EsperimentiPage(){
   const delInk=id=>setInks(a=>a.length>1?a.filter(r=>r.id!==id):a);
   const normalizza=()=>{ setInks(a=>a.map((r,i)=>({...r,g:String(Math.round(solved.rows[i].g40*100)/100)}))); };
   const fmt=g=>{const n=Math.round(g*100)/100; return n%1===0?n.toFixed(0):n.toFixed(2);};
+  const resetColore=()=>{ setInks([{id:idRef.current++,name:'',g:'',locked:false},{id:idRef.current++,name:'',g:'',locked:false}]); setProgetto(''); setArtista(''); setNote(''); setHex(''); setFamiglia(''); setTone(''); setIntensity(''); setFluo(false); setPastel(false); setVariationParent(null); setSavedId(null); setMsg(''); };
 
   const salva=async()=>{
+    if(!sperimId){ setMsg('Scegli una famiglia per generare l’ID.'); return; }
     const valid=inks.map((k,i)=>({name:k.name.trim(),real:solved.rows[i].real,g40:solved.rows[i].g40})).filter(k=>k.name&&k.real>0);
     if(valid.length<1){ setMsg('Aggiungi almeno un inchiostro con la dose.'); return; }
     if(solved.invalid){ setMsg('I bloccati superano 40 g — sblocca qualcosa.'); return; }
     setSaving(true); setMsg('');
-    const ts=new Date().toISOString();
-    const payload={action:'addSperimentazione',sperim_id:sperimId,timestamp:ts,progetto,note,stato:'Aperta',
+    const newId=sperimId, ts=new Date().toISOString();
+    const hx=hex.replace('#','').trim(); const HX=hx.length>=3?('#'+hx):'';
+    const payload={action:'addSperimentazione',sperim_id:newId,timestamp:ts,progetto,artista,note,stato:'Aperta',
+      hex:HX,famiglia,tone,intensity,fluo:fluo?'1':'',pastel:pastel?'1':'',
       inchiostri:valid.map(k=>k.name),dose_reali:valid.map(k=>Math.round(k.real*100)/100),dose_40g:valid.map(k=>Math.round(k.g40*100)/100)};
     try{ await postGAS(payload);
-      const rec={Sperim_ID:sperimId,Timestamp:ts,Progetto:progetto,Note:note,Stato:'Aperta'};
+      const rec={Sperim_ID:newId,Timestamp:ts,Progetto:progetto,Artista:artista,Note:note,Stato:'Aperta',
+        HEX:HX,Famiglia:famiglia,Tone:tone,Intensity:intensity,Fluo:fluo?'1':'',Pastel:pastel?'1':''};
       valid.forEach((k,i)=>{rec['Inchiostro_'+(i+1)]=k.name;rec['Dose_reale_'+(i+1)]=payload.dose_reali[i];rec['Dose_40g_'+(i+1)]=payload.dose_40g[i];});
       allSperimentazioni.push(rec); setRows([...allSperimentazioni]);
-      // resta nel composer, pronto a incatenare la variazione successiva (inchiostri tenuti)
-      setSavedId(sperimId); setSperimId(computeId(allSperimentazioni)); setMsg('');
+      // resta nel composer, incatena la variazione successiva dello STESSO colore (lettera +1)
+      setSavedId(newId); setVariationParent(newId); setMsg('');
     }catch(e){ setMsg('Errore di salvataggio.'); }
     setSaving(false);
   };
-  const variazione=(s)=>{ const ni=sperimInks(s).map(k=>({id:idRef.current++,name:k.name,g:String(k.real||k.g40||''),locked:false})); if(ni.length){ setInks(ni); setProgetto(s.Progetto||''); setNote('da '+s.Sperim_ID); setSperimId(computeId(allSperimentazioni)); setSavedId(null); setTab('nuovo'); window.scrollTo(0,0); } };
+  const variazione=(s)=>{ const at=sperimAttrs(s); const ni=sperimInks(s).map(k=>({id:idRef.current++,name:k.name,g:String(k.real||k.g40||''),locked:false}));
+    if(ni.length){ setInks(ni); setProgetto(s.Progetto||''); setArtista(s.Artista||''); setNote('da '+s.Sperim_ID);
+      setHex(at.hex?at.hex.replace('#',''):''); setFamiglia(at.fam||''); setTone(at.tone||''); setIntensity(at.intensity||''); setFluo(!!at.fluo); setPastel(!!at.pastel);
+      setVariationParent(s.Sperim_ID); setSavedId(null); setTab('nuovo'); window.scrollTo(0,0); } };
 
   const inp={width:'100%',boxSizing:'border-box',border:`1.5px solid ${line}`,borderRadius:14,padding:'14px 16px',fontSize:17,fontFamily:'Nebulica',background:'#fff',outline:'none',color:ink};
+  const seg=(on)=>({flex:1,height:46,borderRadius:12,cursor:'pointer',border:on?`2px solid ${ink}`:`1.5px solid ${line}`,background:on?ink:'#fff',color:on?'#fff':ink,fontFamily:'Nebulica',fontWeight:700,fontSize:15});
+  const toggle=(on,c)=>({flex:1,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:7,height:46,borderRadius:12,cursor:'pointer',border:on?`2px solid ${c}`:`1.5px solid ${line}`,background:on?rgba(c,0.12):'#fff',color:on?c:sub,fontFamily:'Nebulica',fontWeight:700,fontSize:15});
+  const lbl={fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:1.2,color:faint,margin:'14px 2px 8px'};
   const okA40=Math.abs(solved.rows.reduce((s,r)=>s+r.g40,0)-40)<0.05 && !solved.invalid;
 
   return (
@@ -5400,21 +5508,72 @@ function EsperimentiPage(){
             {savedId&&(
               <div style={{background:'rgba(31,138,91,0.10)',border:'1px solid rgba(31,138,91,0.32)',borderRadius:16,padding:'14px 16px',margin:'6px 0 16px'}}>
                 <div style={{fontFamily:'Nebulica',fontWeight:700,fontSize:15,color:'#1F8A5B'}}>✓ {savedId} salvato</div>
-                <div style={{fontFamily:'Nebulica',fontSize:13.5,color:sub,marginTop:4,lineHeight:1.45}}>Stai preparando <b style={{color:ink}}>{sperimId}</b> come variazione: modifica le dosi e premi Salva. Oppure:</div>
+                <div style={{fontFamily:'Nebulica',fontSize:13.5,color:sub,marginTop:4,lineHeight:1.45}}>Stai preparando <b style={{color:ink}}>{sperimId}</b> — variazione dello stesso colore: modifica le dosi e premi Salva. Oppure:</div>
                 <div style={{display:'flex',gap:8,marginTop:12}}>
-                  <button onClick={()=>{ setInks([{id:idRef.current++,name:'',g:'',locked:false},{id:idRef.current++,name:'',g:'',locked:false}]); setProgetto(''); setNote(''); setSavedId(null); }} style={{flex:1,height:46,borderRadius:12,border:`1.5px solid ${ink}`,background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>+ Nuovo vuoto</button>
+                  <button onClick={resetColore} style={{flex:1,height:46,borderRadius:12,border:`1.5px solid ${ink}`,background:'transparent',color:ink,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>+ Nuovo colore</button>
                   <button onClick={()=>{ setSavedId(null); setTab('lista'); }} style={{flex:1,height:46,borderRadius:12,border:`1.5px solid ${line}`,background:'transparent',color:sub,fontFamily:'Nebulica',fontWeight:700,fontSize:14,cursor:'pointer'}}>Vai all'Archivio</button>
                 </div>
               </div>
             )}
-            <div style={{display:'flex',alignItems:'baseline',gap:10,margin:'6px 2px 14px'}}>
+            <div style={{display:'flex',alignItems:'baseline',gap:10,margin:'6px 2px 12px'}}>
               <span style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:1.2,color:faint}}>ID</span>
-              <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,fontSize:26,color:ink,letterSpacing:1}}>{sperimId}</span>
-              <span style={{fontFamily:'Nebulica',fontSize:12,color:faint}}>{savedId?'variazione':'generato dalla data'}</span>
+              {sperimId
+                ? <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,fontSize:26,color:ink,letterSpacing:1}}>{sperimId}</span>
+                : <span style={{fontFamily:'Nebulica',fontSize:16,color:faint,fontStyle:'italic'}}>scegli una famiglia ↓</span>}
+              {sperimId&&<span style={{fontFamily:'Nebulica',fontSize:12,color:faint}}>{variationParent?'variazione':'nuovo colore'}</span>}
             </div>
-            <input value={progetto} onChange={e=>setProgetto(e.target.value)} placeholder="Progetto (facoltativo)" style={{...inp,marginBottom:10}}/>
 
-            <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:1.2,color:faint,margin:'10px 2px 8px'}}>INCHIOSTRI — DOSE PESATA (g)</div>
+            {/* ── IDENTITÀ COLORE ── */}
+            <div style={{...lbl,marginTop:2}}>FAMIGLIA {!variationParent&&<span style={{color:'#E4002B'}}>*</span>}</div>
+            {variationParent ? (
+              <div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'9px 14px',borderRadius:99,background:'#fff',border:`1.5px solid ${line}`}}>
+                <span style={{width:14,height:14,borderRadius:99,background:(FAM_BY_KEY[famiglia]?FAM_BY_KEY[famiglia].dot:'#ccc'),boxShadow:'inset 0 0 0 1px rgba(0,0,0,0.14)'}}/>
+                <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:14,color:ink}}>{FAM_BY_KEY[famiglia]?FAM_BY_KEY[famiglia].it:'—'}</span>
+                <span style={{fontFamily:'Nebulica',fontSize:12,color:faint}}>ereditata dalla ricetta</span>
+              </div>
+            ) : (
+              <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
+                {COLOR_FAMILIES.map(f=>{const on=f.key===famiglia; return (
+                  <button key={f.key} onClick={()=>setFamiglia(f.key)} style={{display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:99,cursor:'pointer',border:on?`2px solid ${ink}`:`1.5px solid ${line}`,background:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:13,color:ink}}>
+                    <span style={{width:14,height:14,borderRadius:99,background:f.dot,boxShadow:'inset 0 0 0 1px rgba(0,0,0,0.14)'}}/>{f.it}
+                  </button>
+                );})}
+              </div>
+            )}
+
+            <div style={{display:'flex',alignItems:'center',gap:10,margin:'14px 0 4px'}}>
+              <span style={{width:46,height:46,borderRadius:12,flexShrink:0,background:hex.replace('#','').length>=3?('#'+hex.replace('#','')):'#fff',border:`1.5px solid ${line}`}}/>
+              <div style={{position:'relative',flex:1}}>
+                <span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',fontFamily:'"JetBrains Mono",monospace',fontWeight:700,color:faint,pointerEvents:'none'}}>#</span>
+                <input value={hex} onChange={e=>setHex(e.target.value.replace('#','').slice(0,6))} placeholder="HEX (se lo hai da un file digitale)" style={{...inp,padding:'12px 14px 12px 30px'}}/>
+              </div>
+            </div>
+            <div style={{fontFamily:'Nebulica',fontSize:12,color:faint,margin:'0 2px 2px',lineHeight:1.45}}>Con l'HEX, tono/intensità/fluo/pastel sono suggeriti in automatico — correggili a mano se serve.</div>
+
+            <div style={lbl}>TONO</div>
+            <div style={{display:'flex',gap:6}}>
+              {[['chiaro','Chiaro'],['medio','Medio'],['scuro','Scuro']].map(([k,l])=>(
+                <button key={k} onClick={()=>setTone(tone===k?'':k)} style={seg(tone===k)}>{l}</button>
+              ))}
+            </div>
+            <div style={lbl}>INTENSITÀ</div>
+            <div style={{display:'flex',gap:6}}>
+              {[['intenso','Intenso'],['tenue','Tenue']].map(([k,l])=>(
+                <button key={k} onClick={()=>setIntensity(intensity===k?'':k)} style={seg(intensity===k)}>{l}</button>
+              ))}
+            </div>
+            <div style={{display:'flex',gap:8,marginTop:12}}>
+              <button onClick={()=>setFluo(!fluo)} style={toggle(fluo,'#E8007D')}>⚡ Fluo</button>
+              <button onClick={()=>setPastel(!pastel)} style={toggle(pastel,'#7A3FB0')}>◐ Pastel</button>
+            </div>
+
+            <div style={{display:'flex',gap:10,margin:'16px 0 4px'}}>
+              <input value={progetto} onChange={e=>setProgetto(e.target.value)} placeholder="Progetto" style={{...inp,flex:1,minWidth:0}}/>
+              <input value={artista} onChange={e=>setArtista(e.target.value)} placeholder="Artista" style={{...inp,flex:1,minWidth:0}}/>
+            </div>
+            <div style={{fontFamily:'Nebulica',fontSize:12,color:faint,margin:'0 2px 4px'}}>Progetto e artista restano nel database e seguono il colore se lo promuovi a Pantone.</div>
+
+            <div style={{fontFamily:'Nebulica',fontSize:12,fontWeight:700,letterSpacing:1.2,color:faint,margin:'16px 2px 8px'}}>INCHIOSTRI — DOSE PESATA (g)</div>
             {inks.map((r,i)=>{ const g40=solved.rows[i].g40;
               return (
                 <div key={r.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
@@ -5452,15 +5611,20 @@ function EsperimentiPage(){
           <>
             {rows===null&&<div style={{padding:'40px 0',textAlign:'center',color:faint,fontFamily:'Nebulica',fontSize:15}}>Carico…</div>}
             {rows!==null&&rows.length===0&&<div style={{padding:'40px 10px',textAlign:'center',color:sub,fontFamily:'Nebulica',fontSize:15,lineHeight:1.5}}>Nessun esperimento ancora.<br/>Creane uno dalla scheda "Nuovo".</div>}
-            {rows!==null&&[...rows].sort((a,b)=>String(b.Sperim_ID).localeCompare(String(a.Sperim_ID))).map(s=>{ const its=sperimInks(s); const promoted=(s.Stato||'').toLowerCase().indexOf('promoss')>=0;
+            {rows!==null&&[...rows].sort((a,b)=>String(b.Sperim_ID).localeCompare(String(a.Sperim_ID))).map(s=>{ const its=sperimInks(s); const promoted=(s.Stato||'').toLowerCase().indexOf('promoss')>=0; const at=sperimAttrs(s); const chips=[at.tone&&({t:at.tone,c:sub}),at.intensity&&({t:at.intensity,c:sub}),at.fluo&&({t:'⚡ fluo',c:'#E8007D'}),at.pastel&&({t:'◐ pastel',c:'#7A3FB0'})].filter(Boolean);
               return (
                 <div key={s.Sperim_ID} style={{background:'#fff',borderRadius:18,border:`1px solid ${line}`,padding:'16px 18px',marginBottom:12}}>
-                  <div style={{display:'flex',alignItems:'baseline',gap:10,marginBottom:10}}>
+                  <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:8}}>
+                    {at.fam&&FAM_BY_KEY[at.fam]&&<span title={FAM_BY_KEY[at.fam].it} style={{width:16,height:16,borderRadius:99,flexShrink:0,background:FAM_BY_KEY[at.fam].dot,boxShadow:'inset 0 0 0 1px rgba(0,0,0,0.14)'}}/>}
                     <span style={{fontFamily:'"JetBrains Mono",monospace',fontWeight:700,fontSize:20,color:ink,letterSpacing:0.5}}>{s.Sperim_ID}</span>
                     {s.Progetto&&<span style={{fontFamily:'Nebulica',fontSize:13,color:sub}}>{s.Progetto}</span>}
+                    {s.Artista&&<span style={{fontFamily:'Nebulica',fontSize:12,color:faint}}>· {s.Artista}</span>}
                     <div style={{flex:1}}/>
                     <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:11,color:promoted?'#1F8A5B':'#B26A00',background:promoted?'rgba(31,138,91,0.1)':'rgba(178,106,0,0.1)',padding:'4px 10px',borderRadius:99}}>{promoted?('✓ '+(s.Pantone_ID_assegnato||'promosso')):'aperto'}</span>
                   </div>
+                  {chips.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
+                    {chips.map((c,ci)=><span key={ci} style={{fontFamily:'Nebulica',fontWeight:700,fontSize:11,textTransform:'capitalize',color:c.c,background:rgba(c.c,0.10),padding:'3px 9px',borderRadius:99}}>{c.t}</span>)}
+                  </div>}
                   {its.map((it,idx)=>(
                     <div key={idx} style={{display:'flex',alignItems:'center',gap:10,padding:'5px 0'}}>
                       <span style={{fontFamily:'Nebulica',fontWeight:700,fontSize:13,background:ink,color:'#fff',padding:'4px 10px',borderRadius:99,minWidth:52,textAlign:'center'}}>{it.name}</span>

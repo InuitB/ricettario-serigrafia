@@ -456,35 +456,55 @@ function addSperimentazione(data) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   let sperim = ss.getSheetByName('Sperimentazioni');
 
+  const BASE_HEADERS = [
+    'Sperim_ID','Timestamp','Progetto','Note','Stato','Pantone_ID_assegnato',
+    'Inchiostro_1','Inchiostro_2','Inchiostro_3','Inchiostro_4','Inchiostro_5','Inchiostro_6',
+    'Dose_reale_1','Dose_reale_2','Dose_reale_3','Dose_reale_4','Dose_reale_5','Dose_reale_6',
+    'Dose_40g_1','Dose_40g_2','Dose_40g_3','Dose_40g_4','Dose_40g_5','Dose_40g_6',
+    'HEX','Famiglia','Tone','Intensity','Fluo','Pastel','Artista'
+  ];
+
   // Crea il foglio se non esiste ancora
   if (!sperim) {
     sperim = ss.insertSheet('Sperimentazioni');
-    sperim.appendRow([
-      'Sperim_ID','Timestamp','Progetto','Note','Stato','Pantone_ID_assegnato',
-      'Inchiostro_1','Inchiostro_2','Inchiostro_3','Inchiostro_4','Inchiostro_5','Inchiostro_6',
-      'Dose_reale_1','Dose_reale_2','Dose_reale_3','Dose_reale_4','Dose_reale_5','Dose_reale_6',
-      'Dose_40g_1','Dose_40g_2','Dose_40g_3','Dose_40g_4','Dose_40g_5','Dose_40g_6'
-    ]);
+    sperim.appendRow(BASE_HEADERS);
   }
 
-  const inchiostri  = data.inchiostri  || [];
-  const doseReali   = data.dose_reali  || [];
-  const dose40g     = data.dose_40g    || [];
+  // Assicura che tutte le colonne (incluse le nuove catalogo) esistano nell'intestazione
+  let headers = sperim.getRange(1, 1, 1, Math.max(1, sperim.getLastColumn())).getValues()[0].map(String);
+  const missing = BASE_HEADERS.filter(function(h){ return headers.indexOf(h) === -1; });
+  if (missing.length) {
+    sperim.getRange(1, headers.length + 1, 1, missing.length).setValues([missing]);
+    headers = headers.concat(missing);
+  }
 
-  sperim.appendRow([
-    data.sperim_id        || '',
-    data.timestamp        || new Date().toISOString(),
-    data.progetto         || '',
-    data.note             || '',
-    data.stato            || 'Aperta',
-    data.pantone_id_assegnato || '',
-    inchiostri[0] || '', inchiostri[1] || '', inchiostri[2] || '',
-    inchiostri[3] || '', inchiostri[4] || '', inchiostri[5] || '',
-    doseReali[0]  || '', doseReali[1]  || '', doseReali[2]  || '',
-    doseReali[3]  || '', doseReali[4]  || '', doseReali[5]  || '',
-    dose40g[0]    || '', dose40g[1]    || '', dose40g[2]    || '',
-    dose40g[3]    || '', dose40g[4]    || '', dose40g[5]    || ''
-  ]);
+  const inchiostri = data.inchiostri || [];
+  const doseReali  = data.dose_reali || [];
+  const dose40g    = data.dose_40g   || [];
+
+  const vals = {
+    'Sperim_ID': data.sperim_id || '',
+    'Timestamp': data.timestamp || new Date().toISOString(),
+    'Progetto':  data.progetto  || '',
+    'Note':      data.note      || '',
+    'Stato':     data.stato     || 'Aperta',
+    'Pantone_ID_assegnato': data.pantone_id_assegnato || '',
+    'HEX':       data.hex       || '',
+    'Famiglia':  data.famiglia  || '',
+    'Tone':      data.tone      || '',
+    'Intensity': data.intensity || '',
+    'Fluo':      data.fluo      || '',
+    'Pastel':    data.pastel    || '',
+    'Artista':   data.artista   || ''
+  };
+  for (var i = 0; i < 6; i++) {
+    vals['Inchiostro_' + (i + 1)] = inchiostri[i] || '';
+    vals['Dose_reale_' + (i + 1)] = (doseReali[i] != null ? doseReali[i] : '');
+    vals['Dose_40g_'   + (i + 1)] = (dose40g[i]   != null ? dose40g[i]   : '');
+  }
+
+  const row = headers.map(function(h){ return (h in vals) ? vals[h] : ''; });
+  sperim.appendRow(row);
 
   return { ok: true };
 }
