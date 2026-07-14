@@ -6228,6 +6228,9 @@ function TransferDetail({formula,linkedRecipe,isDiscarded,onToggleDiscard,onImpo
         })}
       </div>
 
+      {/* Mescola: scala gli inchiostri dal magazzino (utile per formule Monday senza barattolo) */}
+      <TransferMescola formula={formula} lang={lang}/>
+
       {/* Confronto formula: Monday vs ricetta collegata (solo se già in app) */}
       {linkedRecipe&&allCompCodes.length>0&&(
         <div style={{marginBottom:22,borderRadius:14,padding:'16px 18px',background:'rgba(34,197,94,0.06)',border:'1px solid rgba(34,197,94,0.2)'}}>
@@ -6345,6 +6348,47 @@ function TransferDetail({formula,linkedRecipe,isDiscarded,onToggleDiscard,onImpo
       <HexPickerSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} pantoneId={form.pantoneId.trim()} onSelect={h=>{const hh='#'+h.replace('#','');setF('hex',hh);const fam=guessFamily(hh);if(fam)setF('categoria',fam);setPickerOpen(false);}} currentHex={form.hex} theme={{panelAlt:'#F0EDE8'}}/>
       </>
     )}
+    </div>
+  );
+}
+
+// Mescola una formula Monday scalando gli inchiostri dal magazzino (registraMescola).
+// La quantità la sceglie l'utente (default 1000 g = un barattolo): grammi = dose/total × qty.
+function TransferMescola({formula, lang}){
+  const [qty,setQty]=React.useState(1000);
+  const [saving,setSaving]=React.useState(false);
+  const [done,setDone]=React.useState(false);
+  const Q=Math.max(0,parseFloat(String(qty).replace(',','.'))||0);
+  const tot=formula.total||formula.inks.reduce((s,i)=>s+(+i.dose||0),0)||1;
+  const rows=formula.inks.map(ink=>{ const grammi=(ink.dose/tot)*Q; const inv=allInventario.find(i=>i.inchiostro===ink.code); const disp=inv?(inv.grammi||0):0; return {code:ink.code,grammi,disp,ok:disp>=grammi}; });
+  const noStock=allInventario.length===0;
+  const anyInsuf=rows.some(r=>!r.ok);
+  const confirm=async()=>{ if(!Q||saving)return; setSaving(true);
+    try{ await postInventario({action:'registraMescola',pantone_id:formula.name,riferimento:'Trasferimenti · '+formula.name,qty:Q,inks:rows.map(r=>({inchiostro:r.code,grammi:r.grammi})),note:'mescola da Monday'});
+      setDone(true); setTimeout(()=>setDone(false),2400);
+    }catch(e){}
+    setSaving(false);
+  };
+  const lbl={fontFamily:'Nebulica',fontSize:9,letterSpacing:1.5,fontWeight:700,color:'rgba(0,0,0,0.38)'};
+  return (
+    <div style={{marginBottom:22,background:'rgba(88,86,214,0.05)',border:'1px solid rgba(88,86,214,0.18)',borderRadius:14,padding:'16px 18px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:12,flexWrap:'wrap'}}>
+        <div style={lbl}>{lang==='fr'?'MÉLANGER · DÉDUIRE DU STOCK':'MESCOLA · SCALA DAL MAGAZZINO'}</div>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          {[40,500,1000].map(v=>(<button key={v} onClick={()=>setQty(v)} style={{padding:'5px 10px',borderRadius:99,cursor:'pointer',fontFamily:'Nebulica',fontWeight:700,fontSize:11,border:Q===v?'1.5px solid #5856D6':'1.5px solid rgba(0,0,0,0.14)',background:Q===v?'rgba(88,86,214,0.12)':'#fff',color:Q===v?'#5856D6':'rgba(0,0,0,0.5)'}}>{v>=1000?(v/1000)+'kg':v+'g'}</button>))}
+          <input value={qty} onChange={e=>setQty(e.target.value)} type="number" step="1" style={{width:74,height:32,borderRadius:8,border:'1.5px solid rgba(0,0,0,0.18)',padding:'0 10px',fontFamily:'Nebulica',fontWeight:700,fontSize:13,textAlign:'right',boxSizing:'border-box',background:'#FAFAFA'}}/>
+          <span style={{fontFamily:'Nebulica',fontSize:12,color:'rgba(0,0,0,0.4)'}}>g</span>
+        </div>
+      </div>
+      {rows.map(r=>(
+        <div key={r.code} style={{display:'flex',alignItems:'center',gap:10,padding:'6px 0',borderTop:'1px solid rgba(0,0,0,0.06)'}}>
+          <div style={{fontFamily:'Nebulica',fontSize:11,fontWeight:700,background:'#0B0B0B',color:'#fff',padding:'3px 10px',borderRadius:99,minWidth:56,textAlign:'center',flexShrink:0}}>{r.code}</div>
+          <div style={{flex:1,fontFamily:'Nebulica',fontSize:13,fontWeight:700,color:'#0B0B0B'}}>{r.grammi.toFixed(1)}<span style={{fontSize:9,opacity:0.45,marginLeft:2}}>g</span></div>
+          <div style={{fontFamily:'Nebulica',fontSize:10,color:noStock?'rgba(0,0,0,0.35)':r.ok?'rgba(0,0,0,0.4)':'#E4002B',textAlign:'right'}}>{noStock?'magazzino non caricato':r.ok?`${r.disp.toFixed(0)}g → ${Math.max(0,r.disp-r.grammi).toFixed(0)}g`:`⚠ solo ${r.disp.toFixed(0)}g`}</div>
+        </div>
+      ))}
+      {anyInsuf&&!noStock&&<div style={{marginTop:10,fontFamily:'Nebulica',fontSize:11,color:'#E4002B'}}>{lang==='fr'?'Stock insuffisant sur au moins une encre. Tu peux confirmer quand même.':'Scorte insufficienti su almeno un inchiostro. Puoi comunque confermare.'}</div>}
+      <button onClick={confirm} disabled={saving||done||!Q} style={{marginTop:14,height:44,width:'100%',borderRadius:99,border:'none',cursor:(saving||!Q)?'default':'pointer',background:done?'#16A34A':'#5856D6',color:'#fff',fontFamily:'Nebulica',fontWeight:700,fontSize:14,opacity:(saving||!Q)?0.7:1,transition:'background .2s'}}>{done?(lang==='fr'?'✓ Stock mis à jour':'✓ Magazzino aggiornato'):saving?(lang==='fr'?'Déduction…':'Scalo dal magazzino…'):(lang==='fr'?'Mélanger et déduire du stock':'Mescola e scala dal magazzino')}</button>
     </div>
   );
 }
